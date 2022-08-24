@@ -1,106 +1,53 @@
-# import random
-#
-# def generateRandom(upper):
-#     """
-#
-#     :param upper: >= 0
-#     :return: int
-#     """
-#     r = random.randint(1, upper)
-#     return r
-#
-# def main():
-#     run = True
-#     num1 = generateRandom(10)
-#     num2 = generateRandom(10)
-#     result = num1 * num2
-#     while run:
-#         ans = input("What is " + str(num1) + " x " + str(num2) + "? ")
-#
-#         if ans.isdigit():
-#             if int(ans) == result:
-#                 print("Correct!")
-#                 run = False
-#             else:
-#                 print("Incorrect! Try again.")
-#
-#         else:
-#             print("Answer must be a positive number, try again.")
-#
-#
-# # global vars
-# times = 10
-#
-# for x in range(times):
-#     main()
-#
-
-
-#import cProfile
-#from cProfile import label
-import plotly.graph_objects as go
 import numpy as np
 
+import test2
+import test1
+import matplotlib.pyplot as plt
+import glob
 
+#test2.make_figure()
+
+
+
+filename = '/home/lennartgolks/Python/firstModelCheck/tropical.O3.xml'
+VMR_O3, height_values, pressure_values = test1.get_data(filename)
+
+#VMR_O3 = VMR_O3 #* 1e6 #get rid of ppm convert to molecule/m^3
+
+filedir = glob.glob('/home/lennartgolks/Python/firstModelCheck/HITRAN_o3_data/*.xsc')
+frequency = 117.389 #in GHz
+
+absorption_coeff , max_absorption, max_frequency = test1.get_absorption(frequency, filedir)
+#in cm^2/molecule
+sigma =  np.mean(absorption_coeff) * 1e-4
+
+tangent_ind = 0
+print(type(VMR_O3))
+#print(VMR_O3[3])
+#VMR_O3[3] = 0
+#[ print(i) for i in range(0, tangent_ind) ]
+for i in range(0, tangent_ind):
+    VMR_O3[i] = 0
 R = 6371
-h_t = R + 15
-h_max = R + 90
+h_tangent = height_values[tangent_ind] - 0.1
+h_max = height_values[-1]
 
-r_t = np.sqrt( (h_max + R)**2 - (h_t + R)**2 )
-v_max = (h_max + R)**2 - (h_t + R)**2
+r_t = np.sqrt((h_max + R) ** 2 - (h_tangent + R) ** 2)
 
+v_transf = [np.sqrt((heights + R) ** 2 - (h_tangent + R) ** 2) for heights in height_values ]
+v_transf= np.round(v_transf)
+x = height_values
 
-h_values = np.linspace(h_t, h_max, 1000)
+k = [  ( VMRs  * 1e6 * sigma * ( heights + R )  / v_s ) for (heights, VMRs, v_s) in zip(height_values, VMR_O3, v_transf) ]
 
-# Create figure
-fig = go.Figure()
+k_sum = [ sum(k[0:i]) for i in range(0, len(k) ) ]
 
-# Add traces, one for each slider step
-for k in np.linspace(0, 0.1, 100):
-    #h = np.sqrt(k/2 * ( ( h_values - R)**2 - (h_t - R)**2 ) )
-    v =  np.sqrt( ( h_values + R)**2 - (h_t + R)**2 )
-    fig.add_trace(
-        go.Scatter(
-            visible=False,
-            line=dict(color="#00CED1", width=6),
-            name="𝜈 = " + str(k),
-            x = h_values-R,
-            y= np.exp(-k*r_t) * ( np.exp( -k * v ) + np.exp( k* v ) )
-            ) )
+before = [ np.exp(k_s ) * ( heights + R ) / v_s for (heights, v_s, k_s) in zip(height_values, v_transf, k_sum) ]
+after = [ np.exp( (k_sum[-1] -k_s) ) * ( heights + R ) / v_s  for (heights, v_s, k_s) in zip(height_values, v_transf, k_sum) ]
 
-# Make 10th trace visible
-fig.data[10].visible = True
-k= np.round(np.linspace(0, 0.1, 100), 3)
+res = [y_1 + y_2 for (y_1, y_2) in zip(before, after)]
 
+x = height_values
 
-# Create and add slider
-steps = []
-for i in range(len(fig.data)):
-    step = dict(
-        method="update",
-        args=[{"visible": [False] * len(fig.data)},
-              {"title": "Slider switched to k: " + str(k[i]) + "/km" }],
-              label = str( k[i] ),  # layout attribute
-    )
-    step["args"][0]["visible"][i] = True  # Toggle i'th trace to "visible"
-    steps.append(step)
-
-sliders = [dict(
-    active=10,
-    currentvalue={"prefix": "k= ", "suffix": ""},
-    pad= {"b": 50},
-    steps=steps
-)]
-
-fig.update_layout(
-    sliders=sliders,
-    xaxis_title="height in km",
-    title="k in 1/km"
-)
-
-fig.show()
-fig.show()
-fig.write_html('test.html')
-
-
-
+plt.plot(x[0:10], res[0:10])
+plt.show()
