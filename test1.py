@@ -51,10 +51,14 @@ def get_data(filename: str):
 def get_absorption(frequency: float, filedir: list):
     data = []
     wavenumbers = []
+    temp = []
     for files in filedir:
         #print(files)
         my_data = pd.read_csv(files)
         # print(len(my_data.values))
+
+        print(my_data.axes[1][0][49:55])
+        temp.append(my_data.axes[1][0][49:55])
         current_data = []
         for data_sets in my_data.values[1:]:
             current = list(data_sets[0].split(" "))
@@ -70,48 +74,66 @@ def get_absorption(frequency: float, filedir: list):
     max_index = [ data[i].index(max_absorption[i]) for i in range(0, len(wavenumbers))]
     max_frequency = [ wavenumbers[i][ max_index[i] ] for i in range(0, len(wavenumbers)) ]
 
-    return absorption_coeff, max_absorption, max_frequency;
+    #[46:53]
+
+    return absorption_coeff, max_absorption, max_frequency, temp;
 
 
-def calc_kernel(height_values, tangent_height, vmr_o3):
-    # get all important values above tangent height
+def calc_kernel(height_values, tangent_ind, VMR_O3, pressure_values, sigma):
+    R = 6371
+    h_tangent = height_values[tangent_ind] - 0.1
 
-    # calculate kernel for specific species and absoprption cross section and tangent height
+    T_ref = 288.15  # in kelvin
+    k_b = 1.4 * 1e-23
+    numb_dens = [p_s / k_b * T_ref for p_s in pressure_values]
+    height_values = height_values[tangent_ind:]
 
-    kernel = 0
+    v_transf = [np.sqrt((heights + R) ** 2 - (h_tangent + R) ** 2) for heights in height_values]
+    v_transf = list(np.round(v_transf))
+
+    VMR_O3 = VMR_O3[tangent_ind:]
+    numb_dens = numb_dens[tangent_ind:]
+
+    k = [(VMRs * 1e6 * sigma * n_s * (heights + R) / v_s) for (heights, VMRs, v_s, n_s) in
+         zip(height_values, VMR_O3, v_transf, numb_dens)]
+
+    k_sum = [sum(k[0:i]) for i in range(0, len(k))]
+
+    k_sum_bef = [sum(k[i:]) for i in range(0, len(k))]
+
+    k_sum_total = [sum(k_sum[0:i]) for i in range(0, len(k_sum))]
+
+    v_transf_1 = [np.log((heights + R) / v_s) for (v_s, heights) in zip(v_transf, height_values)]
+
+    # v_transf_sum = [ sum( v_transf_1[0:i] ) for i in range(0, len(v_transf_1) ) ]
+
+    # np.log(1+ np.exp(- k_sum[-1])) aprrox 0
+    kernel = [np.log(1 + np.exp(- k_sum[-1])) - k_s + v_s for (v_s, k_s) in zip(v_transf_1, k_sum)]
+
     return kernel;
 
 
-def make_figure():
-    R = 6371
-    h_t = R + 15
-    h_max = R + 90
+def make_figure(height_values, VMR_O3, pressure_values, sigma):
 
-    r_t = np.sqrt((h_max + R) ** 2 - (h_t + R) ** 2)
-    v_max = (h_max + R) ** 2 - (h_t + R) ** 2
-
-    h_values = np.linspace(h_t + .01, h_max, 1000)
 
     # Create figure
     fig = go.Figure()
-    k_values = np.linspace(0, 0.1, 100)
+    change_tags = height_values
+    change_values = range(0, len(height_values) )
     # Add traces, one for each slider step
-    for k in k_values:
-        # h = np.sqrt(k/2 * ( ( h_values - R)**2 - (h_t - R)**2 ) )
-        v = np.sqrt((h_values + R) ** 2 - (h_t + R) ** 2)
+    for ind in change_values:
         fig.add_trace(
             go.Scatter(
                 visible=False,
                 line=dict(color="#00CED1", width=6),
-                name="𝜈 = " + str(k),
-                x=h_values - R,
-                # k = ,
-                y=np.exp(-k * r_t) * (h_values + R) / v * (np.exp(- k * v) + np.exp(k * v))
+                name="𝜈 = " + str(height_values[ind]),
+                x=height_values[ind:],
+                y=calc_kernel(height_values, ind, VMR_O3, pressure_values, sigma)
             ))
 
     # Make 10th trace visible
     fig.data[10].visible = True
-    k = np.round(k_values, 3)
+    k = np.round(change_values, 3)
 
     # Create and add slider
     steps = []
@@ -119,23 +141,24 @@ def make_figure():
         step = dict(
             method="update",
             args=[{"visible": [False] * len(fig.data)},
-                  {"title": "Slider switched to k: " + str(k[i]) + "/km"}],
-            label=str(k[i]),  # layout attribute
+                  {"title": "Slider switched to tangent height: " + str(change_tags[i]) + "km"}],
+            label=str(change_tags[i]),  # layout attribute
         )
         step["args"][0]["visible"][i] = True  # Toggle i'th trace to "visible"
         steps.append(step)
 
     sliders = [dict(
         active=10,
-        currentvalue={"prefix": "k= ", "suffix": ""},
+        currentvalue={"prefix": "h_t= ", "suffix": ""},
         pad={"b": 50},
         steps=steps
     )]
 
     fig.update_layout(
         sliders=sliders,
+        yaxis_title="log of kernel",
         xaxis_title="height in km",
-        title="k in 1/km"
+        title="tangent height in km"
     )
 
     fig.show()
