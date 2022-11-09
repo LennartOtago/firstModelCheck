@@ -47,7 +47,9 @@ from scipy.special import wofz
 filename = '/home/lennartgolks/Python/firstModelCheck/tropical.O3.xml'
 VMR_O3, height_values, pressure_values, temp_values = testReal.get_data(filename)
 #[parts if VMR_O3 * 1e6 = ppm], [m], [Pa] = [kg / (m s^2) ]\
-height_values = height_values * 1e2 # in cm
+height_values = height_values * 1e-3#in km 1e2 # in cm
+height_values = np.linspace(18,93,45)
+
 #
 # filedir = glob.glob('/home/lennartgolks/Python/firstModelCheck/HITRAN_o3_data/*.xsc')
 #
@@ -141,8 +143,11 @@ d_height = height_values[1::] - height_values[0:-1]
 R_gas = constants.R * 1e6 # in ..cm^3
 N_A = constants.Avogadro
 VV = V(0,sigma[20],gamma[20])[0]
-w_cross = [ (vmr  * pressure_values[i] / (R_gas* temp_values[i]) )**(1/3) * S[ind][0] * norm_Voigt[0] for i, vmr in enumerate(VMR_O3)]
+#w_cross = [ (1e-6  * pressure_values[i] / (R_gas* temp_values[i]) )**(1/3) * S[ind][0] *N_A* norm_Voigt[0] * 1e11 for i, vmr in enumerate(VMR_O3)]
+#w_cross = [ (vmr  * N_A * pressure_values[i] / (R_gas* temp_values[i]) )**(1/3) * S[ind][0]/N_A * norm_Voigt[0] for i, vmr in enumerate(VMR_O3)]
+w_cross = [ 1 for i, vmr in enumerate(VMR_O3)]
 
+#w_cross = [ (vmr)**(1/3) * S[ind][0] * norm_Voigt[0] for i, vmr in enumerate(VMR_O3)]
 
 
 #source funciton in cm ..
@@ -153,11 +158,11 @@ T = temp_values[0:-1]
 
 
 Source = 2 * h * c**2 * v_0**3 * 1/(np.exp(h * c * v_0/(k_b *T) ) - 1)
-
+Source = np.ones(len(T))
 #transmission starting from ground layer
 # length is one shorter than heitght values
-R = 6371e2 #earth radius
-tang_ind = 20
+R = 63#earth radius
+#tang_ind = 20
 measurements = [None] * (len(height_values)-1)
 measurements = np.zeros((len(height_values)-1,1))
 for tang_ind in range(0,len(height_values)-1):
@@ -168,15 +173,18 @@ for tang_ind in range(0,len(height_values)-1):
     kernel = Source[tang_ind::]  * w_cross[tang_ind:-1] * pressure_values[tang_ind:-1] * d_height[tang_ind::]/\
                 (k_b *T[tang_ind::] * np.sqrt((height_values[tang_ind:-1]+ R)**2 + (height_values[tang_ind]+ R)**2 ) ) * (height_values[tang_ind:-1] + R)
     trans_pre = [ Decimal(np.exp(1))**int(-sum(trans_per_h[i::])) for i in range(0,len(trans_per_h)) ]
+    print(-sum(trans_per_h))
     trans_after = [ Decimal(np.exp(1))**int(-sum(trans_per_h[0:i])) for i in range(1,len(trans_per_h)+1) ]
-
+    #trans_after = np.ones(44)
+    #trans_pre = np.ones(44)
     L = [float(Decimal(kernels) * trans_pre[i])  for i,kernels in enumerate(kernel)]
     L_after= [float(Decimal(kernels) * trans_after[i] * trans_pre[0])  for i,kernels in enumerate(kernel)]
     measurements[tang_ind] = sum(L) + sum(L_after) * 1e-4 #to go back to m units
 
 
 
-
+plt.plot(np.linspace(0,44,44), measurements)
+plt.show()
 
 A = np.matmul(measurements.reshape(len(measurements), 1), measurements.reshape(1, len(measurements)))
 
