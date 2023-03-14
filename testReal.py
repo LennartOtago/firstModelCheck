@@ -4,14 +4,14 @@ import xml.etree.ElementTree as ET
 import pandas as pd
 import matplotlib.pyplot as plt
 
-def get_data(filename: str):
+def get_data(filename: str, obs_height):
     tree = ET.parse(filename)
 
     root = tree.getroot()
 
     pressure_values = root[0][0].text
     pressure_values = list(pressure_values.split("\n"))
-    pressure_values = list(map(float, pressure_values[1:-1]))
+    pressure_values = np.array( pressure_values[1:-1], dtype= 'float')
 
     stand_temp_values = list([288, 216, 216, 228, 270, 270, 214])
     # ref pressure in Pa
@@ -22,31 +22,34 @@ def get_data(filename: str):
     gravity = 9.8
     # molar mas of air (reference?)
     molar_mass = 0.03
-    temp_values = [None] * len(pressure_values)
     height_values = [None] * len(pressure_values)
     # get height
     b = 0
     for idx, pressure in enumerate(pressure_values):
         if pressure > ref_pressure[b]:
-            temp_values[idx] = stand_temp_values[b]
+
             height_values[idx] = -(np.log(pressure / ref_pressure[b]) * R_const * stand_temp_values[b]) / (
                     gravity * molar_mass) + ref_height[b]
         else:
             b = b + 1
             if b > 6:
                 b = b - 1
-            temp_values[idx] = stand_temp_values[b]
+
             height_values[idx] = -(np.log(pressure / ref_pressure[b]) * R_const * stand_temp_values[b]) / (
                     gravity * molar_mass) + ref_height[b]
 
-    height_values = list(map(int, height_values))
-    temp_values = list(map(int, temp_values))
+    height_values = np.array(height_values, dtype= 'float')
+
 
     vmr_o3 = root[0][3].text
     vmr_o3 = list(vmr_o3.split("\n"))
-    vmr_o3 = list(map(float, vmr_o3[1:-1]))
+    vmr_o3 = np.array(vmr_o3[1:-1], dtype= 'float')
 
-    return np.array(vmr_o3), np.array(height_values), np.array(pressure_values), np.array(temp_values);
+    #append so that full model from seelevel to observer
+    vmr_o3 =  np.append(0, np.append(vmr_o3,0))
+    height_values =  np.append(0, np.append(height_values,obs_height))
+    pressure_values = np.append(ref_pressure[0], np.append(pressure_values,0 ))
+    return vmr_o3.reshape((len(height_values),1)), height_values, pressure_values.reshape((len(height_values),1));
 
 
 # frequnecy in GHz
