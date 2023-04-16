@@ -87,4 +87,7 @@ def gen_measurement(meas_ang, layers, w_cross, VMR_O3, P ,T, Source, obs_height 
     num_mole = (P / (constants.Boltzmann * 1e7  * T))
 
     THETA = (num_mole * w_cross * VMR_O3 * Source)
-    return  2 * np.matmul(A_height, THETA[1::])
+    return  2 * np.matmul(A_height*1e5, THETA[1::]), 2*A_height*1e5, THETA[1::]
+
+def add_noise(Ax, percent, max_value):
+    return Ax + np.random.normal(0, percent * max_value, (len(Ax),1))
