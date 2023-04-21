@@ -264,11 +264,18 @@ L = generate_L(neigbours)
 #number is approx 130 so 10^2
 C = np.matmul(A.T  , A )
 #B is symmetric and positive semidefinite and normal
-B = (C - eta/gamma * L) #* 1e-14
+B = (C - eta/gamma * L) #* 1e-14eta/gamma
 #condition number for B
 cond_B = np.linalg.cond(B)
 print("normal: " + str(orderOfMagnitude(cond_B)))
+#try to lower condtion number with jacobi
 
+D = np.identity(len(B)) * np.diag(B)
+D_inv = np.linalg.inv(D)
+
+B_new = np.matmul(np.sqrt(D_inv),np.matmul(B,np.sqrt(D_inv)))
+cond_B_new = np.linalg.cond(B_new)
+print("normal: " + str(orderOfMagnitude(cond_B_new)))
 ### try to get the cond number low
 A2 = A * 1e-8 # 1e-11 then I get a cond of 1e4
 L2 = L#[0:-1,0:-1]
