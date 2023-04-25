@@ -10,7 +10,7 @@ from scipy.optimize import curve_fit
 from scipy.sparse.linalg import gmres
 import numpy.random as rd
 from numpy.fft import fft, ifft, fft2
-
+#matplotlib.use('TkAgg')
 
 import math
 def orderOfMagnitude(number):
@@ -151,7 +151,7 @@ max_ang = np.arcsin( (height_values[-2] + R) / (R + obs_height) )
 min_ang = np.arcsin( R / (R + obs_height) )
 
 #specify where measurements are taken
-num_meas = 20
+num_meas = 60
 meas_ang = np.linspace(min_ang+(max_ang-min_ang)/4, max_ang-(max_ang-min_ang)/4, num_meas)
 meas_ang = np.linspace(min_ang, max_ang, num_meas)
 
@@ -250,8 +250,21 @@ for j in range(1,len(x)-1):
 # ym = func(dist, popt[0], popt[1])
 # plt.figure()
 # plt.plot(dist, ym, 'k', linewidth=2)
-# plt.plot(dist, y)
+# plt.plot(dist, y)reboot
 # plt.show()
+#analyse forward map
+
+AC = A[:,1:-1]
+ATA = np.matmul(AC.T,AC)
+#D = np.identity(len(ATA)) * np.diag(ATA)
+#D_inv = np.linalg.inv(D)
+Au, As, Avh = np.linalg.svd(AC)
+ATAu, ATAs, ATAvh = np.linalg.svd(ATA)
+fig3,ax  = plt.subplots()
+ax.set_yscale('log')
+plt.plot(range(0,len(ATAs)),np.log(ATAs))
+plt.plot(range(0,len(As)),np.log(As))
+plt.show()
 
 
 #first guesses
@@ -262,20 +275,25 @@ eta = 1/ (2 * np.mean(vari[2:-3]))
 
 L = generate_L(neigbours)
 #number is approx 130 so 10^2
-C = np.matmul(A.T  , A )
+C = np.matmul(AC.T, AC)
 #B is symmetric and positive semidefinite and normal
-B = (C - eta/gamma * L) #* 1e-14eta/gamma
+B = (C - 1e14 * L[1:-1,1:-1]) #* 1e-14eta/gamma
 #condition number for B
 cond_B = np.linalg.cond(B)
 print("normal: " + str(orderOfMagnitude(cond_B)))
-#try to lower condtion number with jacobi
 
+#try to lower condtion number with jacobi
 D = np.identity(len(B)) * np.diag(B)
 D_inv = np.linalg.inv(D)
 
 B_new = np.matmul(np.sqrt(D_inv),np.matmul(B,np.sqrt(D_inv)))
 cond_B_new = np.linalg.cond(B_new)
-print("normal: " + str(orderOfMagnitude(cond_B_new)))
+print("new: " + str(orderOfMagnitude(cond_B_new)))
+
+
+B_new = np.matmul(D_inv,B)
+cond_B_new = np.linalg.cond(B_new)
+print("new2: " + str(orderOfMagnitude(cond_B_new)))
 ### try to get the cond number low
 A2 = A * 1e-8 # 1e-11 then I get a cond of 1e4
 L2 = L#[0:-1,0:-1]
