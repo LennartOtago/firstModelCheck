@@ -34,9 +34,9 @@ N_A = constants.Avogadro # in mol^-1
 k_b_cgs = constants.Boltzmann * 1e7#in J K^-1
 R_gas = N_A * k_b_cgs # in ..cm^3
 
-plt.plot(pressure_values, height_values)
-#plt.plot(VMR_O3, height_values)
-plt.show()
+# plt.plot(pressure_values, height_values)
+# #plt.plot(VMR_O3, height_values)
+# plt.show()
 
 temp_values = get_temp_values(height_values)
 x = VMR_O3 * N_A * pressure_values /(R_gas * temp_values)#* 1e-13
@@ -156,17 +156,17 @@ meas_ang = np.linspace(min_ang+(max_ang-min_ang)/4, max_ang-(max_ang-min_ang)/4,
 meas_ang = np.linspace(min_ang, max_ang, num_meas)
 
 # in cm but Ax is cgs
-Ax, A ,x = gen_measurement(meas_ang, height_values, w_cross, VMR_O3, pressure_values ,temp_values, Source)
+Ax, A ,x, tang_heights = gen_measurement(meas_ang, height_values, w_cross, VMR_O3, pressure_values ,temp_values, Source)
 #get tangent height for each measurement
-tang_height = np.around((np.sin(meas_ang) * (obs_height + R) ) -R,2)
+#tang_height = np.around((np.sin(meas_ang) * (obs_height + R) ) -R,2)
 
-
+num_meas = len(A)
 #to test that we have the same dr distances
 tot_r = np.zeros(num_meas)
 #calculate total length
 for j in range(0,num_meas):
     # np.sqrt( (obs_height + R)**2 - (tang_height[j] + R )**2 ) -
-    tot_r[j] = np.sqrt( (height_values[-1] + R)**2 - (tang_height[j] + R )**2 )
+    tot_r[j] = np.sqrt( (height_values[-1] + R)**2 - (tang_heights[j] + R )**2 )
 
 
 
@@ -254,18 +254,35 @@ for j in range(1,len(x)-1):
 # plt.show()
 #analyse forward map
 
-AC = A[:,1:-1]
-ATA = np.matmul(AC.T,AC)
+Amodi = A[0:-1,0:-1]
+ATA = np.matmul(Amodi.T,Amodi)
 #D = np.identity(len(ATA)) * np.diag(ATA)
 #D_inv = np.linalg.inv(D)
-Au, As, Avh = np.linalg.svd(AC)
+Au, As, Avh = np.linalg.svd(A)
 ATAu, ATAs, ATAvh = np.linalg.svd(ATA)
 fig3,ax  = plt.subplots()
 ax.set_yscale('log')
-plt.plot(range(0,len(ATAs)),np.log(ATAs))
-plt.plot(range(0,len(As)),np.log(As))
+plt.scatter(range(0,len(ATAs)),ATAs)
+#plt.scatter(range(0,len(As)),np.log(As))
 plt.show()
 
+
+
+cond_A = np.linalg.cond(A)
+print("Cond A: " + str(orderOfMagnitude(cond_A)))
+
+fig, axs = plt.subplots()
+#axs.set_title('left SV')
+# for i in range(10):
+#     axs.plot(ATAu[:,i], label= f"ATAu{i}")
+
+for i in range(len(ATAs)):
+    axs.plot(ATAs[i]*ATAu[:, i], label=f"ATAu{i}")
+    plt.text(len(ATAs)-1,ATAs[i]*ATAu[-1, i],f"ATAu{i}")
+#axs.legend()
+
+
+plt.show()
 
 #first guesses
 gamma = 0.01 * max(Ax)
@@ -275,40 +292,29 @@ eta = 1/ (2 * np.mean(vari[2:-3]))
 
 L = generate_L(neigbours)
 #number is approx 130 so 10^2
-C = np.matmul(AC.T, AC)
+C = np.matmul(A.T, A)
 #B is symmetric and positive semidefinite and normal
-B = (C - 1e14 * L[1:-1,1:-1]) #* 1e-14eta/gamma
+B = (C - eta/gamma * L) #* 1e-14eta/gamma
+Bu, Bs, Bvh = np.linalg.svd(B)
 #condition number for B
 cond_B = np.linalg.cond(B)
 print("normal: " + str(orderOfMagnitude(cond_B)))
 
-#try to lower condtion number with jacobi
-D = np.identity(len(B)) * np.diag(B)
-D_inv = np.linalg.inv(D)
+fig4,ax  = plt.subplots()
+ax.set_yscale('log')
 
-B_new = np.matmul(np.sqrt(D_inv),np.matmul(B,np.sqrt(D_inv)))
-cond_B_new = np.linalg.cond(B_new)
-print("new: " + str(orderOfMagnitude(cond_B_new)))
+plt.scatter(range(0,len(As)),np.log(Bs))
+plt.show()
 
 
-B_new = np.matmul(D_inv,B)
-cond_B_new = np.linalg.cond(B_new)
-print("new2: " + str(orderOfMagnitude(cond_B_new)))
-### try to get the cond number low
-A2 = A * 1e-8 # 1e-11 then I get a cond of 1e4
-L2 = L#[0:-1,0:-1]
-B2 = (np.matmul(A2.T  , A2 ) - eta/gamma * L2)
-#condition number for B
-cond_B2 = np.linalg.cond(B2)
-print("normal: " + str(orderOfMagnitude(cond_B2)))
 #qr facorization decomposition
-Q2,R2 = np.linalg.qr(B2)
-detR2 = np.prod(np.diag(R2))
-B2_inv = np.matmul(np.linalg.inv(R2) , Q2.T)
+Q,R = np.linalg.qr(B)
+detR = np.prod(np.diag(R)* 1e-18)
+B_inv = np.matmul(np.linalg.inv(R) , Q.T)
 
 #check if B2^-1 B2 == 1
-TEST = np.matmul(B2, B2_inv)
-print(np.allclose(np.identity(len(B2)) ,TEST))#, atol = 1e-4))
+TEST = np.matmul(B, B_inv)
+print(np.allclose(np.identity(len(B)) ,TEST))#, atol = 1e-4))
 
 # taylor expansion for f and g
 

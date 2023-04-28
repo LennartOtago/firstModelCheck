@@ -61,17 +61,17 @@ def gen_measurement(meas_ang, layers, w_cross, VMR_O3, P ,T, Source, obs_height 
     obs_height is given in km
     '''
 
-    num_meas = len(meas_ang)
-    R = 6371
-    # get tangent height for each measurement
-    tang_height = np.around((np.sin(meas_ang) * (obs_height + R)) - R, 2)
 
+    R = 6371
+    # get tangent height for each measurement layers[0:-1] #
+    tang_height = np.around((np.sin(meas_ang) * (obs_height + R)) - R, 2)
+    num_meas = len(tang_height)
     # get dr's for measurements of different layers
     A_height = np.zeros((num_meas, len(layers) - 1))
     t = 1
     for m in range(0, num_meas):
 
-        while (layers[t - 1] <= tang_height[m] < layers[t]) == 0:
+        while (layers[t-1] <= tang_height[m] < layers[t]) == 0:
             t += 1
         # first dr
         A_height[m, t - 1] = np.sqrt((layers[t] + R) ** 2 - (tang_height[m] + R) ** 2)
@@ -87,7 +87,9 @@ def gen_measurement(meas_ang, layers, w_cross, VMR_O3, P ,T, Source, obs_height 
     num_mole = (P / (constants.Boltzmann * 1e7  * T))
 
     THETA = (num_mole * w_cross * VMR_O3 * Source)
-    return  2 * np.matmul(A_height*1e5, THETA[1::]), 2*A_height*1e5, THETA[1::]
+    #2 * A_height * 1e5....2 * np.matmul(A_height*1e5, THETA[1::]) A_height in km
+    #* 1e5 converts to cm
+    return  2 * np.matmul(A_height, THETA[1::]), 2*A_height, THETA[1::] , tang_height
 
 def add_noise(Ax, percent, max_value):
     return Ax + np.random.normal(0, percent * max_value, (len(Ax),1))
