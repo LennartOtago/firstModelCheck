@@ -23,7 +23,9 @@ def orderOfMagnitude(number):
 ##check absoprtion coeff in different heights and different freqencies
 #/Users/lennart/PycharmProjects/firstModelCheck
 obs_height= 300 #in km
-filename = '/home/lennartgolks/Python/firstModelCheck/tropical.O3.xml' #/home/lennartgolks/Python /Users/lennart/PycharmProjects
+#filename = '/home/lennartgolks/Python/firstModelCheck/tropical.O3.xml' #/home/lennartgolks/Python /Users/lennart/PycharmProjects/firstModelCheck/tropical.O3.xml
+filename = 'tropical.O3.xml'
+
 VMR_O3, height_values, pressure_values = testReal.get_data(filename, obs_height * 1e3)
 #[parts if VMR_O3 * 1e6 = ppm], [m], [Pa] = [kg / (m s^2) ]\
 height_values = np.around(height_values * 1e-3,2)#in km 1e2 # in cm
@@ -41,7 +43,8 @@ R_gas = N_A * k_b_cgs # in ..cm^3
 temp_values = get_temp_values(height_values)
 x = VMR_O3 * N_A * pressure_values /(R_gas * temp_values)#* 1e-13
 
-files = '/home/lennartgolks/Python/firstModelCheck/634f1dc4.par' #/home/lennartgolks/Python /Users/lennart/PycharmProjects
+#files = '/home/lennartgolks/Python/firstModelCheck/634f1dc4.par' #/home/lennartgolks/Python /Users/lennart/PycharmProjects
+files = '634f1dc4.par' #/home/lennartgolks/Python /Users/lennart/PycharmProjects
 
 my_data = pd.read_csv(files, header=None)
 data_set = my_data.values
@@ -170,21 +173,21 @@ for j in range(0,num_meas):
 
 
 
-plt.plot(x, height_values[1::])
-#plt.plot(VMR_O3, height_values)
-plt.show()
+# plt.plot(x, height_values[1::])
+# #plt.plot(VMR_O3, height_values)
+# plt.show()
 
 #convolve measurements and add noise
 y = add_noise(Ax, 0.01, np.max(Ax))
 
-fig2, ax2 = plt.subplots()
-ax2.plot( Ax,np.linspace(1,num_meas,num_meas,dtype = int))
-ax2.plot( y,np.linspace(1,num_meas,num_meas,dtype = int))
-ax2.set_ylabel('measurement')
-ax2.set_xlabel('measurement1')
-#ax2.set_xscale('log')
-fig2.savefig('measurements.png')
-plt.show()
+# fig2, ax2 = plt.subplots()
+# ax2.plot( Ax,np.linspace(1,num_meas,num_meas,dtype = int))
+# ax2.plot( y,np.linspace(1,num_meas,num_meas,dtype = int))
+# ax2.set_ylabel('measurement')
+# ax2.set_xlabel('measurement1')
+# #ax2.set_xscale('log')
+# fig2.savefig('measurements.png')
+# plt.show()
 
 
 
@@ -266,7 +269,7 @@ plt.scatter(range(0,len(ATAs)),ATAs)
 #plt.scatter(range(0,len(As)),np.log(As))
 plt.show()
 
-
+plot_svd(ATA)
 
 cond_A = np.linalg.cond(A)
 print("Cond A: " + str(orderOfMagnitude(cond_A)))
@@ -305,6 +308,10 @@ ax.set_yscale('log')
 
 plt.scatter(range(0,len(As)),np.log(Bs))
 plt.show()
+
+
+#plot different singular values with the bar in html file
+
 
 
 #qr facorization decomposition

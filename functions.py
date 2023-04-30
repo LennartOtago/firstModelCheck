@@ -1,6 +1,7 @@
 from scipy.special import wofz
 import numpy as np
 from scipy import constants
+import plotly.graph_objects as go
 
 #voigt function as real part of Faddeeva function
 def V(x, sigma, gamma):
@@ -93,3 +94,61 @@ def gen_measurement(meas_ang, layers, w_cross, VMR_O3, P ,T, Source, obs_height 
 
 def add_noise(Ax, percent, max_value):
     return Ax + np.random.normal(0, percent * max_value, (len(Ax),1))
+
+'''
+we plot left singular vectors wighted with the singular value
+for symmetric sqaure matrix
+'''
+def plot_svd(A):
+    Au, As, Avh = np.linalg.svd(A)
+
+    # Create figure
+    fig = go.Figure()
+    #k_values = int(np.linspace(0, len(As)-1, len(As)))
+
+    # Add traces, one for each slider step
+    for k in range(0,len(As)):
+
+
+        fig.add_trace(
+            go.Scatter(
+                visible=False,
+                line= dict(color="#00CED1", width=6),
+                name= f"index = {k}",
+                x= np.linspace(0,len(Au[:,k])-1,len(Au[:,k])),
+                y= As[k] * Au[:,k]
+            ))
+
+
+    # Make 10th trace visible
+    fig.data[10].visible = True
+    k = np.linspace(0,len(As)-1,len(As))
+
+    # Create and add slider
+    steps = []
+    for i in range(len(fig.data)):
+        step = dict(
+            method="update",
+            args=[{"visible": [False] * len(fig.data)},
+                  {"title": "Slider switched to index: " + str(k[i]) + "/m"}],
+            label=str(k[i]),  # layout attribute
+        )
+        step["args"][0]["visible"][i] = True  # Toggle i'th trace to "visible"
+        steps.append(step)
+
+    sliders = [dict(
+        active=10,
+        currentvalue={"prefix": "k= ", "suffix": ""},
+        pad={"b": 50},
+        steps=steps
+    )]
+
+    fig.update_layout(
+        sliders=sliders,
+        title="Left singlar Vectors weighted with singular values",
+        xaxis_title = "sU"
+    )
+
+    fig.show()
+
+    fig.write_html('SVD.html')
