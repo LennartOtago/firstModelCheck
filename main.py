@@ -41,7 +41,7 @@ R_gas = N_A * k_b_cgs # in ..cm^3
 # plt.show()
 
 temp_values = get_temp_values(height_values)
-x = VMR_O3 * N_A * pressure_values /(R_gas * temp_values)#* 1e-13
+#x = VMR_O3 * N_A * pressure_values /(R_gas * temp_values)#* 1e-13
 
 #files = '/home/lennartgolks/Python/firstModelCheck/634f1dc4.par' #/home/lennartgolks/Python /Users/lennart/PycharmProjects
 files = '634f1dc4.par' #/home/lennartgolks/Python /Users/lennart/PycharmProjects
@@ -150,18 +150,28 @@ how many measurements we want to do in between the max angle and min angle
 R = 6371 # earth radiusin km
 #obs_height = 300 # in km
 #fing minimum and max angle in radians
-max_ang = np.arcsin( (height_values[-2] + R) / (R + obs_height) )
-min_ang = np.arcsin( R / (R + obs_height) )
+max_ang = np.arcsin( (height_values[-3] + R) / (R + obs_height) )
+min_ang = np.arcsin( (height_values[1] + R) / (R + obs_height) )
 
 #specify where measurements are taken
 num_meas = 60
-meas_ang = np.linspace(min_ang+(max_ang-min_ang)/4, max_ang-(max_ang-min_ang)/4, num_meas)
-meas_ang = np.linspace(min_ang, max_ang, num_meas)
+#meas_ang = np.linspace(min_ang+(max_ang-min_ang)/4, max_ang-(max_ang-min_ang)/4, num_meas)
+meas_ang1 = np.linspace(min_ang, min_ang + (max_ang - min_ang)/4, int(3*num_meas/4 + 1) )
+meas_ang2 = np.linspace(min_ang + (max_ang - min_ang)/4, max_ang, int(num_meas/4))
+meas_ang = np.append(meas_ang1[0:-1], meas_ang2)
+#meas_ang = np.linspace(min_ang, max_ang, num_meas)
+
+tang_height = np.around((np.sin(meas_ang) * (obs_height + R)) - R, 2)
+plt.scatter(range(60),meas_ang)
+plt.show()
+#meas_ang = np.linspace(min_ang, max_ang, num_meas)
 
 # in cm but Ax is cgs
+
 Ax, A ,x, tang_heights = gen_measurement(meas_ang, height_values, w_cross, VMR_O3, pressure_values ,temp_values, Source)
 #get tangent height for each measurement
 #tang_height = np.around((np.sin(meas_ang) * (obs_height + R) ) -R,2)
+
 
 num_meas = len(A)
 #to test that we have the same dr distances
@@ -257,19 +267,20 @@ for j in range(1,len(x)-1):
 # plt.show()
 #analyse forward map
 
-Amodi = A[0:-1,0:-1]
-ATA = np.matmul(Amodi.T,Amodi)
+
+ATA = np.matmul(A.T,A)
 #D = np.identity(len(ATA)) * np.diag(ATA)
 #D_inv = np.linalg.inv(D)
 Au, As, Avh = np.linalg.svd(A)
 ATAu, ATAs, ATAvh = np.linalg.svd(ATA)
-fig3,ax  = plt.subplots()
-ax.set_yscale('log')
-plt.scatter(range(0,len(ATAs)),ATAs)
-#plt.scatter(range(0,len(As)),np.log(As))
-plt.show()
 
-plot_svd(ATA)
+# fig3,ax  = plt.subplots()
+# ax.set_yscale('log')
+# plt.scatter(range(0,len(ATAs)),ATAs)
+# #plt.scatter(range(0,len(As)),np.log(As))
+# plt.show()
+
+plot_svd(ATA, height_values[1:-2])
 
 cond_A = np.linalg.cond(A)
 print("Cond A: " + str(orderOfMagnitude(cond_A)))
@@ -280,7 +291,7 @@ fig, axs = plt.subplots()
 #     axs.plot(ATAu[:,i], label= f"ATAu{i}")
 
 for i in range(len(ATAs)):
-    axs.plot(ATAs[i]*ATAu[:, i], label=f"ATAu{i}")
+    axs.plot(ATAs[i]*ATAu[:, i], label=f"ATAu{i}")#ATAs[i]*
     plt.text(len(ATAs)-1,ATAs[i]*ATAu[-1, i],f"ATAu{i}")
 #axs.legend()
 
@@ -303,16 +314,18 @@ Bu, Bs, Bvh = np.linalg.svd(B)
 cond_B = np.linalg.cond(B)
 print("normal: " + str(orderOfMagnitude(cond_B)))
 
-fig4,ax  = plt.subplots()
-ax.set_yscale('log')
-
-plt.scatter(range(0,len(As)),np.log(Bs))
-plt.show()
+# fig4,ax  = plt.subplots()
+# ax.set_yscale('log')
+#
+# plt.scatter(range(0,len(As)),np.log(Bs))
+# plt.show()
 
 
 #plot different singular values with the bar in html file
 
-
+a = np.linspace(0, len(Au[:, 2]) - 1, len(Au[:, 2]))
+b = As[2] * Au[:, 2]
+df = pd.DataFrame(dict(a=a, b=b))
 
 #qr facorization decomposition
 Q,R = np.linalg.qr(B)

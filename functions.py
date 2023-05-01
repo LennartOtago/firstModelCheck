@@ -2,6 +2,8 @@ from scipy.special import wofz
 import numpy as np
 from scipy import constants
 import plotly.graph_objects as go
+import plotly.express as px
+import pandas as pd
 
 #voigt function as real part of Faddeeva function
 def V(x, sigma, gamma):
@@ -62,24 +64,39 @@ def gen_measurement(meas_ang, layers, w_cross, VMR_O3, P ,T, Source, obs_height 
     obs_height is given in km
     '''
 
+    #exclude first layer at h = 0  and
+    #last layer at h = Observer
+    min_ind = 1
+    max_ind = -1
+    layers = layers[min_ind: max_ind]
+
+
+    w_cross = w_cross[min_ind: max_ind-1]
+    VMR_O3 = VMR_O3[min_ind: max_ind-1]
+    Source = Source[min_ind: max_ind-1]
+    P = P[min_ind: max_ind-1]
+    T = T[min_ind: max_ind-1]
+
+
 
     R = 6371
     # get tangent height for each measurement layers[0:-1] #
     tang_height = np.around((np.sin(meas_ang) * (obs_height + R)) - R, 2)
     num_meas = len(tang_height)
     # get dr's for measurements of different layers
-    A_height = np.zeros((num_meas, len(layers) - 1))
-    t = 1
+    A_height = np.zeros((num_meas, len(layers)-1))
+    t = 0
     for m in range(0, num_meas):
 
-        while (layers[t-1] <= tang_height[m] < layers[t]) == 0:
+        while layers[t] <= tang_height[m]:
             t += 1
+        print(t)
         # first dr
-        A_height[m, t - 1] = np.sqrt((layers[t] + R) ** 2 - (tang_height[m] + R) ** 2)
-        dr = A_height[m, t - 1]
-        for i in range(t, len(layers) - 1):
+        A_height[m, t-1] = np.sqrt((layers[t] + R) ** 2 - (tang_height[m] + R) ** 2)
+        dr = A_height[m, t-1]
+        for i in range(t, len(layers)-1 ):
             # A_height[j,i] =  (height_values[j+i+1] + R)/np.sqrt((height_values[j+i+1]+ R)**2 - (height_values[j]+ R)**2 ) * d_height[j+i]
-            A_height[m, i] = np.sqrt((layers[i + 1] + R) ** 2 - (tang_height[m] + R) ** 2) - dr
+            A_height[m, i] = np.sqrt((layers[i+1] + R) ** 2 - (tang_height[m] + R) ** 2) - dr
             dr = dr + A_height[m, i]
     #calc mearuements
 
@@ -90,7 +107,7 @@ def gen_measurement(meas_ang, layers, w_cross, VMR_O3, P ,T, Source, obs_height 
     THETA = (num_mole * w_cross * VMR_O3 * Source)
     #2 * A_height * 1e5....2 * np.matmul(A_height*1e5, THETA[1::]) A_height in km
     #* 1e5 converts to cm
-    return  2 * np.matmul(A_height, THETA[1::]), 2*A_height, THETA[1::] , tang_height
+    return  2 * np.matmul(A_height, THETA), 2*A_height, THETA , tang_height
 
 def add_noise(Ax, percent, max_value):
     return Ax + np.random.normal(0, percent * max_value, (len(Ax),1))
@@ -99,8 +116,8 @@ def add_noise(Ax, percent, max_value):
 we plot left singular vectors wighted with the singular value
 for symmetric sqaure matrix
 '''
-def plot_svd(A):
-    Au, As, Avh = np.linalg.svd(A)
+def plot_svd(ATA, height_values):
+    Au, As, Avh = np.linalg.svd(ATA)
 
     # Create figure
     fig = go.Figure()
@@ -108,16 +125,19 @@ def plot_svd(A):
 
     # Add traces, one for each slider step
     for k in range(0,len(As)):
-
+        x = height_values #np.linspace(0, len(Au[:, k]) - 1, len(Au[:, k]))
+        y = As[k] * Au[:, k]
+        df = pd.DataFrame(dict(x = x, y = y))
 
         fig.add_trace(
             go.Scatter(
+                x = df['x'],
+                y = df['y'],
                 visible=False,
                 line= dict(color="#00CED1", width=6),
-                name= f"index = {k}",
-                x= np.linspace(0,len(Au[:,k])-1,len(Au[:,k])),
-                y= As[k] * Au[:,k]
-            ))
+                name= f"index = {k}"
+            )
+        )
 
 
     # Make 10th trace visible
@@ -130,24 +150,25 @@ def plot_svd(A):
         step = dict(
             method="update",
             args=[{"visible": [False] * len(fig.data)},
-                  {"title": "Slider switched to index: " + str(k[i]) + "/m"}],
-            label=str(k[i]),  # layout attribute
+                  {"title": "Slider at tangent model layer: " + str(height_values[i]) + "in m"}],
+            label= str(k[i]),  # layout attribute
         )
         step["args"][0]["visible"][i] = True  # Toggle i'th trace to "visible"
         steps.append(step)
 
     sliders = [dict(
         active=10,
-        currentvalue={"prefix": "k= ", "suffix": ""},
+        currentvalue={"prefix": "index= ", "suffix": ""},
         pad={"b": 50},
         steps=steps
     )]
 
     fig.update_layout(
         sliders=sliders,
-        title="Left singlar Vectors weighted with singular values",
-        xaxis_title = "sU"
+        title="Left Singlar Vectors weighted with Singular Values",
+        xaxis_title = "height values"
     )
+    fig.update_yaxes(range=[np.min(Au*As), np.max(Au*As)])
 
     fig.show()
 
