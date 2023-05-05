@@ -4,7 +4,11 @@ from scipy import constants
 import plotly.graph_objects as go
 import plotly.express as px
 import pandas as pd
+import math
 
+
+def orderOfMagnitude(number):
+    return math.floor(math.log(number, 10))
 #voigt function as real part of Faddeeva function
 def V(x, sigma, gamma):
     """
@@ -117,16 +121,16 @@ we plot left singular vectors wighted with the singular value
 for symmetric sqaure matrix
 '''
 def plot_svd(ATA, height_values):
-    Au, As, Avh = np.linalg.svd(ATA)
+    ATAu, ATAs, ATAvh = np.linalg.svd(ATA)
 
     # Create figure
     fig = go.Figure()
     #k_values = int(np.linspace(0, len(As)-1, len(As)))
 
     # Add traces, one for each slider step
-    for k in range(0,len(As)):
+    for k in range(0,len(ATAs)):
         x = height_values #np.linspace(0, len(Au[:, k]) - 1, len(Au[:, k]))
-        y = As[k] * Au[:, k]
+        y = ATAu[:, k]#*As[k]
         df = pd.DataFrame(dict(x = x, y = y))
 
         fig.add_trace(
@@ -142,7 +146,7 @@ def plot_svd(ATA, height_values):
 
     # Make 10th trace visible
     fig.data[10].visible = True
-    k = np.linspace(0,len(As)-1,len(As))
+    k = np.linspace(0,len(ATAs)-1,len(ATAs))
 
     # Create and add slider
     steps = []
@@ -150,8 +154,8 @@ def plot_svd(ATA, height_values):
         step = dict(
             method="update",
             args=[{"visible": [False] * len(fig.data)},
-                  {"title": "Slider at tangent model layer: " + str(height_values[i]) + "in m"}],
-            label= str(k[i]),  # layout attribute
+                  {"title": "Slider at tangent model layer: " + str(height_values[i]) + " in m"}],
+            label= str(height_values[i]),  # layout attribute
         )
         step["args"][0]["visible"][i] = True  # Toggle i'th trace to "visible"
         steps.append(step)
@@ -168,8 +172,30 @@ def plot_svd(ATA, height_values):
         title="Left Singlar Vectors weighted with Singular Values",
         xaxis_title = "height values"
     )
-    fig.update_yaxes(range=[np.min(Au*As), np.max(Au*As)])
+    fig.update_yaxes(range=[np.min(ATAu), np.max(ATAu)])
 
     fig.show()
 
     fig.write_html('SVD.html')
+    return ATAu, ATAs, ATAvh
+
+
+def gen_forward_map(meas_ang,layers,obs_height,R):
+    tang_height = np.around((np.sin(meas_ang) * (obs_height + R)) - R, 2)
+
+    num_meas = len(tang_height)
+
+    A_height = np.zeros((num_meas, len(layers)-1))
+    t = 0
+    for m in range(0, num_meas):
+
+        while layers[t] <= tang_height[m]:
+            t += 1
+        # first dr
+        A_height[m, t-1] = np.sqrt((layers[t] + R) ** 2 - (tang_height[m] + R) ** 2)
+        dr = A_height[m, t-1]
+        for i in range(t, len(layers)-1 ):
+            A_height[m, i] = np.sqrt((layers[i+1] + R) ** 2 - (tang_height[m] + R) ** 2) - dr
+            dr = dr + A_height[m, i]
+
+    return 2*A_height, tang_height

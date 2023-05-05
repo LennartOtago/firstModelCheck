@@ -5,17 +5,154 @@ from scipy import constants
 import testReal
 import matplotlib.pyplot as plt
 import pandas as pd
+from numpy.random import uniform
 from scipy.stats import norm
 from scipy.optimize import curve_fit
-from scipy.sparse.linalg import gmres
-import numpy.random as rd
-from numpy.fft import fft, ifft, fft2
-#matplotlib.use('TkAgg')
+import matplotlib.patheffects as path_effects
+from mpl_toolkits.mplot3d import Axes3D
+from numpy import inf
+from matplotlib.colors import LogNorm, Normalize
+import matplotlib.colors as colors
 
-import math
-def orderOfMagnitude(number):
-    return math.floor(math.log(number, 10))
+""" analayse forward map without any real data values"""
 
+min_h = 5
+max_h = 95
+R = 6371 # earth radiusin km
+obs_height = 300 # in km
+#fing minimum and max angle in radians
+max_ang = np.arcsin( (max_h + R) / (R + obs_height) )
+min_ang = np.arcsin( (min_h + R) / (R + obs_height) )
+coeff = 0.05
+#make a plot with conditionnumber on y axis and layers on x axis, with stable measurment numbers
+#cond is max(s_i)/min
+min_m = 15
+max_m = 180
+max_l = 90
+min_l = 15
+num_meas = np.linspace(min_m,max_m,max_m-min_m+1)
+num_lay = np.linspace(min_l, max_l, (max_l - min_l) + 1)
+cond_A = np.zeros((len(num_meas),len(num_lay)))
+cond_ATA = np.zeros((len(num_meas),len(num_lay)))
+for j in range(len(num_meas)):
+    meas_ang = min_ang + (
+                (max_ang - min_ang) * np.exp(coeff * (np.linspace(0, int(num_meas[j]) - 1, int(num_meas[j])) - (int(num_meas[j]) - 1))))
+
+    for i in range(len(num_lay)):
+        layers = np.linspace(min_h, max_h, int(num_lay[i]))
+        A, tang_heights = gen_forward_map(meas_ang[0:-1], layers, obs_height, R)
+        ATA = np.matmul(A.T, A)
+        ATAu, ATAs, ATAvh = np.linalg.svd(ATA)
+        Au, As, Avh = np.linalg.svd(A)
+        cond_A[j,i]= np.linalg.cond(A,p=2)
+        cond_ATA[j,i] = np.linalg.cond(ATA,p=2)
+
+
+#cond_A[cond_A == inf] = np.nan
+vmin = np.min(cond_A[cond_A != inf])
+vmax = np.max(cond_A[cond_A != inf])
+# Creating figure
+plt.figure(figsize=(12,6))
+ax1 = plt.subplot(1, 2, 1)
+plt.imshow(cond_A, cmap='jet',norm=colors.LogNorm( vmin=vmin, vmax=vmax), extent=[num_lay[0],num_lay[-1],num_meas[0],num_meas[-1]], aspect='auto')
+ax1.set_ylabel('Number of Measurement')
+ax1.set_xlabel('Number of Layers in Model')
+#ax[1].imshow(cond_ATA, cmap='hot', interpolation='nearest',norm=LogNorm())
+ax2 = plt.subplot(1, 2, 2)
+plt.imshow(cond_ATA, cmap='jet',norm=colors.LogNorm( vmin=vmin, vmax=vmax), extent=[num_lay[0],num_lay[-1],num_meas[0],num_meas[-1]] ,aspect='auto')
+ax2.set_ylabel('Number of Measurement')
+ax2.set_xlabel('Number of Layers in Model')
+#ax2.get_ylim([num_meas[0],num_meas[-1]])
+plt.colorbar(ax= (ax1,ax2), orientation='horizontal')
+plt.show()
+
+
+#analyse singlar vectors for A.T A for specific num of layers
+
+
+#specifiy layers in km
+
+num_layers = 31 #46
+layers = np.linspace(min_h, max_h,num_layers)
+gradient = np.vstack(
+    (uniform(0, 1, num_layers - 1), uniform(0, 1, num_layers - 1), uniform(0, 1, num_layers - 1))).T
+
+#specify num of measurements
+min_m = 20
+max_m = 120
+num_meas_spec = np.linspace(min_m,max_m,int((max_m-min_m)/5)+1)
+for j in range(len(num_meas_spec)):
+    meas_ang = min_ang + (
+                (max_ang - min_ang) * np.exp(coeff * (np.linspace(0, int(num_meas[j]) - 1, int(num_meas[j])) - (int(num_meas[j]) - 1))))
+
+    A, tang_heights = gen_forward_map(meas_ang[0:-1],layers,obs_height,R)
+    ATA = np.matmul(A.T, A)
+
+    # Indices to step through colormap.
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 5))
+
+    for i in range(num_layers - 1):
+        ax1.plot(ATAu[:, i], color=gradient[i], linewidth=2,
+                 path_effects=[path_effects.Stroke(linewidth=4, foreground='black'), path_effects.Normal()])
+        text = ax1.text(i, ATAu[i, i], f'{i}', color=gradient[i], fontsize=20)
+        text.set_path_effects([path_effects.Stroke(linewidth=1, foreground='black'),
+                               path_effects.Normal()])
+        ax2.scatter(i, ATAs[i], color=gradient[i], s=50)  # gradient[:,i]
+        ax2.text(i, ATAs[i], f'{i}')
+        ax2.set_yscale('log')
+
+    plt.show()
+
+
+
+#condition number for A
+cond_A = np.linalg.cond(A)
+print("normal: " + str(orderOfMagnitude(cond_A)))
+print("normal: " + str(orderOfMagnitude(cond_A)))
+#to test that we have the same dr distances
+tot_r = np.zeros(num_meas)
+#calculate total length
+for j in range(0,num_meas):
+    tot_r[j] = 2*np.sqrt( (layers[-1] + R)**2 - (tang_heights[j] + R )**2 )
+
+
+print('Distance trhough layers check: ' + str(np.allclose( sum(A.T), tot_r)))
+
+
+
+
+#dont consider last h_val as we have layers from lowest h_val up to second highest
+ATAu, ATAs, ATAvh = plot_svd(ATA, layers[0:-1])
+print("normal: " + str(orderOfMagnitude(np.max(np.sqrt(ATAs))/np.min(np.sqrt(ATAs)))))
+#plot sing vec and sing vals including colorcoding
+
+
+
+#graph Laplacian
+neigbours = np.zeros((len(layers)-1,2))
+
+neigbours[0] = np.nan, 1
+neigbours[-1] = len(layers)-3, np.nan
+for i in range(1,len(layers)-2):
+    neigbours[i] = i-1, i+1
+
+lam = 1
+L = generate_L(neigbours)
+#number is approx 130 so 10^2
+C = np.matmul(A.T, A)
+#B is symmetric and positive semidefinite and normal
+B = (C - 1e3 * L) #* 1e-14eta/gamma
+Bu, Bs, Bvh = np.linalg.svd(B)
+#condition number for B
+cond_B = np.linalg.cond(B)
+print("normal: " + str(orderOfMagnitude(cond_B)))
+
+
+
+
+
+
+# taylor expansion for f and g
 
 
 ''' load data and pick wavenumber/frequency'''
@@ -147,79 +284,19 @@ how many measurements we want to do in between the max angle and min angle
  because measurment will collect more than just the stuff around the tangent height'''
 
 
-R = 6371 # earth radiusin km
-#obs_height = 300 # in km
-#fing minimum and max angle in radians
-max_ang = np.arcsin( (height_values[-3] + R) / (R + obs_height) )
-min_ang = np.arcsin( (height_values[1] + R) / (R + obs_height) )
-
-#specify where measurements are taken
-num_meas = 60
-#meas_ang = np.linspace(min_ang+(max_ang-min_ang)/4, max_ang-(max_ang-min_ang)/4, num_meas)
-meas_ang1 = np.linspace(min_ang, min_ang + (max_ang - min_ang)/4, int(3*num_meas/4 + 1) )
-meas_ang2 = np.linspace(min_ang + (max_ang - min_ang)/4, max_ang, int(num_meas/4))
-meas_ang = np.append(meas_ang1[0:-1], meas_ang2)
-#meas_ang = np.linspace(min_ang, max_ang, num_meas)
-
-tang_height = np.around((np.sin(meas_ang) * (obs_height + R)) - R, 2)
-plt.scatter(range(60),meas_ang)
-plt.show()
-#meas_ang = np.linspace(min_ang, max_ang, num_meas)
 
 # in cm but Ax is cgs
 
 Ax, A ,x, tang_heights = gen_measurement(meas_ang, height_values, w_cross, VMR_O3, pressure_values ,temp_values, Source)
-#get tangent height for each measurement
-#tang_height = np.around((np.sin(meas_ang) * (obs_height + R) ) -R,2)
-
-
-num_meas = len(A)
-#to test that we have the same dr distances
-tot_r = np.zeros(num_meas)
-#calculate total length
-for j in range(0,num_meas):
-    # np.sqrt( (obs_height + R)**2 - (tang_height[j] + R )**2 ) -
-    tot_r[j] = np.sqrt( (height_values[-1] + R)**2 - (tang_heights[j] + R )**2 )
-
-
-
-# plt.plot(x, height_values[1::])
-# #plt.plot(VMR_O3, height_values)
-# plt.show()
 
 #convolve measurements and add noise
 y = add_noise(Ax, 0.01, np.max(Ax))
 
-# fig2, ax2 = plt.subplots()
-# ax2.plot( Ax,np.linspace(1,num_meas,num_meas,dtype = int))
-# ax2.plot( y,np.linspace(1,num_meas,num_meas,dtype = int))
-# ax2.set_ylabel('measurement')
-# ax2.set_xlabel('measurement1')
-# #ax2.set_xscale('log')
-# fig2.savefig('measurements.png')
-# plt.show()
-
-
-
-
-
-#Y2 = sec_meas + rd.normal(0, np.sqrt(sigma_noise ), (44,1))
-
-
-#beta = np.linalg.norm(sec_meas - Y2)**2/2 + 1e-4
 apha = 44/2 + 1
 
 #mean = apha/beta
 #Bayesian framework
 
-#graph Laplacian
-layers = len(height_values)-1
-neigbours = np.zeros((layers,2))
-
-neigbours[0] = np.nan, 1
-neigbours[-1] = layers-3, np.nan
-for i in range(1,layers-2):
-    neigbours[i] = i-1, i+1
 
 
 vari = np.zeros((len(VMR_O3),1))
@@ -265,38 +342,9 @@ for j in range(1,len(x)-1):
 # plt.plot(dist, ym, 'k', linewidth=2)
 # plt.plot(dist, y)reboot
 # plt.show()
-#analyse forward map
 
 
-ATA = np.matmul(A.T,A)
-#D = np.identity(len(ATA)) * np.diag(ATA)
-#D_inv = np.linalg.inv(D)
-Au, As, Avh = np.linalg.svd(A)
-ATAu, ATAs, ATAvh = np.linalg.svd(ATA)
 
-# fig3,ax  = plt.subplots()
-# ax.set_yscale('log')
-# plt.scatter(range(0,len(ATAs)),ATAs)
-# #plt.scatter(range(0,len(As)),np.log(As))
-# plt.show()
-
-plot_svd(ATA, height_values[1:-2])
-
-cond_A = np.linalg.cond(A)
-print("Cond A: " + str(orderOfMagnitude(cond_A)))
-
-fig, axs = plt.subplots()
-#axs.set_title('left SV')
-# for i in range(10):
-#     axs.plot(ATAu[:,i], label= f"ATAu{i}")
-
-for i in range(len(ATAs)):
-    axs.plot(ATAs[i]*ATAu[:, i], label=f"ATAu{i}")#ATAs[i]*
-    plt.text(len(ATAs)-1,ATAs[i]*ATAu[-1, i],f"ATAu{i}")
-#axs.legend()
-
-
-plt.show()
 
 #first guesses
 gamma = 0.01 * max(Ax)
@@ -304,39 +352,6 @@ eta = 1/ (2 * np.mean(vari[2:-3]))
 
 
 
-L = generate_L(neigbours)
-#number is approx 130 so 10^2
-C = np.matmul(A.T, A)
-#B is symmetric and positive semidefinite and normal
-B = (C - eta/gamma * L) #* 1e-14eta/gamma
-Bu, Bs, Bvh = np.linalg.svd(B)
-#condition number for B
-cond_B = np.linalg.cond(B)
-print("normal: " + str(orderOfMagnitude(cond_B)))
-
-# fig4,ax  = plt.subplots()
-# ax.set_yscale('log')
-#
-# plt.scatter(range(0,len(As)),np.log(Bs))
-# plt.show()
-
-
-#plot different singular values with the bar in html file
-
-a = np.linspace(0, len(Au[:, 2]) - 1, len(Au[:, 2]))
-b = As[2] * Au[:, 2]
-df = pd.DataFrame(dict(a=a, b=b))
-
-#qr facorization decomposition
-Q,R = np.linalg.qr(B)
-detR = np.prod(np.diag(R)* 1e-18)
-B_inv = np.matmul(np.linalg.inv(R) , Q.T)
-
-#check if B2^-1 B2 == 1
-TEST = np.matmul(B, B_inv)
-print(np.allclose(np.identity(len(B)) ,TEST))#, atol = 1e-4))
-
-# taylor expansion for f and g
 
 
 
