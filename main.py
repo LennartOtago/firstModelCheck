@@ -2,6 +2,7 @@ import numpy as np
 import scipy as sc
 from functions import *
 from scipy import constants
+from scipy.sparse.linalg import gmres
 import testReal
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -77,42 +78,51 @@ layers = np.linspace(min_h, max_h,num_layers)
 gradient = np.vstack(
     (uniform(0, 1, num_layers - 1), uniform(0, 1, num_layers - 1), uniform(0, 1, num_layers - 1))).T
 
-#specify num of measurements
-min_m = 20
-max_m = 120
-num_meas_spec = np.linspace(min_m,max_m,int((max_m-min_m)/5)+1)
-for j in range(len(num_meas_spec)):
-    meas_ang = min_ang + (
-                (max_ang - min_ang) * np.exp(coeff * (np.linspace(0, int(num_meas[j]) - 1, int(num_meas[j])) - (int(num_meas[j]) - 1))))
+# #specify num of measurements
+# min_m = 20
+# max_m = 120
+# num_meas_spec = np.linspace(min_m,max_m,int((max_m-min_m)/5)+1)
+# for j in range(len(num_meas_spec)):
+#     meas_ang = min_ang + (
+#                 (max_ang - min_ang) * np.exp(coeff * (np.linspace(0, int(num_meas_spec[j]) - 1, int(num_meas_spec[j])) - (int(num_meas_spec[j]) - 1))))
+#
+#     A, tang_heights = gen_forward_map(meas_ang[0:-1],layers,obs_height,R)
+#     ATA = np.matmul(A.T, A)
+#
+#     # Indices to step through colormap.
+#     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 5))
+#
+#     for i in range(num_layers - 1):
+#         ax1.plot(ATAu[:, i], color=gradient[i], linewidth=2,
+#                  path_effects=[path_effects.Stroke(linewidth=4, foreground='black'), path_effects.Normal()])
+#         text = ax1.text(i, ATAu[i, i], f'{i}', color=gradient[i], fontsize=20)
+#         text.set_path_effects([path_effects.Stroke(linewidth=1, foreground='black'),
+#                                path_effects.Normal()])
+#         ax2.scatter(i, ATAs[i], color=gradient[i], s=50)  # gradient[:,i]
+#         ax2.text(i, ATAs[i], f'{i}')
+#         ax2.set_yscale('log')
+#
+#     plt.show()
+#
 
-    A, tang_heights = gen_forward_map(meas_ang[0:-1],layers,obs_height,R)
-    ATA = np.matmul(A.T, A)
-
-    # Indices to step through colormap.
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 5))
-
-    for i in range(num_layers - 1):
-        ax1.plot(ATAu[:, i], color=gradient[i], linewidth=2,
-                 path_effects=[path_effects.Stroke(linewidth=4, foreground='black'), path_effects.Normal()])
-        text = ax1.text(i, ATAu[i, i], f'{i}', color=gradient[i], fontsize=20)
-        text.set_path_effects([path_effects.Stroke(linewidth=1, foreground='black'),
-                               path_effects.Normal()])
-        ax2.scatter(i, ATAs[i], color=gradient[i], s=50)  # gradient[:,i]
-        ax2.text(i, ATAs[i], f'{i}')
-        ax2.set_yscale('log')
-
-    plt.show()
+#find best configuration of layers and num_meas
+#so that cond(A) is not inf
+num_meas = 100
+num_layers = 31 #46
+layers = np.linspace(min_h, max_h,num_layers)
+meas_ang = min_ang + (
+                (max_ang - min_ang) * np.exp(coeff * (np.linspace(0, int(num_meas) - 1, int(num_meas)) - (int(num_meas) - 1))))
 
 
-
+A, tang_heights = gen_forward_map(meas_ang[0:-1],layers,obs_height,R)
+ATA = np.matmul(A.T,A)
 #condition number for A
 cond_A = np.linalg.cond(A)
 print("normal: " + str(orderOfMagnitude(cond_A)))
-print("normal: " + str(orderOfMagnitude(cond_A)))
 #to test that we have the same dr distances
-tot_r = np.zeros(num_meas)
+tot_r = np.zeros(num_meas-1)
 #calculate total length
-for j in range(0,num_meas):
+for j in range(0,num_meas-1):
     tot_r[j] = 2*np.sqrt( (layers[-1] + R)**2 - (tang_heights[j] + R )**2 )
 
 
@@ -125,8 +135,11 @@ print('Distance trhough layers check: ' + str(np.allclose( sum(A.T), tot_r)))
 ATAu, ATAs, ATAvh = plot_svd(ATA, layers[0:-1])
 print("normal: " + str(orderOfMagnitude(np.max(np.sqrt(ATAs))/np.min(np.sqrt(ATAs)))))
 #plot sing vec and sing vals including colorcoding
-
-
+X = np.zeros(np.shape(ATA))
+for i in range(len(ATA)):
+    e = np.zeros(len(ATA))
+    e[i] = 1
+    X[:,i] , exitCode = gmres(ATA, e)
 
 #graph Laplacian
 neigbours = np.zeros((len(layers)-1,2))
@@ -139,13 +152,15 @@ for i in range(1,len(layers)-2):
 lam = 1
 L = generate_L(neigbours)
 #number is approx 130 so 10^2
-C = np.matmul(A.T, A)
+
 #B is symmetric and positive semidefinite and normal
-B = (C - 1e3 * L) #* 1e-14eta/gamma
+B = (ATA - 1e3 * L) #* 1e-14eta/gamma
 Bu, Bs, Bvh = np.linalg.svd(B)
 #condition number for B
 cond_B = np.linalg.cond(B)
 print("normal: " + str(orderOfMagnitude(cond_B)))
+
+
 
 
 
