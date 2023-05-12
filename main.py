@@ -37,10 +37,10 @@ cond_A = np.zeros((len(num_meas),len(num_lay)))
 cond_ATA = np.zeros((len(num_meas),len(num_lay)))
 for j in range(len(num_meas)):
     meas_ang = min_ang + (
-                (max_ang - min_ang) * np.exp(coeff * (np.linspace(0, int(num_meas[j]) - 1, int(num_meas[j])) - (int(num_meas[j]) - 1))))
+                (max_ang - min_ang) * np.exp(coeff * (np.linspace(0, int(num_meas[j]) - 1, int(num_meas[j])+1 ) - (int(num_meas[j]) - 1))))
 
     for i in range(len(num_lay)):
-        layers = np.linspace(min_h, max_h, int(num_lay[i]))
+        layers = np.linspace(min_h, max_h, int(num_lay[i])+1)
         A, tang_heights = gen_forward_map(meas_ang[0:-1], layers, obs_height, R)
         ATA = np.matmul(A.T, A)
         ATAu, ATAs, ATAvh = np.linalg.svd(ATA)
@@ -53,22 +53,72 @@ for j in range(len(num_meas)):
 vmin = np.min(cond_A[cond_A != inf])
 vmax = np.max(cond_A[cond_A != inf])
 # Creating figure
-fig, axs = plt.subplots(figsize=(12,6))
-ax1 = plt.subplot(1, 2, 1)
-pl1 = plt.imshow(cond_A, cmap='jet',norm=colors.LogNorm( vmin=vmin, vmax=vmax), extent=[num_lay[0],num_lay[-1],num_meas[0],num_meas[-1]], aspect='auto')
-ax1.set_ylabel('Number of Measurement')
-ax1.set_xlabel('Number of Layers in Model')
+fig, axs = plt.subplots(1,2,figsize=(12,6))
+#ax1 = plt.subplot(1, 2, 1)
+pl1 = axs[0].imshow(cond_A, cmap='jet',norm=colors.LogNorm( vmin=vmin, vmax=vmax), extent=[num_lay[0],num_lay[-1],num_meas[0],num_meas[-1]], aspect='auto')
+axs[0].set_ylabel('Number of Measurement')
+axs[0].set_xlabel('Number of Layers in Model')
 #ax[1].imshow(cond_ATA, cmap='hot', interpolation='nearest',norm=LogNorm())
-ax2 = plt.subplot(1, 2, 2)
-pl2 = plt.imshow(cond_ATA, cmap='jet',norm=colors.LogNorm( vmin=vmin, vmax=vmax), extent=[num_lay[0],num_lay[-1],num_meas[0],num_meas[-1]] ,aspect='auto')
-ax2.set_ylabel('Number of Measurement')
-ax2.set_xlabel('Number of Layers in Model')
+# ax2 = plt.subplot(1, 2, 2)
+pl2 = axs[1].imshow(cond_ATA, cmap='jet',norm=colors.LogNorm( vmin=vmin, vmax=vmax), extent=[num_lay[0],num_lay[-1],num_meas[0],num_meas[-1]] ,aspect='auto')
+axs[1].set_ylabel('Number of Measurement')
+axs[1].set_xlabel('Number of Layers in Model')
 #ax2.get_ylim([num_meas[0],num_meas[-1]])
-fig.colorbar(axs)#, orientation='horizontal')
-ax2.set_title('Condition Number of A^T A')
-ax1.set_title('Condition Number of A')
-fig.suptitle('This is a somewhat long figure title', fontsize=16)
+fig.colorbar(pl1,ax=axs,location='bottom')#, orientation='horizontal')
+axs[1].set_title('Condition Number of $A^T$ A')
+axs[0].set_title('Condition Number of A')
+fig.suptitle('Conditionnumber for different measurement and model setups', fontsize=16)
+plt.savefig('cond_A_exp.png')
 plt.show()
+
+
+
+#make a plot with conditionnumber on y axis and layers on x axis, with stable measurment numbers
+#cond is max(s_i)/min
+min_m = 15
+max_m = 180
+max_l = 90
+min_l = 15
+num_meas = np.linspace(min_m,max_m,max_m-min_m+1)
+num_lay = np.linspace(min_l, max_l, (max_l - min_l) + 1)
+cond_A = np.zeros((len(num_meas),len(num_lay)))
+cond_ATA = np.zeros((len(num_meas),len(num_lay)))
+for j in range(len(num_meas)):
+    meas_ang = np.linspace(min_ang,max_ang,int(num_meas[j])+1)
+    for i in range(len(num_lay)):
+        layers = np.linspace(min_h, max_h, int(num_lay[i])+1)
+        A, tang_heights = gen_forward_map(meas_ang[0:-1], layers, obs_height, R)
+        ATA = np.matmul(A.T, A)
+        ATAu, ATAs, ATAvh = np.linalg.svd(ATA)
+        Au, As, Avh = np.linalg.svd(A)
+        cond_A[j,i]= np.linalg.cond(A,p=2)
+        cond_ATA[j,i] = np.linalg.cond(ATA,p=2)
+
+
+#cond_A[cond_A == inf] = np.nan
+vmin = np.min(cond_A[cond_A != inf])
+vmax = np.max(cond_A[cond_A != inf])
+# Creating figure
+fig, axs = plt.subplots(1,2,figsize=(12,6))
+#ax1 = plt.subplot(1, 2, 1)
+pl1 = axs[0].imshow(cond_A, cmap='jet',norm=colors.LogNorm( vmin=vmin, vmax=vmax), extent=[num_lay[0],num_lay[-1],num_meas[0],num_meas[-1]], aspect='auto')
+axs[0].set_ylabel('Number of Measurement')
+axs[0].set_xlabel('Number of Layers in Model')
+#ax[1].imshow(cond_ATA, cmap='hot', interpolation='nearest',norm=LogNorm())
+# ax2 = plt.subplot(1, 2, 2)
+pl2 = axs[1].imshow(cond_ATA, cmap='jet',norm=colors.LogNorm( vmin=vmin, vmax=vmax), extent=[num_lay[0],num_lay[-1],num_meas[0],num_meas[-1]] ,aspect='auto')
+axs[1].set_ylabel('Number of Measurement')
+axs[1].set_xlabel('Number of Layers in Model')
+#ax2.get_ylim([num_meas[0],num_meas[-1]])
+fig.colorbar(pl1,ax=axs,location='bottom')#, orientation='horizontal')
+axs[1].set_title('Condition Number of $A^T$ A')
+axs[0].set_title('Condition Number of A')
+fig.suptitle('Conditionnumber for different measurement and model setups', fontsize=16)
+plt.savefig('cond_A_lin.png')
+plt.show()
+
+
+
 
 
 #analyse singlar vectors for A.T A for specific num of layers
@@ -76,10 +126,10 @@ plt.show()
 
 #specifiy layers in km
 
-num_layers = 31 #46
-layers = np.linspace(min_h, max_h,num_layers)
-gradient = np.vstack(
-    (uniform(0, 1, num_layers - 1), uniform(0, 1, num_layers - 1), uniform(0, 1, num_layers - 1))).T
+# num_layers = 31 #46
+# layers = np.linspace(min_h, max_h,num_layers+1)
+# gradient = np.vstack(
+#     (uniform(0, 1, num_layers - 1), uniform(0, 1, num_layers - 1), uniform(0, 1, num_layers - 1))).T
 
 # #specify num of measurements
 # min_m = 20
@@ -111,11 +161,10 @@ gradient = np.vstack(
 #find best configuration of layers and num_meas
 #so that cond(A) is not inf
 num_meas = 100
-num_layers = 31 #46
-layers = np.linspace(min_h, max_h,num_layers)
-meas_ang = min_ang + (
-                (max_ang - min_ang) * np.exp(coeff * (np.linspace(0, int(num_meas) - 1, int(num_meas)) - (int(num_meas) - 1))))
-
+num_layers = 30
+layers = np.linspace(min_h, max_h,num_layers+1)
+meas_ang = min_ang + ((max_ang - min_ang) * np.exp(coeff * (np.linspace(0, int(num_meas) - 1, int(num_meas)+1) - (int(num_meas) - 1))))
+#meas_ang = np.linspace(min_ang, max_ang, num_meas+ 1)
 
 A, tang_heights = gen_forward_map(meas_ang[0:-1],layers,obs_height,R)
 ATA = np.matmul(A.T,A)
@@ -123,52 +172,83 @@ ATA = np.matmul(A.T,A)
 cond_A = np.linalg.cond(A)
 print("normal: " + str(orderOfMagnitude(cond_A)))
 #to test that we have the same dr distances
-tot_r = np.zeros(num_meas-1)
+tot_r = np.zeros(num_meas)
 #calculate total length
-for j in range(0,num_meas-1):
+for j in range(0,num_meas):
     tot_r[j] = 2*np.sqrt( (layers[-1] + R)**2 - (tang_heights[j] + R )**2 )
-
-
 print('Distance trhough layers check: ' + str(np.allclose( sum(A.T), tot_r)))
 
 
-
-
 #dont consider last h_val as we have layers from lowest h_val up to second highest
-ATAu, ATAs, ATAvh = plot_svd(ATA, layers[0:-1])
-print("normal: " + str(orderOfMagnitude(np.max(np.sqrt(ATAs))/np.min(np.sqrt(ATAs)))))
-#plot sing vec and sing vals including colorcoding
-X = np.zeros(np.shape(ATA))
+ATAu, ATAs, ATAvh = np.linalg.svd(ATA)#plot_svd(ATA, layers[0:-1])
+print("ATA: " + str(orderOfMagnitude(np.max(np.sqrt(ATAs))/np.min(np.sqrt(ATAs)))))
+#plot sing vec and sing vals
+fig, axs = plt.subplots(1,1,figsize=(12,6))
+axs.set_yscale('log')
+plt.scatter(range(0,num_layers),ATAs)
+plt.show()
+
+
+ATA_inv = np.zeros(np.shape(ATA))
 for i in range(len(ATA)):
     e = np.zeros(len(ATA))
     e[i] = 1
-    X[:,i] , exitCode = gmres(ATA, e)
+    ATA_inv[:,i] , exitCode = gmres(ATA, e,tol = 1e-3, restart= 25)
+    print(exitCode)
+CheckATA = np.matmul(ATA,ATA_inv)
+print(np.allclose(CheckATA,np.eye(len(ATA)),atol = 1e-3))
 
 #graph Laplacian
 neigbours = np.zeros((len(layers)-1,2))
-
 neigbours[0] = np.nan, 1
 neigbours[-1] = len(layers)-3, np.nan
 for i in range(1,len(layers)-2):
     neigbours[i] = i-1, i+1
-
-lam = 1
 L = generate_L(neigbours)
-#number is approx 130 so 10^2
 
+
+lam = 1e3
+#number is approx 130 so 10^2
 #B is symmetric and positive semidefinite and normal
-B = (ATA - 1e3 * L) #* 1e-14eta/gamma
+B = (ATA -lam* L) #* 1e-14eta/gamma
 Bu, Bs, Bvh = np.linalg.svd(B)
+fig, axs = plt.subplots(1,1,figsize=(12,6))
+axs.set_yscale('log')
+plt.scatter(range(0,num_layers),Bs)
+plt.show()
+
 #condition number for B
 cond_B = np.linalg.cond(B)
 print("normal: " + str(orderOfMagnitude(cond_B)))
 
 
 
+B_inv = np.zeros(np.shape(ATA))
+for i in range(len(ATA)):
+    e = np.zeros(len(ATA))
+    e[i] = 1
+    B_inv[:,i] , exitCode = gmres(B, e,tol = 1e-3, restart= 25)
+    print(exitCode)
+
+CheckB_inv = np.matmul(B,B_inv)
+print(np.allclose(CheckB_inv,np.eye(len(ATA)),atol = 1e-3))
 
 
+#now compute the action of B^-1 L
 
 
+B_inv_L = np.zeros(np.shape(ATA))
+for i in range(len(ATA)):
+    B_inv_L[:,i] , exitCode = gmres(B, L[:,i],tol = 1e-5, restart= 25)
+    print(exitCode)
+
+CheckB_inv_L = np.matmul(B,B_inv_L)
+print(np.allclose(CheckB_inv_L,L,atol = 1e-3))
+
+#calc trace of B_inv_L with monte carlo estiamtion
+z = np.random.randint(2, size= len(B))
+z[z==0] = -1
+trace_B_inv_l = np.matmul(z.T,np.matmul(B_inv_L,z))
 
 # taylor expansion for f and g
 
