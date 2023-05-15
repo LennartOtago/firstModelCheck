@@ -419,7 +419,7 @@ print(np.allclose(CheckB_A_trans_y.T,A_trans_y[0::,0],atol = 1e-3))
 
 #already did (B^-1 L)^r look g
 # all together (A^T y )^T (B^-1 L)^r B^-1 (A^T y)
-B_inv_L
+B_inv_L =
 
 apha = 44/2 + 1
 
