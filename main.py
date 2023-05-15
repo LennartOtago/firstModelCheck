@@ -25,97 +25,101 @@ obs_height = 300 # in km
 max_ang = np.arcsin( (max_h + R) / (R + obs_height) )
 min_ang = np.arcsin( (min_h + R) / (R + obs_height) )
 coeff = 0.05
-#make a plot with conditionnumber on y axis and layers on x axis, with stable measurment numbers
+
+"""
+    make a plot with conditionnumber on y axis and layers on x axis, 
+    with stable measurment numbers
+"""
 #cond is max(s_i)/min
-min_m = 15
-max_m = 180
-max_l = 90
-min_l = 15
-num_meas = np.linspace(min_m,max_m,max_m-min_m+1)
-num_lay = np.linspace(min_l, max_l, (max_l - min_l) + 1)
-cond_A = np.zeros((len(num_meas),len(num_lay)))
-cond_ATA = np.zeros((len(num_meas),len(num_lay)))
-for j in range(len(num_meas)):
-    meas_ang = min_ang + (
-                (max_ang - min_ang) * np.exp(coeff * (np.linspace(0, int(num_meas[j]) - 1, int(num_meas[j])+1 ) - (int(num_meas[j]) - 1))))
-
-    for i in range(len(num_lay)):
-        layers = np.linspace(min_h, max_h, int(num_lay[i])+1)
-        A, tang_heights = gen_forward_map(meas_ang[0:-1], layers, obs_height, R)
-        ATA = np.matmul(A.T, A)
-        ATAu, ATAs, ATAvh = np.linalg.svd(ATA)
-        Au, As, Avh = np.linalg.svd(A)
-        cond_A[j,i]= np.linalg.cond(A,p=2)
-        cond_ATA[j,i] = np.linalg.cond(ATA,p=2)
-
-
-#cond_A[cond_A == inf] = np.nan
-vmin = np.min(cond_A[cond_A != inf])
-vmax = np.max(cond_A[cond_A != inf])
-# Creating figure
-fig, axs = plt.subplots(1,2,figsize=(12,6))
-#ax1 = plt.subplot(1, 2, 1)
-pl1 = axs[0].imshow(cond_A, cmap='jet',norm=colors.LogNorm( vmin=vmin, vmax=vmax), extent=[num_lay[0],num_lay[-1],num_meas[0],num_meas[-1]], aspect='auto')
-axs[0].set_ylabel('Number of Measurement')
-axs[0].set_xlabel('Number of Layers in Model')
-#ax[1].imshow(cond_ATA, cmap='hot', interpolation='nearest',norm=LogNorm())
-# ax2 = plt.subplot(1, 2, 2)
-pl2 = axs[1].imshow(cond_ATA, cmap='jet',norm=colors.LogNorm( vmin=vmin, vmax=vmax), extent=[num_lay[0],num_lay[-1],num_meas[0],num_meas[-1]] ,aspect='auto')
-axs[1].set_ylabel('Number of Measurement')
-axs[1].set_xlabel('Number of Layers in Model')
-#ax2.get_ylim([num_meas[0],num_meas[-1]])
-fig.colorbar(pl1,ax=axs,location='bottom')#, orientation='horizontal')
-axs[1].set_title('Condition Number of $A^T$ A')
-axs[0].set_title('Condition Number of A')
-fig.suptitle('Conditionnumber for different measurement and model setups', fontsize=16)
-plt.savefig('cond_A_exp.png')
-plt.show()
-
-
-
-#make a plot with conditionnumber on y axis and layers on x axis, with stable measurment numbers
-#cond is max(s_i)/min
-min_m = 15
-max_m = 180
-max_l = 90
-min_l = 15
-num_meas = np.linspace(min_m,max_m,max_m-min_m+1)
-num_lay = np.linspace(min_l, max_l, (max_l - min_l) + 1)
-cond_A = np.zeros((len(num_meas),len(num_lay)))
-cond_ATA = np.zeros((len(num_meas),len(num_lay)))
-for j in range(len(num_meas)):
-    meas_ang = np.linspace(min_ang,max_ang,int(num_meas[j])+1)
-    for i in range(len(num_lay)):
-        layers = np.linspace(min_h, max_h, int(num_lay[i])+1)
-        A, tang_heights = gen_forward_map(meas_ang[0:-1], layers, obs_height, R)
-        ATA = np.matmul(A.T, A)
-        ATAu, ATAs, ATAvh = np.linalg.svd(ATA)
-        Au, As, Avh = np.linalg.svd(A)
-        cond_A[j,i]= np.linalg.cond(A,p=2)
-        cond_ATA[j,i] = np.linalg.cond(ATA,p=2)
-
-
-#cond_A[cond_A == inf] = np.nan
-vmin = np.min(cond_A[cond_A != inf])
-vmax = np.max(cond_A[cond_A != inf])
-# Creating figure
-fig, axs = plt.subplots(1,2,figsize=(12,6))
-#ax1 = plt.subplot(1, 2, 1)
-pl1 = axs[0].imshow(cond_A, cmap='jet',norm=colors.LogNorm( vmin=vmin, vmax=vmax), extent=[num_lay[0],num_lay[-1],num_meas[0],num_meas[-1]], aspect='auto')
-axs[0].set_ylabel('Number of Measurement')
-axs[0].set_xlabel('Number of Layers in Model')
-#ax[1].imshow(cond_ATA, cmap='hot', interpolation='nearest',norm=LogNorm())
-# ax2 = plt.subplot(1, 2, 2)
-pl2 = axs[1].imshow(cond_ATA, cmap='jet',norm=colors.LogNorm( vmin=vmin, vmax=vmax), extent=[num_lay[0],num_lay[-1],num_meas[0],num_meas[-1]] ,aspect='auto')
-axs[1].set_ylabel('Number of Measurement')
-axs[1].set_xlabel('Number of Layers in Model')
-#ax2.get_ylim([num_meas[0],num_meas[-1]])
-fig.colorbar(pl1,ax=axs,location='bottom')#, orientation='horizontal')
-axs[1].set_title('Condition Number of $A^T$ A')
-axs[0].set_title('Condition Number of A')
-fig.suptitle('Conditionnumber for different measurement and model setups', fontsize=16)
-plt.savefig('cond_A_lin.png')
-plt.show()
+# min_m = 15
+# max_m = 180
+# max_l = 90
+# min_l = 15
+# num_meas = np.linspace(min_m,max_m,max_m-min_m+1)
+# num_lay = np.linspace(min_l, max_l, (max_l - min_l) + 1)
+# cond_A = np.zeros((len(num_meas),len(num_lay)))
+# cond_ATA = np.zeros((len(num_meas),len(num_lay)))
+# for j in range(len(num_meas)):
+#     meas_ang = min_ang + (
+#                 (max_ang - min_ang) * np.exp(coeff * (np.linspace(0, int(num_meas[j]) - 1, int(num_meas[j])+1 ) - (int(num_meas[j]) - 1))))
+#
+#     for i in range(len(num_lay)):
+#         layers = np.linspace(min_h, max_h, int(num_lay[i])+1)
+#         A, tang_heights = gen_forward_map(meas_ang[0:-1], layers, obs_height, R)
+#         ATA = np.matmul(A.T, A)
+#         ATAu, ATAs, ATAvh = np.linalg.svd(ATA)
+#         Au, As, Avh = np.linalg.svd(A)
+#         cond_A[j,i]= np.linalg.cond(A,p=2)
+#         cond_ATA[j,i] = np.linalg.cond(ATA,p=2)
+#
+#
+# #cond_A[cond_A == inf] = np.nan
+# vmin = np.min(cond_A[cond_A != inf])
+# vmax = np.max(cond_A[cond_A != inf])
+# # Creating figure
+# fig, axs = plt.subplots(1,2,figsize=(12,6))
+# #ax1 = plt.subplot(1, 2, 1)
+# pl1 = axs[0].imshow(cond_A, cmap='jet',norm=colors.LogNorm( vmin=vmin, vmax=vmax), extent=[num_lay[0],num_lay[-1],num_meas[0],num_meas[-1]], aspect='auto')
+# axs[0].set_ylabel('Number of Measurement')
+# axs[0].set_xlabel('Number of Layers in Model')
+# #ax[1].imshow(cond_ATA, cmap='hot', interpolation='nearest',norm=LogNorm())
+# # ax2 = plt.subplot(1, 2, 2)
+# pl2 = axs[1].imshow(cond_ATA, cmap='jet',norm=colors.LogNorm( vmin=vmin, vmax=vmax), extent=[num_lay[0],num_lay[-1],num_meas[0],num_meas[-1]] ,aspect='auto')
+# axs[1].set_ylabel('Number of Measurement')
+# axs[1].set_xlabel('Number of Layers in Model')
+# #ax2.get_ylim([num_meas[0],num_meas[-1]])
+# fig.colorbar(pl1,ax=axs,location='bottom')#, orientation='horizontal')
+# axs[1].set_title('Condition Number of $A^T$ A')
+# axs[0].set_title('Condition Number of A')
+# fig.suptitle('Conditionnumber for different measurement and model setups', fontsize=16)
+# plt.savefig('cond_A_exp.png')
+# plt.show()
+#
+#
+#
+# #make a plot with conditionnumber on y axis and layers on x axis, with stable measurment numbers
+# #cond is max(s_i)/min
+# min_m = 15
+# max_m = 180
+# max_l = 90
+# min_l = 15
+# num_meas = np.linspace(min_m,max_m,max_m-min_m+1)
+# num_lay = np.linspace(min_l, max_l, (max_l - min_l) + 1)
+# cond_A = np.zeros((len(num_meas),len(num_lay)))
+# cond_ATA = np.zeros((len(num_meas),len(num_lay)))
+# for j in range(len(num_meas)):
+#     meas_ang = np.linspace(min_ang,max_ang,int(num_meas[j])+1)
+#     for i in range(len(num_lay)):
+#         layers = np.linspace(min_h, max_h, int(num_lay[i])+1)
+#         A, tang_heights = gen_forward_map(meas_ang[0:-1], layers, obs_height, R)
+#         ATA = np.matmul(A.T, A)
+#         ATAu, ATAs, ATAvh = np.linalg.svd(ATA)
+#         Au, As, Avh = np.linalg.svd(A)
+#         cond_A[j,i]= np.linalg.cond(A,p=2)
+#         cond_ATA[j,i] = np.linalg.cond(ATA,p=2)
+#
+#
+# #cond_A[cond_A == inf] = np.nan
+# vmin = np.min(cond_A[cond_A != inf])
+# vmax = np.max(cond_A[cond_A != inf])
+# # Creating figure
+# fig, axs = plt.subplots(1,2,figsize=(12,6))
+# #ax1 = plt.subplot(1, 2, 1)
+# pl1 = axs[0].imshow(cond_A, cmap='jet',norm=colors.LogNorm( vmin=vmin, vmax=vmax), extent=[num_lay[0],num_lay[-1],num_meas[0],num_meas[-1]], aspect='auto')
+# axs[0].set_ylabel('Number of Measurement')
+# axs[0].set_xlabel('Number of Layers in Model')
+# #ax[1].imshow(cond_ATA, cmap='hot', interpolation='nearest',norm=LogNorm())
+# # ax2 = plt.subplot(1, 2, 2)
+# pl2 = axs[1].imshow(cond_ATA, cmap='jet',norm=colors.LogNorm( vmin=vmin, vmax=vmax), extent=[num_lay[0],num_lay[-1],num_meas[0],num_meas[-1]] ,aspect='auto')
+# axs[1].set_ylabel('Number of Measurement')
+# axs[1].set_xlabel('Number of Layers in Model')
+# #ax2.get_ylim([num_meas[0],num_meas[-1]])
+# fig.colorbar(pl1,ax=axs,location='bottom')#, orientation='horizontal')
+# axs[1].set_title('Condition Number of $A^T$ A')
+# axs[0].set_title('Condition Number of A')
+# fig.suptitle('Conditionnumber for different measurement and model setups', fontsize=16)
+# plt.savefig('cond_A_lin.png')
+# plt.show()
 
 
 
@@ -161,7 +165,7 @@ plt.show()
 #find best configuration of layers and num_meas
 #so that cond(A) is not inf
 num_meas = 100
-num_layers = 30
+num_layers = 45
 layers = np.linspace(min_h, max_h,num_layers+1)
 meas_ang = min_ang + ((max_ang - min_ang) * np.exp(coeff * (np.linspace(0, int(num_meas) - 1, int(num_meas)+1) - (int(num_meas) - 1))))
 #meas_ang = np.linspace(min_ang, max_ang, num_meas+ 1)
@@ -245,19 +249,29 @@ for i in range(len(ATA)):
 CheckB_inv_L = np.matmul(B,B_inv_L)
 print(np.allclose(CheckB_inv_L,L,atol = 1e-3))
 
+''' taylor expansion for g
+'''
 #calc trace of B_inv_L with monte carlo estiamtion
-z = np.random.randint(2, size= len(B))
-z[z==0] = -1
-trace_B_inv_l = np.matmul(z.T,np.matmul(B_inv_L,z))
+#do 4 times as colin
+num_z = 4
+trace_Bs = np.zeros(num_z)
+for k in range(num_z):
+    z = np.random.randint(2, size= len(B))
+    z[z==0] = -1
+    trace_Bs[k] = np.matmul(z.T, np.matmul(B_inv_L, z))
 
-# taylor expansion for f and g
 
+trace_B_inv_l = np.mean(trace_Bs)
+
+
+
+#taylor exapnsion for f to do so we need y (data)
 
 ''' load data and pick wavenumber/frequency'''
 #
 ##check absoprtion coeff in different heights and different freqencies
 #/Users/lennart/PycharmProjects/firstModelCheck
-obs_height= 300 #in km
+#obs_height= 300 #in km
 #filename = '/home/lennartgolks/Python/firstModelCheck/tropical.O3.xml' #/home/lennartgolks/Python /Users/lennart/PycharmProjects/firstModelCheck/tropical.O3.xml
 filename = 'tropical.O3.xml'
 
@@ -287,7 +301,7 @@ data_set = my_data.values
 size = data_set.shape
 wvnmbr = np.zeros((size[0],1))
 S = np.zeros((size[0],1))
-A = np.zeros((size[0],1))
+F = np.zeros((size[0],1))
 g_air = np.zeros((size[0],1))
 g_self = np.zeros((size[0],1))
 E = np.zeros((size[0],1))
@@ -297,7 +311,7 @@ n_air = np.zeros((size[0],1))
 for i, lines in enumerate(data_set):
     wvnmbr[i] = float(lines[0][5:15]) # in 1/cm
     S[i] = float(lines[0][16:25]) # in cm/mol
-    A[i] = float(lines[0][26:35])
+    F[i] = float(lines[0][26:35])
     g_air[i] = float(lines[0][35:40])
     g_self[i] = float(lines[0][40:45])
     E[i] = float(lines[0][46:55])
@@ -380,15 +394,32 @@ how many measurements we want to do in between the max angle and min angle
  or max height and min height..
  we specify the angles
  because measurment will collect more than just the stuff around the tangent height'''
-
-
-
-# in cm but Ax is cgs
-
-Ax, A ,x, tang_heights = gen_measurement(meas_ang, height_values, w_cross, VMR_O3, pressure_values ,temp_values, Source)
-
+num_mole = (pressure_values / (constants.Boltzmann * 1e7  * temp_values))
+theta = (num_mole * w_cross * VMR_O3 * Source)
+Ax = np.matmul(A, theta[1:-1])
 #convolve measurements and add noise
 y = add_noise(Ax, 0.01, np.max(Ax))
+
+
+
+
+
+""" finaly calc f with a linear solver... gmres"""
+
+
+#B^-1 A^T y
+
+B_inv_A_trans_y = np.zeros(np.shape(ATA))
+A_trans_y = np.matmul(A.T,y)
+B_inv_A_trans_y , exitCode = gmres(B, A_trans_y,tol = 1e-5, restart= 25)
+print(exitCode)
+
+CheckB_A_trans_y = np.matmul(B,B_inv_A_trans_y)
+print(np.allclose(CheckB_A_trans_y.T,A_trans_y[0::,0],atol = 1e-3))
+
+#already did (B^-1 L)^r look g
+# all together (A^T y )^T (B^-1 L)^r B^-1 (A^T y)
+B_inv_L
 
 apha = 44/2 + 1
 
