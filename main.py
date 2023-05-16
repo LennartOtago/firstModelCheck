@@ -186,11 +186,11 @@ print('Distance trhough layers check: ' + str(np.allclose( sum(A.T), tot_r)))
 #dont consider last h_val as we have layers from lowest h_val up to second highest
 ATAu, ATAs, ATAvh = np.linalg.svd(ATA)#plot_svd(ATA, layers[0:-1])
 print("ATA: " + str(orderOfMagnitude(np.max(np.sqrt(ATAs))/np.min(np.sqrt(ATAs)))))
-#plot sing vec and sing vals
-fig, axs = plt.subplots(1,1,figsize=(12,6))
-axs.set_yscale('log')
-plt.scatter(range(0,num_layers),ATAs)
-plt.show()
+# #plot sing vec and sing vals
+# fig, axs = plt.subplots(1,1,figsize=(12,6))
+# axs.set_yscale('log')
+# plt.scatter(range(0,num_layers),ATAs)
+# plt.show()
 
 
 ATA_inv = np.zeros(np.shape(ATA))
@@ -405,23 +405,38 @@ y = add_noise(Ax, 0.01, np.max(Ax))
 
 
 """ finaly calc f with a linear solver... gmres"""
-
-
 #B^-1 A^T y
-
 B_inv_A_trans_y = np.zeros(np.shape(ATA))
 A_trans_y = np.matmul(A.T,y)
-B_inv_A_trans_y , exitCode = gmres(B, A_trans_y,tol = 1e-5, restart= 25)
+B_inv_A_trans_y , exitCode = gmres(B, A_trans_y[0::,0],tol = 1e-6, restart= 25)
 print(exitCode)
 
 CheckB_A_trans_y = np.matmul(B,B_inv_A_trans_y)
-print(np.allclose(CheckB_A_trans_y.T,A_trans_y[0::,0],atol = 1e-3))
+print(np.allclose(CheckB_A_trans_y.T,A_trans_y[0::,0],atol = 1e-5))
 
 #already did (B^-1 L)^r look g
 # all together (A^T y )^T (B^-1 L)^r B^-1 (A^T y)
-B_inv_L =
+f_1 =  np.matmul(A_trans_y.T, np.matmul(B_inv_L ,B_inv_A_trans_y))
+f_2 =np.matmul( np.matmul(A_trans_y.T,B_inv_L ), np.matmul(B_inv_L ,B_inv_A_trans_y) )
 
+#f = f_1 - f_2
+
+#%%
+lam= np.logspace(-5,4,100)
+f_func = np.zeros(len(lam))
+g_func = np.zeros(len(lam))
+for j in range(len(lam)):
+    f_func[j] = f(A, y, L, lam[j])
+    g_func[j] = g(A, L, lam[j])
+
+fig,axs = plt.subplots(1,2)
+axs[0].plot(lam,f_func)
+axs[1].plot(lam,g_func)
+#axs.set_yscale('log')
+axs.set_xscale('log')
+plt.show()
 apha = 44/2 + 1
+#%%
 
 #mean = apha/beta
 #Bayesian framework
