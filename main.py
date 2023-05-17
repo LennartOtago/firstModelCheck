@@ -170,7 +170,16 @@ layers = np.linspace(min_h, max_h,num_layers+1)
 meas_ang = min_ang + ((max_ang - min_ang) * np.exp(coeff * (np.linspace(0, int(num_meas) - 1, int(num_meas)+1) - (int(num_meas) - 1))))
 #meas_ang = np.linspace(min_ang, max_ang, num_meas+ 1)
 
+
 A, tang_heights = gen_forward_map(meas_ang[0:-1],layers,obs_height,R)
+
+fig, axs = plt.subplots(1,1,figsize=(12,6))
+plt.scatter(range(num_meas),tang_heights)
+plt.savefig('tang_h_exp.png')
+plt.show()
+
+
+Au, As, Avh = np.linalg.svd(A)
 ATA = np.matmul(A.T,A)
 #condition number for A
 cond_A = np.linalg.cond(A)
@@ -187,20 +196,21 @@ print('Distance trhough layers check: ' + str(np.allclose( sum(A.T), tot_r)))
 ATAu, ATAs, ATAvh = np.linalg.svd(ATA)#plot_svd(ATA, layers[0:-1])
 print("ATA: " + str(orderOfMagnitude(np.max(np.sqrt(ATAs))/np.min(np.sqrt(ATAs)))))
 # #plot sing vec and sing vals
-# fig, axs = plt.subplots(1,1,figsize=(12,6))
-# axs.set_yscale('log')
-# plt.scatter(range(0,num_layers),ATAs)
-# plt.show()
+fig, axs = plt.subplots(1,1,figsize=(12,6))
+axs.set_yscale('log')
+plt.scatter(range(0,num_layers),ATAs)
+plt.savefig('SingVal_ATA_exp.png')
+plt.show()
 
 
-ATA_inv = np.zeros(np.shape(ATA))
-for i in range(len(ATA)):
-    e = np.zeros(len(ATA))
-    e[i] = 1
-    ATA_inv[:,i] , exitCode = gmres(ATA, e,tol = 1e-3, restart= 25)
-    print(exitCode)
-CheckATA = np.matmul(ATA,ATA_inv)
-print(np.allclose(CheckATA,np.eye(len(ATA)),atol = 1e-3))
+# ATA_inv = np.zeros(np.shape(ATA))
+# for i in range(len(ATA)):
+#     e = np.zeros(len(ATA))
+#     e[i] = 1
+#     ATA_inv[:,i] , exitCode = gmres(ATA, e,tol = 1e-3, restart= 25)
+#     print(exitCode)
+# CheckATA = np.matmul(ATA,ATA_inv)
+# print(np.allclose(CheckATA,np.eye(len(ATA)),atol = 1e-3))
 
 #graph Laplacian
 neigbours = np.zeros((len(layers)-1,2))
@@ -219,6 +229,7 @@ Bu, Bs, Bvh = np.linalg.svd(B)
 fig, axs = plt.subplots(1,1,figsize=(12,6))
 axs.set_yscale('log')
 plt.scatter(range(0,num_layers),Bs)
+plt.savefig('SingVal_B_exp.png')
 plt.show()
 
 #condition number for B
@@ -227,41 +238,41 @@ print("normal: " + str(orderOfMagnitude(cond_B)))
 
 
 
-B_inv = np.zeros(np.shape(ATA))
-for i in range(len(ATA)):
-    e = np.zeros(len(ATA))
-    e[i] = 1
-    B_inv[:,i] , exitCode = gmres(B, e,tol = 1e-3, restart= 25)
-    print(exitCode)
-
-CheckB_inv = np.matmul(B,B_inv)
-print(np.allclose(CheckB_inv,np.eye(len(ATA)),atol = 1e-3))
+# B_inv = np.zeros(np.shape(ATA))
+# for i in range(len(ATA)):
+#     e = np.zeros(len(ATA))
+#     e[i] = 1
+#     B_inv[:,i] , exitCode = gmres(B, e,tol = 1e-3, restart= 25)
+#     print(exitCode)
+#
+# CheckB_inv = np.matmul(B,B_inv)
+# print(np.allclose(CheckB_inv,np.eye(len(ATA)),atol = 1e-3))
 
 
 #now compute the action of B^-1 L
 
 
-B_inv_L = np.zeros(np.shape(ATA))
-for i in range(len(ATA)):
-    B_inv_L[:,i] , exitCode = gmres(B, L[:,i],tol = 1e-5, restart= 25)
-    print(exitCode)
-
-CheckB_inv_L = np.matmul(B,B_inv_L)
-print(np.allclose(CheckB_inv_L,L,atol = 1e-3))
+# B_inv_L = np.zeros(np.shape(ATA))
+# for i in range(len(ATA)):
+#     B_inv_L[:,i] , exitCode = gmres(B, L[:,i],tol = 1e-5, restart= 25)
+#     print(exitCode)
+#
+# CheckB_inv_L = np.matmul(B,B_inv_L)
+# print(np.allclose(CheckB_inv_L,L,atol = 1e-3))
 
 ''' taylor expansion for g
 '''
 #calc trace of B_inv_L with monte carlo estiamtion
 #do 4 times as colin
-num_z = 4
-trace_Bs = np.zeros(num_z)
-for k in range(num_z):
-    z = np.random.randint(2, size= len(B))
-    z[z==0] = -1
-    trace_Bs[k] = np.matmul(z.T, np.matmul(B_inv_L, z))
-
-
-trace_B_inv_l = np.mean(trace_Bs)
+# num_z = 4
+# trace_Bs = np.zeros(num_z)
+# for k in range(num_z):
+#     z = np.random.randint(2, size= len(B))
+#     z[z==0] = -1
+#     trace_Bs[k] = np.matmul(z.T, np.matmul(B_inv_L, z))
+#
+#
+# trace_B_inv_l = np.mean(trace_Bs)
 
 
 
@@ -416,13 +427,13 @@ print(np.allclose(CheckB_A_trans_y.T,A_trans_y[0::,0],atol = 1e-5))
 
 #already did (B^-1 L)^r look g
 # all together (A^T y )^T (B^-1 L)^r B^-1 (A^T y)
-f_1 =  np.matmul(A_trans_y.T, np.matmul(B_inv_L ,B_inv_A_trans_y))
-f_2 =np.matmul( np.matmul(A_trans_y.T,B_inv_L ), np.matmul(B_inv_L ,B_inv_A_trans_y) )
+# f_1 =  np.matmul(A_trans_y.T, np.matmul(B_inv_L ,B_inv_A_trans_y))
+# f_2 =np.matmul( np.matmul(A_trans_y.T,B_inv_L ), np.matmul(B_inv_L ,B_inv_A_trans_y) )
 
 #f = f_1 - f_2
 
 #%%
-lam= np.logspace(-5,4,100)
+lam= np.logspace(-4,14,1000)
 f_func = np.zeros(len(lam))
 g_func = np.zeros(len(lam))
 for j in range(len(lam)):
@@ -430,11 +441,23 @@ for j in range(len(lam)):
     g_func[j] = g(A, L, lam[j])
 
 fig,axs = plt.subplots(1,2)
-axs[0].plot(lam,f_func)
 axs[1].plot(lam,g_func)
+axs[0].plot(lam,f_func)
+
 #axs.set_yscale('log')
-axs.set_xscale('log')
+axs[0].set_xscale('log')
+axs[1].set_xscale('log')
+axs[0].set_yscale('log')
+
+axs[0].set_xlabel('$\lambda$')
+axs[1].set_xlabel('$\lambda$')
+
+axs[0].set_ylabel('f($\lambda$)')
+axs[1].set_ylabel('g($\lambda$)')
+
 plt.show()
+
+
 apha = 44/2 + 1
 #%%
 

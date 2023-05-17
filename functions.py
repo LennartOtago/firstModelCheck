@@ -216,27 +216,16 @@ def f(A, y, L, l):
     #print(exitCode)
 
     CheckB_A_trans_y = np.matmul(B, B_inv_A_trans_y)
-    print(np.allclose(CheckB_A_trans_y.T, A_trans_y[0::, 0], atol=1e-3))
-
-    return np.matmul(y.T, y)- np.matmul(np.matmul(y.T,A),B_inv_A_trans_y)
+    if np.allclose(CheckB_A_trans_y.T, A_trans_y[0::, 0], atol=1e-3):
+        print('true')
+        return np.matmul(y.T, y)- np.matmul(np.matmul(y.T,A),B_inv_A_trans_y)
+    else:
+        return np.NAN
 
 
 def g(A, L, l):
     """ calclulate taylor series of g"""
     B = np.matmul(A.T,A) + l * L
-    B_inv_L = np.zeros(np.shape(B))
-    for i in range(len(B)):
-        B_inv_L[:, i], exitCode = gmres(B, L[:, i], tol=1e-5, restart=25)
-        #print(exitCode)
+    Bu, Bs, Bvh = np.linalg.svd(B)
 
-    CheckB_inv_L = np.matmul(B, B_inv_L)
-    print(np.allclose(CheckB_inv_L, L, atol=1e-3))
-
-    num_z = 4
-    trace_Bs = np.zeros(num_z)
-    for k in range(num_z):
-        z = np.random.randint(2, size=len(B))
-        z[z == 0] = -1
-        trace_Bs[k] = np.matmul(z.T, np.matmul(B_inv_L, z))
-
-    return  np.mean(trace_Bs)
+    return  np.sum(np.log(Bs))
