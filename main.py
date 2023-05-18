@@ -30,7 +30,7 @@ coeff = 0.05
     make a plot with conditionnumber on y axis and layers on x axis, 
     with stable measurment numbers
 """
-#cond is max(s_i)/min
+# #cond is max(s_i)/min
 # min_m = 15
 # max_m = 180
 # max_l = 90
@@ -49,8 +49,8 @@ coeff = 0.05
 #         ATA = np.matmul(A.T, A)
 #         ATAu, ATAs, ATAvh = np.linalg.svd(ATA)
 #         Au, As, Avh = np.linalg.svd(A)
-#         cond_A[j,i]= np.linalg.cond(A,p=2)
-#         cond_ATA[j,i] = np.linalg.cond(ATA,p=2)
+#         cond_A[j,i]= np.max(As)/np.min(As)
+#         cond_ATA[j,i] = np.max(ATAs)/np.min(ATAs)
 #
 #
 # #cond_A[cond_A == inf] = np.nan
@@ -95,8 +95,9 @@ coeff = 0.05
 #         ATA = np.matmul(A.T, A)
 #         ATAu, ATAs, ATAvh = np.linalg.svd(ATA)
 #         Au, As, Avh = np.linalg.svd(A)
-#         cond_A[j,i]= np.linalg.cond(A,p=2)
-#         cond_ATA[j,i] = np.linalg.cond(ATA,p=2)
+#         cond_A[j,i]=  np.max(As)/np.min(As)
+#         cond_ATA[j,i] =  np.max(ATAs)/np.min(ATAs)
+#
 #
 #
 # #cond_A[cond_A == inf] = np.nan
@@ -170,20 +171,15 @@ layers = np.linspace(min_h, max_h,num_layers+1)
 meas_ang = min_ang + ((max_ang - min_ang) * np.exp(coeff * (np.linspace(0, int(num_meas) - 1, int(num_meas)+1) - (int(num_meas) - 1))))
 #meas_ang = np.linspace(min_ang, max_ang, num_meas+ 1)
 
-
 A, tang_heights = gen_forward_map(meas_ang[0:-1],layers,obs_height,R)
-
-fig, axs = plt.subplots(1,1,figsize=(12,6))
-plt.scatter(range(num_meas),tang_heights)
-plt.savefig('tang_h_exp.png')
-plt.show()
-
-
 Au, As, Avh = np.linalg.svd(A)
 ATA = np.matmul(A.T,A)
 #condition number for A
-cond_A = np.linalg.cond(A)
+cond_A =  np.max(As)/np.min(As)
 print("normal: " + str(orderOfMagnitude(cond_A)))
+
+
+
 #to test that we have the same dr distances
 tot_r = np.zeros(num_meas)
 #calculate total length
@@ -191,15 +187,63 @@ for j in range(0,num_meas):
     tot_r[j] = 2*np.sqrt( (layers[-1] + R)**2 - (tang_heights[j] + R )**2 )
 print('Distance trhough layers check: ' + str(np.allclose( sum(A.T), tot_r)))
 
+#dont consider last h_val as we have layers from lowest h_val up to second highest
+ATAu, ATAs, ATAvh = np.linalg.svd(ATA)#plot_svd(ATA, layers[0:-1])
+print("ATA: " + str(orderOfMagnitude(np.max(np.sqrt(ATAs))/np.min(np.sqrt(ATAs)))))
+# #plot sing vec and sing vals
+fig, axs = plt.subplots(1,2,figsize=(12,6))
+axs[0].scatter(range(num_meas),tang_heights)
+#axs.title('Measurement Setup with Conditonnumber for Forward map '+  str(cond_A))
+axs[0].set_xlabel('Number of Measurements')
+axs[0].set_ylabel('Height in km')
+axs[1].scatter(range(0,num_layers),As)
+fig.suptitle('Singular values of A with Conditionnumber ' + str(np.around(cond_A)))
+axs[1].set_yscale('log')
+axs[1].set_ylabel('Value')
+axs[1].set_xlabel('Index')
+plt.savefig('ExpScalExp.png')
+plt.show()
+
+
+#find best configuration of layers and num_meas
+#so that cond(A) is not inf
+num_meas = 100
+num_layers = 45
+layers = np.linspace(min_h, max_h,num_layers+1)
+#meas_ang = min_ang + ((max_ang - min_ang) * np.exp(coeff * (np.linspace(0, int(num_meas) - 1, int(num_meas)+1) - (int(num_meas) - 1))))
+meas_ang = np.linspace(min_ang, max_ang, num_meas+ 1)
+
+A, tang_heights = gen_forward_map(meas_ang[0:-1],layers,obs_height,R)
+Au, As, Avh = np.linalg.svd(A)
+ATA = np.matmul(A.T,A)
+#condition number for A
+cond_A =  np.max(As)/np.min(As)
+print("normal: " + str(orderOfMagnitude(cond_A)))
+
+
+
+#to test that we have the same dr distances
+tot_r = np.zeros(num_meas)
+#calculate total length
+for j in range(0,num_meas):
+    tot_r[j] = 2*np.sqrt( (layers[-1] + R)**2 - (tang_heights[j] + R )**2 )
+print('Distance trhough layers check: ' + str(np.allclose( sum(A.T), tot_r)))
 
 #dont consider last h_val as we have layers from lowest h_val up to second highest
 ATAu, ATAs, ATAvh = np.linalg.svd(ATA)#plot_svd(ATA, layers[0:-1])
 print("ATA: " + str(orderOfMagnitude(np.max(np.sqrt(ATAs))/np.min(np.sqrt(ATAs)))))
 # #plot sing vec and sing vals
-fig, axs = plt.subplots(1,1,figsize=(12,6))
-axs.set_yscale('log')
-plt.scatter(range(0,num_layers),ATAs)
-plt.savefig('SingVal_ATA_exp.png')
+fig, axs = plt.subplots(1,2,figsize=(12,6))
+axs[0].scatter(range(num_meas),tang_heights)
+#axs.title('Measurement Setup with Conditonnumber for Forward map '+  str(cond_A))
+axs[0].set_xlabel('Number of Measurements')
+axs[0].set_ylabel('Height in km')
+axs[1].scatter(range(0,num_layers),As)
+fig.suptitle('Singular values of A with Conditionnumber ' + str(np.around(cond_A)))
+axs[1].set_yscale('log')
+axs[1].set_ylabel('Value')
+axs[1].set_xlabel('Index')
+plt.savefig('ExpScalLin.png')
 plt.show()
 
 
@@ -233,7 +277,8 @@ plt.savefig('SingVal_B_exp.png')
 plt.show()
 
 #condition number for B
-cond_B = np.linalg.cond(B)
+cond_B =  np.max(Bs)/np.min(Bs)
+
 print("normal: " + str(orderOfMagnitude(cond_B)))
 
 
