@@ -229,3 +229,36 @@ def g(A, L, l):
     Bu, Bs, Bvh = np.linalg.svd(B)
 
     return  np.sum(np.log(Bs))
+
+def f_tayl(lam, A, L, y, B_inv_L):
+    """calculate taylor series for """
+    # now compute the action of B^-1 L
+    ATA = np.matmul(A.T,A)
+    B = (ATA - lam * L)
+    ATy = np.matmul(A.T, y)
+    B_inv = np.zeros(np.shape(B))
+    for i in range(len(B)):
+        e = np.zeros(len(B))
+        e[i] = 1
+        B_inv[:, i], exitCode = gmres(B, e, tol=1e-3, restart=25)
+        print(exitCode)
+
+    CheckB_inv = np.matmul(B, B_inv)
+    print(np.allclose(CheckB_inv, np.eye(len(B)), atol=1e-3))
+
+    f_1 = np.matmul(np.matmul(ATy.T, B_inv_L), np.matmul(B_inv, ATy))
+
+    f_2 = np.matmul(np.matmul(ATy.T, B_inv_L), np.matmul(np.matmul(B_inv_L, B_inv), ATy))
+
+    return f_1 - 2 *  f_2
+
+def g_tayl(B_inv_L, num_sam):
+    # calc trace of B_inv_L with monte carlo estiamtion
+    # do 4 times as colin
+    trace_Bs = np.zeros(num_sam)
+    for k in range(num_sam):
+        z = np.random.randint(2, size=len(B_inv_L))
+        z[z == 0] = -1
+        trace_Bs[k] = np.matmul(z.T, np.matmul(B_inv_L, z))
+
+    return trace_Bs
