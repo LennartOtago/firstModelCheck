@@ -45,6 +45,9 @@ def generate_L(neigbours):
         for j in range(0, neig):
             if ~np.isnan(neigbours[i, j]):
                 L[i, int(neigbours[i, j])] = -1
+    #non periodic boundaries
+    L[0,0] = 1
+    L[-1,-1] = 1
     return L
 
 
@@ -206,53 +209,28 @@ def gen_forward_map(meas_ang, layers, obs_height, R):
     return 2 * A_height, tang_height
 
 
-def f(A, y, L, l):
-    """ calclulate taylor series of f"""
-    # B^-1  A^T y
-    B = np.matmul(A.T,A) + l * L
+def f(ATy, y, B_inv_A_trans_y):
 
-    A_trans_y = np.matmul(A.T, y)
-    B_inv_A_trans_y, exitCode = gmres(B, A_trans_y[0::, 0], tol=1e-6, restart=25)
-    #print(exitCode)
-
-    CheckB_A_trans_y = np.matmul(B, B_inv_A_trans_y)
-    if np.allclose(CheckB_A_trans_y.T, A_trans_y[0::, 0], atol=1e-3):
-        print('true')
-        return np.matmul(y.T, y)- np.matmul(np.matmul(y.T,A),B_inv_A_trans_y)
-    else:
-        return np.NAN
+    return np.matmul(y.T, y)- np.matmul(ATy.T,B_inv_A_trans_y)
 
 
 def g(A, L, l):
-    """ calclulate taylor series of g"""
+    """ calculate g"""
     B = np.matmul(A.T,A) + l * L
     Bu, Bs, Bvh = np.linalg.svd(B)
+    # np.log(np.prod(Bs))
+    return np.sum(np.log(Bs))
 
-    return  np.sum(np.log(Bs))
-
-def f_tayl(lam, A, L, y, B_inv_L):
+def f_tayl(lam, delta_lam, B_inv, ATy, B_inv_L):
     """calculate taylor series for """
-    # now compute the action of B^-1 L
-    ATA = np.matmul(A.T,A)
-    B = (ATA - lam * L)
-    ATy = np.matmul(A.T, y)
-    B_inv = np.zeros(np.shape(B))
-    for i in range(len(B)):
-        e = np.zeros(len(B))
-        e[i] = 1
-        B_inv[:, i], exitCode = gmres(B, e, tol=1e-3, restart=25)
-        print(exitCode)
-
-    CheckB_inv = np.matmul(B, B_inv)
-    print(np.allclose(CheckB_inv, np.eye(len(B)), atol=1e-3))
 
     f_1 = np.matmul(np.matmul(ATy.T, B_inv_L), np.matmul(B_inv, ATy))
 
     f_2 = np.matmul(np.matmul(ATy.T, B_inv_L), np.matmul(np.matmul(B_inv_L, B_inv), ATy))
 
-    return f_1 - 2 *  f_2
+    return f_1 * delta_lam -   f_2 * delta_lam**2
 
-def g_tayl(B_inv_L, num_sam):
+def g_MC_log_det(B_inv_L, num_sam):
     # calc trace of B_inv_L with monte carlo estiamtion
     # do 4 times as colin
     trace_Bs = np.zeros(num_sam)
@@ -262,3 +240,11 @@ def g_tayl(B_inv_L, num_sam):
         trace_Bs[k] = np.matmul(z.T, np.matmul(B_inv_L, z))
 
     return trace_Bs
+
+def g_tayl(num_sam, B_inv_L, delta_lam):
+
+    trace_B_inv_L_1 = np.mean(g_MC_log_det(B_inv_L, num_sam))
+    trace_B_inv_L_2 = np.mean(g_MC_log_det(np.matmul(B_inv_L, B_inv_L), num_sam))
+
+
+    return trace_B_inv_L_1 * delta_lam -  trace_B_inv_L_2 / 2 * delta_lam**2

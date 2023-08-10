@@ -1,13 +1,15 @@
 import numpy as np
 import cmasher as cmr
 import matplotlib as mpl
+import time
 from functions import *
 from scipy import constants
 from scipy.sparse.linalg import gmres
 import testReal
 import matplotlib.pyplot as plt
+plt.rcParams.update({'font.size': 15})
 import pandas as pd
-from numpy.random import uniform
+from numpy.random import uniform, normal, gamma
 from scipy.stats import norm
 from scipy.optimize import curve_fit
 import matplotlib.patheffects as path_effects
@@ -209,7 +211,7 @@ axs[0].scatter(range(spec_num_meas),tang_heights_lin)
 axs[0].set_xlabel('Number of Measurements')
 axs[0].set_ylabel('Height in km')
 axs[1].scatter(range(0,spec_num_layers),A_lins)
-fig.suptitle('Singular values of A with Conditionnumber ' + str(np.around(cond_A_lin)))
+fig.suptitle('Singular values of $F^T F$ with Conditionnumber ' + str(np.around(cond_A_lin)))
 axs[1].set_yscale('log')
 axs[1].set_ylabel('Value')
 axs[1].set_xlabel('Index')
@@ -240,8 +242,13 @@ for i in range(spec_num_layers - 1):
                            path_effects.Normal()])
     ax2.scatter(i, ATA_lins[i], color=gradient[i], s=50)  # gradient[:,i]
     ax2.text(i, ATA_lins[i], f'{i}')
-    ax2.set_yscale('log')
 
+ax2.set_yscale('log')
+ax1.set_xlabel('index singular vector')
+ax2.set_xlabel('index singular value')
+ax1.set_ylabel('value')
+ax2.set_ylabel('value')
+plt.savefig('svd_lin.png')
 plt.show()
 
 
@@ -261,6 +268,13 @@ for i in range(spec_num_layers - 1):
     ax2.text(i, ATA_exps[i], f'{i}')
     ax2.set_yscale('log')
 
+
+ax2.set_yscale('log')
+ax1.set_xlabel('index singular vector')
+ax2.set_xlabel('index singular value')
+ax1.set_ylabel('value')
+ax2.set_ylabel('value')
+plt.savefig('svd_exp.png')
 plt.show()
 
 
@@ -412,6 +426,14 @@ Ax = np.matmul(A_lin, theta[1:-1])
 #convolve measurements and add noise
 y = add_noise(Ax, 0.01, np.max(Ax))
 
+#plt.plot( y, tang_heights_lin)
+ax = plt.subplot()
+plt.plot( VMR_O3 * 1e6 ,height_values)
+#ax.set_ylim([tang_heights_lin])
+plt.xlabel('Volume Mixing Ratio Ozone in ppm')
+plt.ylabel('Height in km')
+plt.savefig('measurement.png')
+plt.show()
 
 
 
@@ -419,14 +441,28 @@ y = add_noise(Ax, 0.01, np.max(Ax))
 """ finaly calc f and g with a linear solver adn certain lambdas
  using the gmres"""
 
-lam= np.logspace(-4,14,1000)
+lam= np.logspace(-4,14,500)
 f_func = np.zeros(len(lam))
 g_func = np.zeros(len(lam))
+
+ATy = np.matmul(A_lin.T, y)
+
 for j in range(len(lam)):
-    f_func[j] = f(A_lin, y, L, lam[j])
+
+    B = (ATA_lin + lam[j] * L)
+
+    B_inv_A_trans_y, exitCode = gmres(B, ATy[0::, 0], tol=1e-7, restart=25)
+    #print(exitCode)
+
+    CheckB_inv_ATy = np.matmul(B, B_inv_A_trans_y)
+    if np.allclose(CheckB_inv_ATy, ATy[0::, 0], atol=1e-7):
+        f_func[j] = f(ATy, y, B_inv_A_trans_y)
+    else:
+        f_func[j] = np.nan
+
     g_func[j] = g(A_lin, L, lam[j])
 
-fig,axs = plt.subplots(1,2)
+fig,axs = plt.subplots(1,2, figsize=(14, 5))
 axs[1].plot(lam,g_func)
 axs[0].plot(lam,f_func)
 
@@ -440,21 +476,21 @@ axs[1].set_xlabel('$\lambda$')
 
 axs[0].set_ylabel('f($\lambda$)')
 axs[1].set_ylabel('g($\lambda$)')
-
+#plt.savefig('f_and_g.png')
 plt.show()
 
 
 
 
 
-""" do taylor series of f and g"""
+
 
 
 
 lam = 1e3
 #number is approx 130 so 10^2
 #B is symmetric and positive semidefinite and normal
-B = (ATA_lin -lam* L) #* 1e-14eta/gamma
+B = (ATA_lin + lam* L) #* 1e-14eta/gamma
 Bu, Bs, Bvh = np.linalg.svd(B)
 fig, axs = plt.subplots(1,1,figsize=(12,6))
 axs.set_yscale('log')
@@ -468,97 +504,220 @@ print("Cond B: " + str(orderOfMagnitude(cond_B)))
 
 B_inv_L = np.zeros(np.shape(B))
 for i in range(len(B)):
-    B_inv_L[:, i], exitCode = gmres(B, L[:, i], tol=1e-5, restart=25)
-    print(exitCode)
+    B_inv_L[:, i], exitCode = gmres(B, L[:, i], tol=1e-7, restart=25)
+    #print(exitCode)
 
 CheckB_inv_L = np.matmul(B, B_inv_L)
-print(np.allclose(CheckB_inv_L, L, atol=1e-3))
-
-''' taylor expansion for f
-'''
-delta_f_1_2 =  f_tayl(lam, A_lin, L, y, B_inv_L)
-
-''' taylor expansion for g
-'''
-num_sam = 4
-trace_Bs = g_tayl(B_inv_L, num_sam)
-
-trace_B_inv_l = np.mean(trace_Bs)
-
-
+print(np.allclose(CheckB_inv_L, L, atol=1e-7))
 
 
 """start the mtc algo with first guesses of noise and lumping const delta"""
 
 
-vari = np.zeros((len(VMR_O3),1))
+vari = np.zeros((len(theta)-2,1))
 
+for j in range(1,len(theta)-1):
+    vari[j-1] = np.var([theta[j-1],theta[j],theta[j+1]])
 
-def func(x, x0, sigma):
-    return  - (x - x0) ** 2 / (2 * sigma ** 2)
-
-#x = x * 1e17
-for j in range(1,len(x)-1):
-    rra = (x[j] + x[j]/2)
-    dist = np.linspace(-rra, rra,200)
-    y = np.zeros((200,1))
-
-    #plot normal distribution of one data point X_i to find hyperparamter
-    for i in range(1,200):
-        y[i] = (-0.5 * ((dist[i] - x[j-1])**2 + (dist[i] - x[j+1])**2 ))
-
-    y = y[1:-1]
-    dist = dist[1:-1]
-    # Executing curve_fit on noisy data
-    mean = (sum(dist * y) / sum(y))
-    sigma = np.sqrt( sum(y * (dist -  x[j])**2 / sum(y)))
-    popt, pcov = curve_fit(func, dist.flatten(), y.flatten(), p0=[  x[j], sigma] )
-
-    vari[j] = popt[1]**2
-    # print(j)
-    # ym = func(dist, popt[0], popt[1])
-    # plt.figure()
-    # plt.plot(dist, ym, 'k', linewidth=2)
-    # plt.plot(dist, y)
-    # plt.show()
-
-
-
-
-    #plt.show()
-#gmres(C - lamba * L, np.identity(num_meas), tol = 1e-3,restart = 25, maxiter = 1e4)
-
-#variance is
-# ym = func(dist, popt[0], popt[1])
-# plt.figure()
-# plt.plot(dist, ym, 'k', linewidth=2)
-# plt.plot(dist, y)reboot
-# plt.show()
 
 
 
 
 #first guesses
-gamma = 0.01 * max(Ax)
-eta = 1/ (2 * np.mean(vari[2:-3]))
+# gamma = 0.01 * max(Ax)
+# eta = 1/ (2 * np.mean(vari[2:-3]))
 
 
 
 
 
 
+startTime = time.time()
 
 #hyperarameters
-number_samples = 100
+number_samples = 10000
 gammas = np.zeros(number_samples)
-etas = np.zeros(number_samples)
+deltas = np.zeros(number_samples)
+lambdas = np.zeros(number_samples)
 
 #inintialize sample
+gammas[0] = 3.7e-5#1/np.var(y) * 1e1 #(0.01* np.max(Ax))
+deltas[0] = 0.275#1/(2*np.mean(vari))
+lambdas[0] = deltas[0]/gammas[0]
 
-gammas[0] = 9.5e-12
+ATy = np.matmul(A_lin.T, y)
 
-etas[0] = 9.5e-12
+B = (ATA_lin + lambdas[0] * L)
+
+B_inv = np.zeros(np.shape(B))
+for i in range(len(B)):
+    e = np.zeros(len(B))
+    e[i] = 1
+    B_inv[:, i], exitCode = gmres(B, e, tol=1e-7, restart=25)
+    if exitCode!= 0 :
+        print(exitCode)
+
+#CheckB_inv = np.matmul(B, B_inv)
+#print(np.allclose(CheckB_inv, np.eye(len(B)), atol=1e-7))
+k = 0
+wLam= 3.5e3
+betaG = 1e-4
+betaD = 1e-4
+alphaG = 1
+alphaD = 1
+
+for t in range(number_samples-1):
+
+    # draw new lambda
+    lam_p = normal(lambdas[t], wLam)
+
+    while lam_p < 0:
+            lam_p = normal(lambdas[t], wLam)
+
+    delta_lam = lam_p - lambdas[t]
+
+
+    B_inv_L = np.matmul(B_inv, L)
+
+    delta_f_1_2 = f_tayl(lambdas[t], delta_lam, B_inv, ATy, B_inv_L)
+    num_sam = 10
+    delta_g_1_2 = g_tayl(num_sam, B_inv_L, delta_lam)
+
+    log_MH_ratio = (spec_num_layers /2 + alphaD - 1 )* (np.log(lam_p)- np.log(lambdas[t]) ) - 0.5 * ( delta_g_1_2  + gammas[t] *delta_f_1_2) - betaD * gammas[t] * delta_lam
+
+    #accept or rejeict new lam_p
+    u = uniform(0,1)
+    if np.log(u) <= log_MH_ratio:
+    #accept
+        k = k + 1
+        lambdas[t + 1] = lam_p
+    else:
+        #rejcet
+        lambdas[t + 1] = lambdas[t]
+
+
+
+    B = (ATA_lin + lambdas[t+1] * L)
+
+    B_inv = np.zeros(np.shape(B))
+    for i in range(len(B)):
+        e = np.zeros(len(B))
+        e[i] = 1
+        B_inv[:, i], exitCode = gmres(B, e, tol=1e-7, restart=25)
+        if exitCode != 0:
+            print(exitCode)
+
+    #CheckB_inv = np.matmul(B, B_inv)
+    #print(np.allclose(CheckB_inv, np.eye(len(B)), atol=1e-7))
+
+
+    #draw gamma with a gibs step
+    shape = spec_num_meas/2 + alphaD + alphaG
+    rate = f(ATy, y, np.matmul(B_inv, ATy))/2 + betaG + betaD * lambdas[t+1]
+
+    gammas[t+1] = np.random.gamma(shape, scale= 1/rate[0,0])
+
+    deltas[t+1] = lambdas[t+1] * gammas[t+1]
+
+
+elapsed = time.time() - startTime
+
+fig, axs = plt.subplots(3, 1, sharey=True, tight_layout=True)
+n_bins = 30
+burnIn = 20
+# We can set the number of bins with the *bins* keyword argument.
+axs[0].hist(gammas[burnIn::],bins=n_bins)
+axs[0].set_title('$\gamma$')
+axs[1].hist(deltas[burnIn::],bins=n_bins)
+axs[1].set_title('$\delta$')
+axs[2].hist(lambdas[burnIn::],bins=n_bins)
+axs[2].set_title('$\lambda$')
+print('acceptance ratio: ' + str(k/number_samples))
+plt.savefig('HistoResults.png')
+plt.show()
+
+np.savetxt('samples.txt', np.vstack((gammas, deltas, lambdas)).T, header = 'gammas \t deltas \t lambdas \n Acceptance Ratio: ' + str(k/number_samples) + '\n Elapsed Time: ' + str(elapsed), fmt = '%.15f \t %.15f \t %.15f')
+SetGamma = np.mean(gammas[burnIn::])
+SetDelta = np.mean(deltas[burnIn::])
+
+v_1 = np.random.multivariate_normal(np.zeros(len(ATA_lin)), SetGamma * ATA_lin)
+v_2 = np.random.multivariate_normal(np.zeros(len(L)), SetDelta * L)
+
+SetB = SetGamma * ATA_lin + SetDelta * L
+
+SetB_inv = np.zeros(np.shape(SetB))
+for i in range(len(SetB)):
+    e = np.zeros(len(SetB))
+    e[i] = 1
+    SetB_inv[:, i], exitCode = gmres(SetB, e, tol=1e-7, restart=25)
+    if exitCode != 0:
+        print(exitCode)
+
+CheckSetB_inv = np.matmul(SetB, SetB_inv)
+print(np.allclose(CheckSetB_inv, np.eye(len(SetB)), atol=1e-7))
+
+
+
+XRES= np.matmul(SetB_inv,ATy[0::,0] + v_1.T+ v_2.T)
+
+plt.plot(theta[1:-1]*1e5,height_values[1:-1], color = 'red')
+plt.plot(XRES,height_values[1:-1], color = 'green')
+plt.show()
 
 print('bla')
 
 
+import pytwalk
+def MargPostInit():
+	Params = np.zeros(2)
+	Params[0] = np.random.gamma( shape=1, scale=1e4) #gamma
+	Params[1] = np.random.gamma( shape=1, scale=1e4) #delta
+	return Params
+
+def MargPostU(Params):
+    n = 45
+
+    Bp= ATA_lin + Params[1]/Params[0] * L
+
+    BpInv = np.zeros(np.shape(B))
+    for i in range(len(Bp)):
+        e = np.zeros(len(Bp))
+        e[i] = 1
+        BpInv[:, i], exitCode = gmres(Bp, e, tol=1e-7, restart=25)
+        if exitCode != 0:
+            print(exitCode)
+
+    G = g(A_lin, L,  Params[1]/Params[0])
+    F = f(np.matmul(A_lin.T, y), y, np.matmul(BpInv,np.matmul(A_lin.T, y)))
+
+    return -n/2 * np.log(Params[1]) + 0.5 * G + 0.5* Params[0] * F + 1e-4 * ( Params[0] + Params[1])
+
+def MargPostSupp(Params):
+	return all(0 < Params)
+
+MargPost = pytwalk.pytwalk( n=2, U=MargPostU, Supp=MargPostSupp)
+
+MargPost.Run( T=100000, x0=MargPostInit(), xp0=MargPostInit())
+MargPost.Ana()
+MargPost.TS()
+
+MargPost.Hist( par=0 )
+MargPost.Hist( par=1 )
+
+MargPost.Save("MargPostDat.txt")
+
+#load data and make histogram
+SampParas = np.loadtxt("MargPostDat.txt")
+
+fig, axs = plt.subplots(2, 1, sharey=True, tight_layout=True)
+n_bins = 100
+burnIn = 2000
+# We can set the number of bins with the *bins* keyword argument.
+axs[0].hist(SampParas[burnIn::,0])#bins=n_bins)
+axs[0].set_title('gammas')
+axs[1].hist(SampParas[burnIn::,1])#bins=n_bins)
+axs[1].set_title('deltas')
+# axs[2].hist(lambdas[burnIn::])#bins=n_bins)
+# axs[2].set_title('lambdas')
+
+plt.show()

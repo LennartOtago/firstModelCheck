@@ -1,0 +1,7 @@
+README
+pytwalk.py
+setup.py
+pytwalk.egg-info/PKG-INFO
+pytwalk.egg-info/SOURCES.txt
+pytwalk.egg-info/dependency_links.txt
+pytwalk.egg-info/top_level.txt
