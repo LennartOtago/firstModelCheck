@@ -619,8 +619,9 @@ class pytwalk:
         """Saves the Output as a text file, starting at start (burn in), with thinning (thin)."""
 
         print("Saving output, all pars. plus the U's in file", fnam)
-        
-        savetxt( fnam, self.Output[ start:end:thin,:])
+
+
+        savetxt( fnam, self.Output[ start:end:thin,:],header = 'Acceptance Ratio: ' + str(self.Acc[5]))
 
 
 

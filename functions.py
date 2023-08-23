@@ -59,13 +59,13 @@ def get_temp_values(height_values):
     for i in range(1, len(height_values)):
         if 0 < height_values[i] < 11:
             temp_values2[i] = temp_values2[i - 1] - (height_values[i] - height_values[i - 1]) * 6.5
-        if 11 < height_values[i] < 13:
+        if 11 <= height_values[i] < 13:
             temp_values2[i] = -55 + 273.15
-        if 13 < height_values[i] < 48:
+        if 13 <= height_values[i] < 48:
             temp_values2[i] = temp_values2[i - 1] + (height_values[i] - height_values[i - 1]) * 1.6
-        if 48 < height_values[i] < 51:
+        if 48 <= height_values[i] < 51:
             temp_values2[i] = -1 + 273.15
-        if 51 < height_values[i] < 86:
+        if 51 <= height_values[i] < 86:
             temp_values2[i] = temp_values2[i - 1] - (height_values[i] - height_values[i - 1]) * 2.5
         if 85 < height_values[i]:
             temp_values2[i] = -87 + 273.15
@@ -121,8 +121,8 @@ def gen_measurement(meas_ang, layers, w_cross, VMR_O3, P, T, Source, obs_height=
     return 2 * np.matmul(A_height, THETA), 2 * A_height, THETA, tang_height
 
 
-def add_noise(Ax, percent, max_value):
-    return Ax + np.random.normal(0, percent * max_value, (len(Ax), 1))
+def add_noise(Ax, percent):
+    return Ax + np.random.normal(0, percent * max(Ax), (len(Ax), 1))
 
 
 def plot_svd(ATA, height_values):
@@ -187,7 +187,11 @@ def plot_svd(ATA, height_values):
     fig.write_html('SVD.html')
     return ATAu, ATAs, ATAvh
 
-
+'''Generate Forward Map A
+where each collum is one measurment defined by a tangent height
+every entry is length in km each measurement goes through
+first non-zero entry of each row is the lowest layer (which should have a Ozone amount of 0)
+last entry of each row is highest layer (also 0 Ozone)'''
 def gen_forward_map(meas_ang, layers, obs_height, R):
     tang_height = np.around((np.sin(meas_ang) * (obs_height + R)) - R, 2)
 
@@ -211,7 +215,7 @@ def gen_forward_map(meas_ang, layers, obs_height, R):
 
 def f(ATy, y, B_inv_A_trans_y):
 
-    return np.matmul(y.T, y)- np.matmul(ATy.T,B_inv_A_trans_y)
+    return np.matmul(y[0::,0].T, y[0::,0]) - np.matmul(ATy[0::,0].T,B_inv_A_trans_y)
 
 
 def g(A, L, l):
@@ -221,14 +225,22 @@ def g(A, L, l):
     # np.log(np.prod(Bs))
     return np.sum(np.log(Bs))
 
-def f_tayl(lam, delta_lam, B_inv, ATy, B_inv_L):
+def f_tayl( delta_lam, B_inv_A_trans_y, ATy, B_inv_L):
     """calculate taylor series for """
 
-    f_1 = np.matmul(np.matmul(ATy.T, B_inv_L), np.matmul(B_inv, ATy))
+    f_1 = np.matmul(np.matmul(ATy.T, B_inv_L), B_inv_A_trans_y)
 
-    f_2 = np.matmul(np.matmul(ATy.T, B_inv_L), np.matmul(np.matmul(B_inv_L, B_inv), ATy))
+    f_2 = np.matmul(np.matmul(ATy.T, B_inv_L), np.matmul(B_inv_L, B_inv_A_trans_y))
 
-    return f_1 * delta_lam -   f_2 * delta_lam**2
+    f_3 = np.matmul(ATy.T,np.matmul(np.matmul(np.matmul(B_inv_L, B_inv_L),B_inv_L),  B_inv_A_trans_y))
+
+    f_4 = np.matmul(ATy.T,np.matmul(np.matmul(np.matmul(np.matmul(B_inv_L, B_inv_L),B_inv_L), B_inv_L) , B_inv_A_trans_y))
+
+    f_5 = np.matmul(ATy.T,np.matmul(np.matmul(np.matmul(np.matmul(np.matmul(B_inv_L, B_inv_L),B_inv_L), B_inv_L), B_inv_L) , B_inv_A_trans_y))
+
+    #f_6 = np.matmul(ATy.T,np.matmul(np.matmul(np.matmul(np.matmul(np.matmul(np.matmul(B_inv_L, B_inv_L),B_inv_L), B_inv_L), B_inv_L), B_inv_L) , B_inv_A_trans_y))
+
+    return f_1 * delta_lam -  f_2 * delta_lam**2 + f_3 * delta_lam**3 - f_4 * delta_lam**4 + f_5 * delta_lam**5 #- f_6 * delta_lam**6
 
 def g_MC_log_det(B_inv_L, num_sam):
     # calc trace of B_inv_L with monte carlo estiamtion
@@ -243,8 +255,40 @@ def g_MC_log_det(B_inv_L, num_sam):
 
 def g_tayl(num_sam, B_inv_L, delta_lam):
 
-    trace_B_inv_L_1 = np.mean(g_MC_log_det(B_inv_L, num_sam))
-    trace_B_inv_L_2 = np.mean(g_MC_log_det(np.matmul(B_inv_L, B_inv_L), num_sam))
+    # trace_B_inv_L_1 = np.mean(g_MC_log_det(B_inv_L, num_sam))
+    # trace_B_inv_L_2 = np.mean(g_MC_log_det(np.matmul(B_inv_L, B_inv_L), num_sam))
+    # trace_B_inv_L_3 = np.mean(g_MC_log_det(np.matmul(np.matmul(B_inv_L, B_inv_L), B_inv_L), num_sam))
+    # trace_B_inv_L_4 = np.mean(g_MC_log_det(np.matmul(np.matmul(np.matmul(B_inv_L, B_inv_L), B_inv_L),B_inv_L) ,num_sam))
+    #
+    # return trace_B_inv_L_1 * delta_lam -  trace_B_inv_L_2 / 2 * delta_lam**2 + trace_B_inv_L_3 / 6 * delta_lam**3 - trace_B_inv_L_4 / 24 * delta_lam**4
+    trace_B_inv_L_2 = np.matmul(B_inv_L, B_inv_L)
+    trace_B_inv_L_3 = np.matmul(np.matmul(B_inv_L, B_inv_L), B_inv_L)
+    trace_B_inv_L_4 = np.matmul(np.matmul(np.matmul(B_inv_L, B_inv_L), B_inv_L), B_inv_L)
+    trace_B_inv_L_5 = np.matmul(np.matmul(np.matmul(np.matmul(B_inv_L, B_inv_L), B_inv_L), B_inv_L), B_inv_L)
+    return np.trace(B_inv_L) * delta_lam - np.trace(trace_B_inv_L_2)/2 * delta_lam**2 + np.trace(trace_B_inv_L_3)/6 * delta_lam**3 - np.trace(trace_B_inv_L_4)/24 * delta_lam**4 + np.trace(trace_B_inv_L_5)/120 * delta_lam**5
 
+def multicolor_ylabel(ax,list_of_strings,list_of_colors,axis='x',anchorpad=0,**kw):
+    """this function creates axes labels with multiple colors
+    ax specifies the axes object where the labels should be drawn
+    list_of_strings is a list of all of the text items
+    list_if_colors is a corresponding list of colors for the strings
+    axis='x', 'y', or 'both' and specifies which label(s) should be drawn"""
+    from matplotlib.offsetbox import AnchoredOffsetbox, TextArea, HPacker, VPacker
 
-    return trace_B_inv_L_1 * delta_lam -  trace_B_inv_L_2 / 2 * delta_lam**2
+    # x-axis label
+    if axis=='x' or axis=='both':
+        boxes = [TextArea(text, textprops=dict(color=color, ha='left',va='bottom',**kw))
+                    for text,color in zip(list_of_strings,list_of_colors) ]
+        xbox = HPacker(children=boxes,align="center",pad=0, sep=5)
+        anchored_xbox = AnchoredOffsetbox(loc=3, child=xbox, pad=anchorpad,frameon=False,bbox_to_anchor=(0.2, -0.09),
+                                          bbox_transform=ax.transAxes, borderpad=0.)
+        ax.add_artist(anchored_xbox)
+
+    # y-axis label
+    if axis=='y' or axis=='both':
+        boxes = [TextArea(text, textprops=dict(color=color, ha='left',va='bottom',rotation=90,**kw))
+                     for text,color in zip(list_of_strings[::-1],list_of_colors) ]
+        ybox = VPacker(children=boxes,align="center", pad=0, sep=5)
+        anchored_ybox = AnchoredOffsetbox(loc=3, child=ybox, pad=anchorpad, frameon=False, bbox_to_anchor=(-0.13, 0.2),
+                                          bbox_transform=ax.transAxes, borderpad=0.)
+        ax.add_artist(anchored_ybox)
