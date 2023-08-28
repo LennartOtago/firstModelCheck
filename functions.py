@@ -225,18 +225,18 @@ def g(A, L, l):
     # np.log(np.prod(Bs))
     return np.sum(np.log(Bs))
 
-def f_tayl( delta_lam, B_inv_A_trans_y, ATy, B_inv_L):
+def f_tayl( delta_lam, B_inv_A_trans_y, ATy, B_inv_L, B_inv_L_2, B_inv_L_3, B_inv_L_4,B_inv_L_5):
     """calculate taylor series for """
 
     f_1 = np.matmul(np.matmul(ATy.T, B_inv_L), B_inv_A_trans_y)
 
-    f_2 = np.matmul(np.matmul(ATy.T, B_inv_L), np.matmul(B_inv_L, B_inv_A_trans_y))
+    f_2 = np.matmul(ATy.T, np.matmul(B_inv_L_2, B_inv_A_trans_y))
 
-    f_3 = np.matmul(ATy.T,np.matmul(np.matmul(np.matmul(B_inv_L, B_inv_L),B_inv_L),  B_inv_A_trans_y))
+    f_3 = np.matmul(ATy.T,np.matmul(B_inv_L_3,  B_inv_A_trans_y))
 
-    f_4 = np.matmul(ATy.T,np.matmul(np.matmul(np.matmul(np.matmul(B_inv_L, B_inv_L),B_inv_L), B_inv_L) , B_inv_A_trans_y))
+    f_4 = np.matmul(ATy.T,np.matmul(B_inv_L_4, B_inv_A_trans_y))
 
-    f_5 = np.matmul(ATy.T,np.matmul(np.matmul(np.matmul(np.matmul(np.matmul(B_inv_L, B_inv_L),B_inv_L), B_inv_L), B_inv_L) , B_inv_A_trans_y))
+    f_5 = np.matmul(ATy.T,np.matmul(B_inv_L_5, B_inv_A_trans_y))
 
     #f_6 = np.matmul(ATy.T,np.matmul(np.matmul(np.matmul(np.matmul(np.matmul(np.matmul(B_inv_L, B_inv_L),B_inv_L), B_inv_L), B_inv_L), B_inv_L) , B_inv_A_trans_y))
 
@@ -253,7 +253,7 @@ def g_MC_log_det(B_inv_L, num_sam):
 
     return trace_Bs
 
-def g_tayl(num_sam, B_inv_L, delta_lam):
+def g_tayl(delta_lam, B_inv_L, B_inv_L_2, B_inv_L_3, B_inv_L_4, B_inv_L_5):
 
     # trace_B_inv_L_1 = np.mean(g_MC_log_det(B_inv_L, num_sam))
     # trace_B_inv_L_2 = np.mean(g_MC_log_det(np.matmul(B_inv_L, B_inv_L), num_sam))
@@ -261,11 +261,15 @@ def g_tayl(num_sam, B_inv_L, delta_lam):
     # trace_B_inv_L_4 = np.mean(g_MC_log_det(np.matmul(np.matmul(np.matmul(B_inv_L, B_inv_L), B_inv_L),B_inv_L) ,num_sam))
     #
     # return trace_B_inv_L_1 * delta_lam -  trace_B_inv_L_2 / 2 * delta_lam**2 + trace_B_inv_L_3 / 6 * delta_lam**3 - trace_B_inv_L_4 / 24 * delta_lam**4
-    trace_B_inv_L_2 = np.matmul(B_inv_L, B_inv_L)
-    trace_B_inv_L_3 = np.matmul(np.matmul(B_inv_L, B_inv_L), B_inv_L)
-    trace_B_inv_L_4 = np.matmul(np.matmul(np.matmul(B_inv_L, B_inv_L), B_inv_L), B_inv_L)
-    trace_B_inv_L_5 = np.matmul(np.matmul(np.matmul(np.matmul(B_inv_L, B_inv_L), B_inv_L), B_inv_L), B_inv_L)
-    return np.trace(B_inv_L) * delta_lam - np.trace(trace_B_inv_L_2)/2 * delta_lam**2 + np.trace(trace_B_inv_L_3)/6 * delta_lam**3 - np.trace(trace_B_inv_L_4)/24 * delta_lam**4 + np.trace(trace_B_inv_L_5)/120 * delta_lam**5
+    # trace_B_inv_L_2 = np.matmul(B_inv_L, B_inv_L)
+    # trace_B_inv_L_3 = np.matmul(np.matmul(B_inv_L, B_inv_L), B_inv_L)
+    # trace_B_inv_L_4 = np.matmul(np.matmul(np.matmul(B_inv_L, B_inv_L), B_inv_L), B_inv_L)
+    # trace_B_inv_L_5 = np.matmul(np.matmul(np.matmul(np.matmul(B_inv_L, B_inv_L), B_inv_L), B_inv_L), B_inv_L)
+    trace_B_inv_L_2 = np.trace(B_inv_L_2)
+    trace_B_inv_L_3 = np.trace(B_inv_L_3)
+    trace_B_inv_L_4 = np.trace(B_inv_L_4)
+    trace_B_inv_L_5 = np.trace(B_inv_L_5)
+    return np.trace(B_inv_L) * delta_lam - trace_B_inv_L_2/2 * delta_lam**2 + trace_B_inv_L_3/6 * delta_lam**3 - trace_B_inv_L_4/24 * delta_lam**4 + trace_B_inv_L_5/120 * delta_lam**5
 
 def multicolor_ylabel(ax,list_of_strings,list_of_colors,axis='x',anchorpad=0,**kw):
     """this function creates axes labels with multiple colors
@@ -292,3 +296,7 @@ def multicolor_ylabel(ax,list_of_strings,list_of_colors,axis='x',anchorpad=0,**k
         anchored_ybox = AnchoredOffsetbox(loc=3, child=ybox, pad=anchorpad, frameon=False, bbox_to_anchor=(-0.13, 0.2),
                                           bbox_transform=ax.transAxes, borderpad=0.)
         ax.add_artist(anchored_ybox)
+
+def neg_log_likehood(gamma,y, Ax):
+    n = len(Ax)
+    return - n/2 * np.log(gamma) + gamma/2 * np.matmul((y-Ax).T,(y-Ax))

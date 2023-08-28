@@ -621,7 +621,7 @@ class pytwalk:
         print("Saving output, all pars. plus the U's in file", fnam)
 
 
-        savetxt( fnam, self.Output[ start:end:thin,:],header = 'Acceptance Ratio: ' + str(self.Acc[5]))
+        savetxt( fnam, self.Output[ start:end:thin,:], header = 'Acceptance Ratio: ' + str(self.Acc[5]))
 
 
 

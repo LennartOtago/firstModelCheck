@@ -4,9 +4,10 @@ close all
 
 
 data = importdata('/Users/lennart/PycharmProjects/firstModelCheck/MargPostDat.txt');
-deltas = data.data(:,1);
-gammas = data.data(:,2);
-lambdas =data.data(:,1)./data.data(:,2);
+data = readmatrix('/Users/lennart/PycharmProjects/firstModelCheck/MargPostDat.txt');
+deltas = data(:,1); %str2num(cell2mat(data.textdata(2:end,1)));
+gammas = data(:,2); %str2num(cell2mat(data.textdata(2:end,2)));
+lambdas = deltas./gammas;
 
 burn = 50;
 [value_lam,dvalue_lam,ddvalue_lam,tauint_lam,dtauint_lam,Qval_lam,rho_lam,drho_lam,tmax_lam] = UWerr(lambdas(burn:end));

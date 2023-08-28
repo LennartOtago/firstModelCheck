@@ -4,6 +4,7 @@ import matplotlib as mpl
 import time
 #import matlab.engine
 from functions import *
+from errors import *
 from scipy import constants, optimize
 from scipy.sparse.linalg import gmres
 import testReal
@@ -465,27 +466,33 @@ for j in range(1,len(theta)-1):
 #find minimum for first guesses
 '''params[1] = delta
 params[0] = gamma'''
-def MargPost(Params):
-    if Params[1] < 0  or Params[0] < 0:
+def MargPost(params):#, coeff):
+
+    gamma = params[0]
+    delta = params[1]
+    # ATA_lin = coeff[0]
+    # L = coeff[1]
+    if delta < 0  or gamma < 0:
         return np.nan
 
     n = SpecNumLayers-1
 
-    Bp= ATA_lin + Params[1]/Params[0] * L
+    Bp= ATA_lin + delta/gamma * L
 
 
     B_inv_A_trans_y, exitCode = gmres(Bp, ATy[0::, 0], tol=1e-7, restart=25)
     if exitCode != 0:
         print(exitCode)
 
-    G = g(A_lin, L,  Params[1]/Params[0])
+    G = g(A_lin, L,  delta/gamma)
     F = f(ATy, y,  B_inv_A_trans_y)
 
-    return -n/2 * np.log(Params[1]) + 0.5 * G + 0.5 * Params[0] * F + 1e-4 * ( Params[0] + Params[1])
-
+    return -n/2 * np.log(delta) + 0.5 * G + 0.5 * gamma * F + 1e-4 * ( delta + gamma)
 
 #minimum = optimize.fmin(MargPostU, [5e-5,0.5])
 minimum = optimize.fmin(MargPost, [1/np.var(y),1/(2*np.mean(vari))])
+
+#minimum = optimize.minimize(MargPost, [1/np.var(y), 1/(2*np.mean(vari))], args = [ATA_lin, L])
 print(minimum)
 
 
@@ -618,8 +625,13 @@ for j in range(len(lam_try)):
         if exitCode != 0:
             print(exitCode)
 
-    f_func_tay[j] = f_func_tay[j] + f_tayl(delta_lam, B_inv_A_trans_y, ATy[0::, 0], B_inv_L)
-    g_func_tay[j] = g_func_tay[j] + g_tayl(num_sam, B_inv_L, delta_lam)
+    B_inv_L_2 = np.matmul(B_inv_L, B_inv_L)
+    B_inv_L_3 = np.matmul(B_inv_L_2, B_inv_L)
+    B_inv_L_4 = np.matmul(B_inv_L_2, B_inv_L_2)
+    B_inv_L_5 = np.matmul(np.matmul(B_inv_L_2, B_inv_L_2), B_inv_L)
+
+    f_func_tay[j] = f_func_tay[j] + f_tayl(delta_lam, B_inv_A_trans_y, ATy[0::, 0], B_inv_L, B_inv_L_2, B_inv_L_3, B_inv_L_4, B_inv_L_5)
+    g_func_tay[j] = g_func_tay[j] + g_tayl(delta_lam, B_inv_L, B_inv_L_2, B_inv_L_3, B_inv_L_4, B_inv_L_5)
 
 # fig,axs = plt.subplots()
 # axs.plot(lam_try,f_func_tay, color = 'red',linewidth = 5)
@@ -671,7 +683,7 @@ if exitCode != 0:
     print(exitCode)
 
 k = 0
-wLam = 5e3
+wLam = 2e4
 wgam = 1e-5
 wdelt = 1e-1
 betaG = 1e-4
@@ -719,6 +731,17 @@ for t in range(number_samples-1):
     # if exitCode != 0:
     #     print(exitCode)
 
+    B_inv_L = np.zeros(np.shape(B))
+    for i in range(len(B)):
+        B_inv_L[:, i], exitCode = gmres(B, L[:, i], tol=1e-7, restart=25)
+        if exitCode != 0:
+            print(exitCode)
+
+    B_inv_L_2 = np.matmul(B_inv_L, B_inv_L)
+    B_inv_L_3 = np.matmul(B_inv_L_2, B_inv_L)
+    B_inv_L_4 = np.matmul(B_inv_L_2, B_inv_L_2)
+    B_inv_L_5 = np.matmul(np.matmul(B_inv_L_2, B_inv_L_2), B_inv_L)
+
     # # draw new lambda
     lam_p = normal(lambdas[t], wLam)
 
@@ -727,41 +750,32 @@ for t in range(number_samples-1):
 
     delta_lam = lam_p - lambdas[t]
 
-    delta_f = f_tayl(delta_lam, B_inv_A_trans_y, ATy[0::, 0], B_inv_L)
+    #delta_f = f_tayl(delta_lam, B_inv_A_trans_y, ATy[0::, 0], B_inv_L, B_inv_L_2, B_inv_L_3, B_inv_L_4,B_inv_L_5)
     # Bp = (ATA_lin + lam_p * L)
     # Bp_inv_A_trans_y, exitCode = gmres(Bp, ATy[0::, 0], tol=1e-7, restart=25)
     # if exitCode != 0:
     #     print(exitCode)
     # F_p = f(ATy, y, Bp_inv_A_trans_y)
     # F = f(ATy, y, B_inv_A_trans_y)
-    # #delta_f = f_tayl(delta_lam, B_inv_A_trans_y, ATy[0::, 0], B_inv_L)
     # delta_f = f(ATy, y, Bp_inv_A_trans_y) - f(ATy, y, B_inv_A_trans_y)
+    # delta_g= g(A_lin, L, lam_p) - g(A_lin, L, lambdas[t])
 
-    num_sam = 10
-    delta_g = g_tayl(num_sam, B_inv_L, delta_lam)
-    #delta_g= g(A_lin, L, lam_p) - g(A_lin, L, lambdas[t])
-    log_MH_ratio = ((SpecNumLayers - 1)/ 2 + alphaD - 1) * (np.log(lam_p) - np.log(lambdas[t])) - 0.5 * (delta_g + gammas[t] * delta_f) - betaD * gammas[t] * delta_lam
+    delta_f = f_tayl(delta_lam, B_inv_A_trans_y, ATy[0::, 0], B_inv_L, B_inv_L_2, B_inv_L_3, B_inv_L_4,B_inv_L_5)
+    delta_g = g_tayl(delta_lam, B_inv_L, B_inv_L_2, B_inv_L_3, B_inv_L_4, B_inv_L_5)
+
+    log_MH_ratio = ((SpecNumLayers - 1)/ 2) * (np.log(lam_p) - np.log(lambdas[t])) - 0.5 * (delta_g + gammas[t] * delta_f) - betaD * gammas[t] * delta_lam
 
     #accept or rejeict new lam_p
-    u = uniform(0,1)
+    u = uniform()
     if np.log(u) <= log_MH_ratio:
     #accept
         k = k + 1
         lambdas[t + 1] = lam_p
     else:
         #rejcet
-        lambdas[t + 1] = lambdas[t]
-
-
+        lambdas[t + 1] = np.copy(lambdas[t])
 
     B = (ATA_lin + lambdas[t+1] * L)
-
-    B_inv_L = np.zeros(np.shape(B))
-    for i in range(len(B)):
-        B_inv_L[:, i], exitCode = gmres(B, L[:, i], tol=1e-7, restart=25)
-        if exitCode != 0:
-            print(exitCode)
-
     B_inv_A_trans_y, exitCode = gmres(B, ATy[0::, 0], tol=1e-7, restart=25)
     if exitCode != 0:
         print(exitCode)
@@ -769,7 +783,8 @@ for t in range(number_samples-1):
 
 
     #draw gamma with a gibs step
-    shape = (SpecNumMeas) / 2 + alphaD + alphaG
+    #shape = (SpecNumMeas) / 2 + alphaD + alphaG
+    shape =  (SpecNumLayers - 1)/ 2 + alphaD + alphaG
     rate = f(ATy, y, B_inv_A_trans_y)/2 + betaG + betaD * lambdas[t+1]
 
     gammas[t+1] = np.random.gamma(shape, scale = 1/rate)
@@ -781,6 +796,8 @@ for t in range(number_samples-1):
 elapsed = time.time() - startTime
 print('acceptance ratio: ' + str(k/number_samples))
 np.savetxt('samples.txt', np.vstack((gammas, deltas, lambdas)).T, header = 'gammas \t deltas \t lambdas \n Acceptance Ratio: ' + str(k/number_samples) + '\n Elapsed Time: ' + str(elapsed), fmt = '%.15f \t %.15f \t %.15f')
+
+#delt_aav, delt_diff, delt_ddiff, delt_itau, delt_itau_diff, delt_itau_aav, delt_acorrn = uWerr(deltas, acorr=None, s_tau=1.5, fast_threshold=5000)
 
 # import matlab.engine
 # eng = matlab.engine.start_matlab()
@@ -811,19 +828,19 @@ new_delt = deltas[burnIn::math.ceil(IntAutoDelt)]
 
 
 fig, axs = plt.subplots(3, 1, sharey=True, tight_layout=True)
-n_bins = 20
+n_bins = 100
 
 # We can set the number of bins with the *bins* keyword argument.
-axs[0].hist(new_gam,bins=n_bins)
+axs[0].hist(new_gam,bins=int(n_bins/math.ceil(IntAutoGam)))
 axs[0].set_title('$\gamma$')
-axs[1].hist(new_delt,bins=n_bins)
+axs[1].hist(new_delt,bins=int(n_bins/math.ceil(IntAutoDelt)))
 axs[1].set_title('$\delta$')
-axs[2].hist(new_lamb,bins=n_bins)
+axs[2].hist(new_lamb,bins=10)
 axs[2].xaxis.set_major_formatter(scientific_formatter)
 axs[2].set_title('$\lambda =\delta / \gamma $')
-
 plt.savefig('HistoResults.png')
 plt.show()
+
 
 
 #draw paramter samples
@@ -905,7 +922,7 @@ def MargPostInit(minimum):
     Params = np.zeros(2)
 	# Params[0] = np.random.gamma( shape=1, scale=1e4) #gamma
 	# Params[1] = np.random.gamma( shape=1, scale=1e4) #delta
-    Params[0] = minimum[0] #gamma
+    Params[0] = minimum[0] #gamma 8e-5
     Params[1] = minimum[1] #delta
 
     return Params
@@ -924,13 +941,14 @@ def MargPostU(Params):
 
     return -n/2 * np.log(Params[1]) + 0.5 * G + 0.5 * Params[0] * F + 1e-4 * (Params[0] + Params[1])
 
+
 def MargPostSupp(Params):
 	return all(0 < Params)
 
 MargPost = pytwalk.pytwalk( n=2, U=MargPostU, Supp=MargPostSupp)
 
 
-MargPost.Run( T=10000, x0=MargPostInit(minimum), xp0=np.array([normal(minimum[0], minimum[0]/4), normal(minimum[1],minimum[1]/4)]) )
+MargPost.Run( T=100000, x0=MargPostInit(minimum), xp0=np.array([normal(minimum[0], minimum[0]/4), normal(minimum[1],minimum[1]/4)]) )
 MargPost.Ana()
 MargPost.TS()
 
@@ -968,6 +986,19 @@ axs[2].set_title('$\lambda =\delta / \gamma  $')
 plt.savefig('PyTWalkHistoResults.png')
 plt.show()
 
+
+#plot trace
+fig, axs = plt.subplots( 2,1, sharey=True, tight_layout=True)
+axs[0].plot(range(len(gammas[burnIn::])), neg_log_likehood(gammas[burnIn::],y, Ax).T)
+axs[0].set_xlabel('mtc samples')
+axs[0].set_ylabel('neg-log-likelihood')
+axs[1].plot(range(len(SampParas[burnIn::,0])), neg_log_likehood(SampParas[burnIn::,0],y, Ax).T)
+axs[1].set_xlabel('t-walk samples')
+axs[1].set_ylabel('-log $\pi(y |  x ,\gamma)$')
+plt.savefig('TraceMTC.png')
+plt.show()
+
+
 print('bla')
 
 '''make figure for f and g including the best lambdas and taylor series'''
@@ -976,10 +1007,10 @@ fig,axs = plt.subplots(1,2, figsize=(14, 5))
 axs[0].plot(lam,f_func)
 axs[0].scatter(lam0,f_try_func[50], color = 'green', s= 70, zorder=4)
 axs[0].annotate('mode $\lambda_0$ of marginal posterior',(lam0+2e4,f_try_func[50]), color = 'green', fontsize = 14.7)
-axs[0].scatter(np.mean(lambdas),f_func[216], color = 'red', zorder=5)
-axs[0].annotate('MTC $\lambda$ sample mean',(np.mean(lambdas)+1e4,f_func[216]), color = 'red')
-axs[0].scatter(np.mean(lambasPyT[burnIn::math.ceil(IntAutoLamPyT)]),f_func[234], color = 'k', s = 35, zorder=5)
-axs[0].annotate('T-Walk $\lambda$ sample mean',(np.mean(lambasPyT[burnIn::math.ceil(IntAutoLamPyT)])+1e5,f_func[234]+2e6), color = 'k')
+axs[0].scatter(np.mean(lambdas),f_func[239], color = 'red', zorder=5)
+axs[0].annotate('MTC $\lambda$ sample mean',(np.mean(lambdas)+1e4,f_func[239]), color = 'red')
+axs[0].scatter(np.mean(lambasPyT[burnIn::math.ceil(IntAutoLamPyT)]),f_func[238], color = 'k', s = 35, zorder=5)
+axs[0].annotate('T-Walk $\lambda$ sample mean',(np.mean(lambasPyT[burnIn::math.ceil(IntAutoLamPyT)])+1e5,f_func[238]+2e6), color = 'k')
 axs[0].set_xscale('log')
 axs[0].set_yscale('log')
 axs[0].set_ylabel('f($\lambda$)')
@@ -1003,10 +1034,10 @@ inset_ax.tick_params(
 axs[1].plot(lam,g_func)
 axs[1].scatter(lam0,g_try_func[50], color = 'green', s=70, zorder=4)
 axs[1].annotate('mode $\lambda_0$ of marginal posterior',(lam0+3e5,g_try_func[50]), color = 'green')
-axs[1].scatter(np.mean(lambdas),g_func[216], color = 'red', zorder=5)
-axs[1].annotate('MTC $\lambda$ sample mean',(np.mean(lambdas)+1e4,g_func[216]-45), color = 'red')
-axs[1].scatter(np.mean(lambasPyT[burnIn::math.ceil(IntAutoLamPyT)]),g_func[234], color = 'k', s=35, zorder=5)
-axs[1].annotate('T-Walk $\lambda$ sample mean',(np.mean(lambasPyT[burnIn::math.ceil(IntAutoLamPyT)])+1e6,g_func[234]+50), color = 'k')
+axs[1].scatter(np.mean(lambdas),g_func[239], color = 'red', zorder=5)
+axs[1].annotate('MTC $\lambda$ sample mean',(np.mean(lambdas)+1e4,g_func[239]-45), color = 'red')
+axs[1].scatter(np.mean(lambasPyT[burnIn::math.ceil(IntAutoLamPyT)]),g_func[238], color = 'k', s=35, zorder=5)
+axs[1].annotate('T-Walk $\lambda$ sample mean',(np.mean(lambasPyT[burnIn::math.ceil(IntAutoLamPyT)])+1e6,g_func[238]+50), color = 'k')
 axs[1].set_xscale('log')
 axs[1].set_xlabel('$\lambda$')
 axs[1].set_ylabel('g($\lambda$)')
@@ -1028,4 +1059,33 @@ inset_ax.tick_params(
 plt.savefig('f_and_g.png')
 plt.show()
 
+
+
 print('bla')
+
+#L-curve
+
+lamLCurve = np.logspace(-10,10,500)
+xLCurve = np.zeros(len(lamLCurve))
+NormLCurve = np.zeros(len(lamLCurve))
+SqNormCurve = np.zeros(len(lamLCurve))
+for i in range(len(lamLCurve)):
+    B = (ATA_lin + lamLCurve[i] * L)
+
+    B_inv_A_trans_y, exitCode = gmres(B, ATy[0::, 0], tol=1e-7, restart=25)
+    if exitCode != 0:
+        print(exitCode)
+
+    NormLCurve[i] = np.linalg.norm( y - np.matmul(A_lin,B_inv_A_trans_y))
+    SqNormCurve[i] = np.sqrt(np.matmul(np.matmul(B_inv_A_trans_y.T, L), B_inv_A_trans_y))
+
+fig, axs = plt.subplots( 1,1, sharey=True, tight_layout=True)
+plt.plot(NormLCurve,SqNormCurve)
+axs.set_xscale('log')
+axs.set_yscale('log')
+plt.savefig('LCurve.png')
+plt.show()
+
+
+print('bla')
+
