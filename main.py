@@ -596,7 +596,6 @@ lam_try = np.linspace(lam0-1e4,lam0+1e4,101)
 f_try_func = np.zeros(len(lam_try))
 g_try_func = np.zeros(len(lam_try))
 
-num_sam = 10
 g_func_tay = np.ones(len(lam_try)) * g(A_lin, L, lam0)
 
 B = (ATA_lin + lam0* L)
@@ -658,7 +657,7 @@ for j in range(len(lam_try)):
 startTime = time.time()
 
 #hyperarameters
-number_samples = 10000
+number_samples = 1000
 gammas = np.zeros(number_samples)
 deltas = np.zeros(number_samples)
 lambdas = np.zeros(number_samples)
@@ -948,14 +947,14 @@ def MargPostSupp(Params):
 MargPost = pytwalk.pytwalk( n=2, U=MargPostU, Supp=MargPostSupp)
 
 
-MargPost.Run( T=100000, x0=MargPostInit(minimum), xp0=np.array([normal(minimum[0], minimum[0]/4), normal(minimum[1],minimum[1]/4)]) )
+MargPost.Run( T=500000, x0=MargPostInit(minimum), xp0=np.array([normal(minimum[0], minimum[0]/4), normal(minimum[1],minimum[1]/4)]) )
 MargPost.Ana()
-MargPost.TS()
+#MargPost.TS()
 
-MargPost.Hist( par=0 )
-MargPost.Hist( par=1 )
+#MargPost.Hist( par=0 )
+#MargPost.Hist( par=1 )
 
-MargPost.Save("MargPostDat.txt")
+MargPost.SavetwalkOutput("MargPostDat.txt")
 
 #load data and make histogram
 SampParas = np.loadtxt("MargPostDat.txt")
@@ -1022,7 +1021,7 @@ inset_ax.plot(lam_try,f_func_tay, color = 'red',linewidth = 5, label = '$5^{th}$
 inset_ax.plot(lam_try,f_try_func, label = 'f($\lambda$)')
 inset_ax.set_xscale('log')
 inset_ax.set_yscale('log')
-inset_ax.legend(loc = 'upper left')
+inset_ax.legend(loc = 'upper left', facecolor = 'none')
 inset_ax.tick_params(
     axis='y',          # changes apply to the x-axis
     which='both',      # both major and minor ticks are affected
@@ -1034,7 +1033,8 @@ inset_ax.tick_params(
 axs[1].plot(lam,g_func)
 axs[1].scatter(lam0,g_try_func[50], color = 'green', s=70, zorder=4)
 axs[1].annotate('mode $\lambda_0$ of marginal posterior',(lam0+3e5,g_try_func[50]), color = 'green')
-axs[1].scatter(np.mean(lambdas),g_func[239], color = 'red', zorder=5)
+#axs[1].scatter(np.mean(lambdas),g_func[239], color = 'red', zorder=5)
+axs[1].errorbar(np.mean(lambdas),g_func[239], color = 'red', zorder=5, xerr=np.sqrt(np.var(lambdas)), fmt='o')
 axs[1].annotate('MTC $\lambda$ sample mean',(np.mean(lambdas)+1e4,g_func[239]-45), color = 'red')
 axs[1].scatter(np.mean(lambasPyT[burnIn::math.ceil(IntAutoLamPyT)]),g_func[238], color = 'k', s=35, zorder=5)
 axs[1].annotate('T-Walk $\lambda$ sample mean',(np.mean(lambasPyT[burnIn::math.ceil(IntAutoLamPyT)])+1e6,g_func[238]+50), color = 'k')
@@ -1048,7 +1048,7 @@ inset_ax.scatter(lam0,g_try_func[50], color = 'green', s=60, zorder=3)
 inset_ax.annotate('$\lambda_0$',(lam0+1e3,g_try_func[50]-2), color = 'green', fontsize = 20 )
 inset_ax.set_xscale('log')
 inset_ax.set_yscale('log')
-inset_ax.legend(loc = 'upper left')
+inset_ax.legend(loc = 'upper left', facecolor = 'none')
 inset_ax.tick_params(
     axis='y',          # changes apply to the x-axis
     which='both',      # both major and minor ticks are affected
@@ -1065,7 +1065,7 @@ print('bla')
 
 #L-curve
 
-lamLCurve = np.logspace(-10,10,500)
+lamLCurve = np.linspace(1e-7,1e10,500)
 xLCurve = np.zeros(len(lamLCurve))
 NormLCurve = np.zeros(len(lamLCurve))
 SqNormCurve = np.zeros(len(lamLCurve))

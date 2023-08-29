@@ -3,7 +3,7 @@ clear all
 close all
 
 
-data = importdata('/Users/lennart/PycharmProjects/firstModelCheck/samples.txt', '\t' ,3);
+data = importdata('samples.txt', '\t' ,3);
 deltas = data.data(:,1);
 gammas = data.data(:,2);
 lambdas = data.data(:,3);
@@ -30,7 +30,7 @@ y(1,1:length(rho_gam)) = rho_gam;
 z(1,1:length(rho_lam)) = rho_lam;
 
 headers ='Integrated Autocorrelation time\n';
-fileID = fopen('/Users/lennart/PycharmProjects/firstModelCheck/auto_corr_dat.txt','w');
+fileID = fopen('auto_corr_dat.txt','w');
 fprintf(fileID,headers);
 fprintf(fileID,'%1.5f %2.5f %3.5f\n', (2*tauint_del), (2*tauint_gam), (2*tauint_lam));
 fprintf(fileID,'%1s %2s %3s\n', 'rho_delta', 'rho_gamma', 'rho_lambda');
