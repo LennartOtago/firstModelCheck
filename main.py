@@ -591,46 +591,46 @@ MCErrL2 = stdL2/ np.sqrt(num_sam)
 ''' check taylor series in f(lambda)
 around lam0 delta_lam = '''
 
-lam0 =minimum[1] / minimum[0]
-lam_try = np.linspace(lam0-1e4,lam0+1e4,101)
-f_try_func = np.zeros(len(lam_try))
-g_try_func = np.zeros(len(lam_try))
-
-g_func_tay = np.ones(len(lam_try)) * g(A_lin, L, lam0)
-
-B = (ATA_lin + lam0* L)
-B_inv_A_trans_y, exitCode = gmres(B, ATy[0::, 0], tol=1e-7, restart=25)
-f_func_tay = np.ones(len(lam_try)) *  f(ATy, y, B_inv_A_trans_y)
-
-for j in range(len(lam_try)):
-
-    B = (ATA_lin + lam_try[j] * L)
-
-    B_inv_A_trans_y, exitCode = gmres(B, ATy[0::, 0], tol=1e-7, restart=25)
-    #print(exitCode)
-
-    CheckB_inv_ATy = np.matmul(B, B_inv_A_trans_y)
-    if np.allclose(CheckB_inv_ATy, ATy[0::, 0], atol=1e-7):
-        f_try_func[j] = f(ATy, y, B_inv_A_trans_y)
-    else:
-        f_try_func[j] = np.nan
-    delta_lam = lam_try[j] - lam0
-
-    g_try_func[j] = g(A_lin, L, lam_try[j])
-
-    B_inv_L = np.zeros(np.shape(B))
-    for i in range(len(B)):
-        B_inv_L[:, i], exitCode = gmres(B, L[:, i], tol=1e-5, restart=25)
-        if exitCode != 0:
-            print(exitCode)
-
-    B_inv_L_2 = np.matmul(B_inv_L, B_inv_L)
-    B_inv_L_3 = np.matmul(B_inv_L_2, B_inv_L)
-    B_inv_L_4 = np.matmul(B_inv_L_2, B_inv_L_2)
-    B_inv_L_5 = np.matmul(np.matmul(B_inv_L_2, B_inv_L_2), B_inv_L)
-
-    f_func_tay[j] = f_func_tay[j] + f_tayl(delta_lam, B_inv_A_trans_y, ATy[0::, 0], B_inv_L, B_inv_L_2, B_inv_L_3, B_inv_L_4, B_inv_L_5)
-    g_func_tay[j] = g_func_tay[j] + g_tayl(delta_lam, B_inv_L, B_inv_L_2, B_inv_L_3, B_inv_L_4, B_inv_L_5)
+# lam0 =minimum[1] / minimum[0]
+# lam_try = np.linspace(lam0-1e4,lam0+1e4,101)
+# f_try_func = np.zeros(len(lam_try))
+# g_try_func = np.zeros(len(lam_try))
+#
+# g_func_tay = np.ones(len(lam_try)) * g(A_lin, L, lam0)
+#
+# B = (ATA_lin + lam0* L)
+# B_inv_A_trans_y, exitCode = gmres(B, ATy[0::, 0], tol=1e-7, restart=25)
+# f_func_tay = np.ones(len(lam_try)) *  f(ATy, y, B_inv_A_trans_y)
+#
+# for j in range(len(lam_try)):
+#
+#     B = (ATA_lin + lam_try[j] * L)
+#
+#     B_inv_A_trans_y, exitCode = gmres(B, ATy[0::, 0], tol=1e-7, restart=25)
+#     #print(exitCode)
+#
+#     CheckB_inv_ATy = np.matmul(B, B_inv_A_trans_y)
+#     if np.allclose(CheckB_inv_ATy, ATy[0::, 0], atol=1e-7):
+#         f_try_func[j] = f(ATy, y, B_inv_A_trans_y)
+#     else:
+#         f_try_func[j] = np.nan
+#     delta_lam = lam_try[j] - lam0
+#
+#     g_try_func[j] = g(A_lin, L, lam_try[j])
+#
+#     B_inv_L = np.zeros(np.shape(B))
+#     for i in range(len(B)):
+#         B_inv_L[:, i], exitCode = gmres(B, L[:, i], tol=1e-5, restart=25)
+#         if exitCode != 0:
+#             print(exitCode)
+#
+#     B_inv_L_2 = np.matmul(B_inv_L, B_inv_L)
+#     B_inv_L_3 = np.matmul(B_inv_L_2, B_inv_L)
+#     B_inv_L_4 = np.matmul(B_inv_L_2, B_inv_L_2)
+#     B_inv_L_5 = np.matmul(np.matmul(B_inv_L_2, B_inv_L_2), B_inv_L)
+#
+#     f_func_tay[j] = f_func_tay[j] + f_tayl(delta_lam, B_inv_A_trans_y, ATy[0::, 0], B_inv_L, B_inv_L_2, B_inv_L_3, B_inv_L_4, B_inv_L_5)
+#     g_func_tay[j] = g_func_tay[j] + g_tayl(delta_lam, B_inv_L, B_inv_L_2, B_inv_L_3, B_inv_L_4, B_inv_L_5)
 
 # fig,axs = plt.subplots()
 # axs.plot(lam_try,f_func_tay, color = 'red',linewidth = 5)
@@ -657,7 +657,7 @@ for j in range(len(lam_try)):
 startTime = time.time()
 
 #hyperarameters
-number_samples = 1000
+number_samples = 10000
 gammas = np.zeros(number_samples)
 deltas = np.zeros(number_samples)
 lambdas = np.zeros(number_samples)
@@ -673,13 +673,20 @@ B = (ATA_lin + lambdas[0] * L)
 
 B_inv_L = np.zeros(np.shape(B))
 for i in range(len(B)):
-    B_inv_L[:, i], exitCode = gmres(B, L[:, i], tol=1e-5, restart=25)
+    B_inv_L[:, i], exitCode = gmres(B, L[:, i], tol=1e-5, restart=20)
     if exitCode != 0:
         print(exitCode)
 
-B_inv_A_trans_y, exitCode = gmres(B, ATy[0::, 0], tol=1e-7, restart=25)
+B_inv_A_trans_y, exitCode = gmres(B, ATy[0::, 0], tol=1e-5, restart=20)
 if exitCode != 0:
     print(exitCode)
+
+B_inv_L_2 = np.matmul(B_inv_L, B_inv_L)
+B_inv_L_3 = 0#np.matmul(B_inv_L_2, B_inv_L)
+B_inv_L_4 = 0#np.matmul(B_inv_L_2, B_inv_L_2)
+B_inv_L_5 = 0#np.matmul(np.matmul(B_inv_L_2, B_inv_L_2), B_inv_L)
+
+
 
 k = 0
 wLam = 2e4
@@ -689,6 +696,7 @@ betaG = 1e-4
 betaD = 1e-4
 alphaG = 1
 alphaD = 1
+f_mode = f(ATy, y, B_inv_A_trans_y)
 
 for t in range(number_samples-1):
     #######
@@ -730,16 +738,6 @@ for t in range(number_samples-1):
     # if exitCode != 0:
     #     print(exitCode)
 
-    B_inv_L = np.zeros(np.shape(B))
-    for i in range(len(B)):
-        B_inv_L[:, i], exitCode = gmres(B, L[:, i], tol=1e-7, restart=25)
-        if exitCode != 0:
-            print(exitCode)
-
-    B_inv_L_2 = np.matmul(B_inv_L, B_inv_L)
-    B_inv_L_3 = np.matmul(B_inv_L_2, B_inv_L)
-    B_inv_L_4 = np.matmul(B_inv_L_2, B_inv_L_2)
-    B_inv_L_5 = np.matmul(np.matmul(B_inv_L_2, B_inv_L_2), B_inv_L)
 
     # # draw new lambda
     lam_p = normal(lambdas[t], wLam)
@@ -775,16 +773,29 @@ for t in range(number_samples-1):
         lambdas[t + 1] = np.copy(lambdas[t])
 
     B = (ATA_lin + lambdas[t+1] * L)
-    B_inv_A_trans_y, exitCode = gmres(B, ATy[0::, 0], tol=1e-7, restart=25)
+    B_inv_A_trans_y, exitCode = gmres(B, ATy[0::, 0], tol=1e-5, restart=20)
     if exitCode != 0:
         print(exitCode)
 
+    B_inv_L = np.zeros(np.shape(B))
+    for i in range(len(B)):
+        B_inv_L[:, i], exitCode = gmres(B, L[:, i], tol=1e-5, restart=20)
+        if exitCode != 0:
+            print(exitCode)
+
+    B_inv_L_2 = np.matmul(B_inv_L, B_inv_L)
+    B_inv_L_3 = 0#np.matmul(B_inv_L_2, B_inv_L)
+    B_inv_L_4 = 0#np.matmul(B_inv_L_2, B_inv_L_2)
+    B_inv_L_5 = 0#np.matmul(np.matmul(B_inv_L_2, B_inv_L_2), B_inv_L)
 
 
     #draw gamma with a gibs step
     #shape = (SpecNumMeas) / 2 + alphaD + alphaG
     shape =  (SpecNumLayers - 1)/ 2 + alphaD + alphaG
-    rate = f(ATy, y, B_inv_A_trans_y)/2 + betaG + betaD * lambdas[t+1]
+    delta_lam_mode = lambdas[t + 1] - lambdas[0]
+    delta_f_mode = f_tayl(delta_lam_mode, B_inv_A_trans_y, ATy[0::, 0], B_inv_L, B_inv_L_2, B_inv_L_3, B_inv_L_4, B_inv_L_5)
+
+    rate = (f_mode + delta_f_mode)/2 + betaG + betaD * lambdas[t+1]
 
     gammas[t+1] = np.random.gamma(shape, scale = 1/rate)
 
