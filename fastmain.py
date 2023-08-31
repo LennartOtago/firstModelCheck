@@ -1,6 +1,6 @@
 
 import time
-
+import math
 from functions import *
 from errors import *
 from scipy import constants, optimize
@@ -197,7 +197,7 @@ ATy = np.matmul(A_lin.T, y)
 
 """start the mtc algo with first guesses of noise and lumping const delta"""
 
-
+tol = 1e-4
 vari = np.zeros((len(theta)-2,1))
 
 for j in range(1,len(theta)-1):
@@ -220,7 +220,7 @@ def MargPost(params):#, coeff):
     Bp= ATA_lin + delta/gamma * L
 
 
-    B_inv_A_trans_y, exitCode = gmres(Bp, ATy[0::, 0], tol=1e-7, restart=25)
+    B_inv_A_trans_y, exitCode = gmres(Bp, ATy[0::, 0], tol=tol, restart=25)
     if exitCode != 0:
         print(exitCode)
 
@@ -234,18 +234,14 @@ minimum = optimize.fmin(MargPost, [1/np.var(y),1/(2*np.mean(vari))])
 
 #minimum = optimize.minimize(MargPost, [1/np.var(y), 1/(2*np.mean(vari))], args = [ATA_lin, L])
 print(minimum)
-
-
+print(minimum[1]/minimum[0])
 
 
 
 
 '''do the sampling'''
-abs_tol = 1e-3
-relative_tol_ATy = 1e-3#10**(orderOfMagnitude(abs_tol * np.linalg.norm(ATy[0::, 0]))-2)
-relative_tol_L = 1e-3 #10**(orderOfMagnitude(abs_tol * np.linalg.norm(L[:,1]))-2)
-#hyperarameters
-number_samples = 1000
+
+number_samples = 10000
 gammas = np.zeros(number_samples)
 deltas = np.zeros(number_samples)
 lambdas = np.zeros(number_samples)
@@ -261,18 +257,18 @@ B = (ATA_lin + lambdas[0] * L)
 
 B_inv_L = np.zeros(np.shape(B))
 for i in range(len(B)):
-    B_inv_L[:, i], exitCode = gmres(B, L[:, i], tol=relative_tol_L, restart=25)
+    B_inv_L[:, i], exitCode = gmres(B, L[:, i], tol=tol, restart=25)
     if exitCode != 0:
         print(exitCode)
 
-B_inv_A_trans_y, exitCode = gmres(B, ATy[0::, 0], tol=relative_tol_ATy, restart=25)
+B_inv_A_trans_y, exitCode = gmres(B, ATy[0::, 0], tol=tol, restart=25)
 if exitCode != 0:
     print(exitCode)
 
 B_inv_L_2 = np.matmul(B_inv_L, B_inv_L)
-B_inv_L_3 = 0#np.matmul(B_inv_L_2, B_inv_L)
-B_inv_L_4 = 0#np.matmul(B_inv_L_2, B_inv_L_2)
-B_inv_L_5 = 0#np.matmul(np.matmul(B_inv_L_2, B_inv_L_2), B_inv_L)
+B_inv_L_3 = np.matmul(B_inv_L_2, B_inv_L)
+B_inv_L_4 = np.matmul(B_inv_L_2, B_inv_L_2)
+B_inv_L_5 = np.matmul(B_inv_L_4, B_inv_L)
 
 
 
@@ -284,7 +280,7 @@ betaG = 1e-4
 betaD = 1e-4
 alphaG = 1
 alphaD = 1
-f_rate = f(ATy, y, B_inv_A_trans_y)
+rate = f(ATy, y, B_inv_A_trans_y) / 2 + betaG + betaD * lambdas[0]
 
 startTime = time.time()
 for t in range(number_samples-1):
@@ -309,54 +305,36 @@ for t in range(number_samples-1):
         k = k + 1
         lambdas[t + 1] = lam_p
         #only calc when lambda is updated
-        B = (ATA_lin + lambdas[t+1] * L)
-        B_inv_A_trans_y, exitCode = gmres(B, ATy[0::, 0], tol=relative_tol_ATy, restart=25)
+        #B = (ATA_lin + lambdas[t+1] * L)
+        B = (ATA_lin + lam_p * L)
+        B_inv_A_trans_y, exitCode = gmres(B, ATy[0::, 0], tol=tol, restart=25)
         # if exitCode != 0:
         #     print(exitCode)
-
         # CheckB_inv_ATy = np.matmul(B, B_inv_A_trans_y)
         # print(np.allclose(CheckB_inv_ATy, ATy[0::, 0], rtol=relative_tol_ATy))
 
         B_inv_L = np.zeros(np.shape(B))
         for i in range(len(B)):
-            B_inv_L[:, i], exitCode = gmres(B, L[:, i], tol=relative_tol_L, restart=25)
+            B_inv_L[:, i], exitCode = gmres(B, L[:, i], tol=tol, restart=25)
             # if exitCode != 0:
             #    print(exitCode)
-            # CheckB_inv_L = np.matmul(B, B_inv_L[:, i])
-            # print(np.allclose(L[:, i], CheckB_inv_L, rtol=relative_tol_L))
-            # residual = L[:, i] - CheckB_inv_L
-            # relative_residual = np.linalg.norm(residual) / np.linalg.norm(L[:, i])
-            # if relative_residual <= relative_tol_L:
-            #     print("Solution within tolerance.")
-            # else:
-            #     print("Solution not within tolerance.")
-        # CheckB_inv_L = np.matmul(B, B_inv_L)
-        # # print(np.allclose(CheckB_inv_L, L, rtol=relative_tol_L))
-        # residual = L - CheckB_inv_L
-        # relative_residual = np.linalg.norm(residual) / np.linalg.norm(L)
-        # if relative_residual <= relative_tol_L:
-        #     print("Solution within tolerance.")
-        # else:
-        #     print("Solution not within tolerance.")
+        #CheckB_inv_L = np.matmul(B, B_inv_L)
+        #print(np.linalg.norm(L- CheckB_inv_L)/np.linalg.norm(L)<relative_tol_L)
 
         B_inv_L_2 = np.matmul(B_inv_L, B_inv_L)
-        B_inv_L_3 = 0  # np.matmul(B_inv_L_2, B_inv_L)
-        B_inv_L_4 = 0  # np.matmul(B_inv_L_2, B_inv_L_2)
-        B_inv_L_5 = 0  # np.matmul(np.matmul(B_inv_L_2, B_inv_L_2), B_inv_L)
+        B_inv_L_3 = np.matmul(B_inv_L_2, B_inv_L)
+        B_inv_L_4 = np.matmul(B_inv_L_2, B_inv_L_2)
+        B_inv_L_5 = np.matmul(B_inv_L_4, B_inv_L)
 
-        f_rate = f(ATy, y, B_inv_A_trans_y)
+        rate = f(ATy, y, B_inv_A_trans_y)/2 + betaG + betaD * lam_p#lambdas[t+1]
 
     else:
         #rejcet
         lambdas[t + 1] = np.copy(lambdas[t])
 
     #draw gamma with a gibs step
-    #shape = (SpecNumMeas) / 2 + alphaD + alphaG
     shape =  (SpecNumLayers - 1)/ 2 + alphaD + alphaG
-    # delta_lam_mode = lambdas[t + 1] - lambdas[0]
-    # delta_f_mode = f_tayl(delta_lam_mode, B_inv_A_trans_y, ATy[0::, 0], B_inv_L, B_inv_L_2, B_inv_L_3, B_inv_L_4, B_inv_L_5)
 
-    rate = f_rate/2 + betaG + betaD * lambdas[t+1]
 
     gammas[t+1] = np.random.gamma(shape, scale = 1/rate)
 
@@ -366,6 +344,10 @@ for t in range(number_samples-1):
 
 elapsed = time.time() - startTime
 print('acceptance ratio: ' + str(k/number_samples))
-print(np.mean(gammas))
-print(np.mean(deltas))
-np.savetxt('samples.txt', np.vstack((gammas, deltas, lambdas)).T, header = 'gammas \t deltas \t lambdas \n Acceptance Ratio: ' + str(k/number_samples) + '\n Elapsed Time: ' + str(elapsed), fmt = '%.15f \t %.15f \t %.15f')
+print(np.mean(gammas[30::]))
+print(np.mean(deltas[30::]))
+print(np.mean(lambdas[30::]))
+np.savetxt('samples.txt', np.vstack((gammas, deltas, lambdas)).T, header = 'Acceptance Ratio: ' + str(k/number_samples) + '\n Elapsed Time: ' + str(elapsed) + ' \n gammas \t deltas \t lambdas \n ', fmt = '%.15f \t %.15f \t %.15f')
+
+
+print('bla')

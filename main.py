@@ -457,7 +457,7 @@ ATy = np.matmul(A_lin.T, y)
 
 """start the mtc algo with first guesses of noise and lumping const delta"""
 
-
+tol = 1e-4
 vari = np.zeros((len(theta)-2,1))
 
 for j in range(1,len(theta)-1):
@@ -480,7 +480,7 @@ def MargPost(params):#, coeff):
     Bp= ATA_lin + delta/gamma * L
 
 
-    B_inv_A_trans_y, exitCode = gmres(Bp, ATy[0::, 0], tol=1e-7, restart=25)
+    B_inv_A_trans_y, exitCode = gmres(Bp, ATy[0::, 0], tol=tol, restart=25)
     if exitCode != 0:
         print(exitCode)
 
@@ -494,13 +494,13 @@ minimum = optimize.fmin(MargPost, [1/np.var(y),1/(2*np.mean(vari))])
 
 #minimum = optimize.minimize(MargPost, [1/np.var(y), 1/(2*np.mean(vari))], args = [ATA_lin, L])
 print(minimum)
-
+print(minimum[1]/minimum[0])
 
 
 """ finaly calc f and g with a linear solver adn certain lambdas
  using the gmres"""
 
-lam= np.logspace(-4,14,500)
+lam= np.logspace(-4,14,100)
 f_func = np.zeros(len(lam))
 g_func = np.zeros(len(lam))
 
@@ -510,11 +510,11 @@ for j in range(len(lam)):
 
     B = (ATA_lin + lam[j] * L)
 
-    B_inv_A_trans_y, exitCode = gmres(B, ATy[0::, 0], tol=1e-7, restart=25)
+    B_inv_A_trans_y, exitCode = gmres(B, ATy[0::, 0], tol=tol, restart=25)
     #print(exitCode)
 
     CheckB_inv_ATy = np.matmul(B, B_inv_A_trans_y)
-    if np.allclose(CheckB_inv_ATy, ATy[0::, 0], atol=1e-7):
+    if np.linalg.norm(ATy[0::, 0]- CheckB_inv_ATy)/np.linalg.norm(ATy[0::, 0])<=tol:
         f_func[j] = f(ATy, y, B_inv_A_trans_y)
     else:
         f_func[j] = np.nan
@@ -573,7 +573,7 @@ B_inv = np.zeros(np.shape(B))
 for i in range(len(B)):
     e = np.zeros(len(B))
     e[i] = 1
-    B_inv[:, i], exitCode = gmres(B, e, tol=1e-7, restart=25)
+    B_inv[:, i], exitCode = gmres(B, e, tol=tol, restart=25)
     if exitCode!= 0 :
         print(exitCode)
 
@@ -591,46 +591,48 @@ MCErrL2 = stdL2/ np.sqrt(num_sam)
 ''' check taylor series in f(lambda)
 around lam0 delta_lam = '''
 
-# lam0 =minimum[1] / minimum[0]
-# lam_try = np.linspace(lam0-1e4,lam0+1e4,101)
-# f_try_func = np.zeros(len(lam_try))
-# g_try_func = np.zeros(len(lam_try))
-#
-# g_func_tay = np.ones(len(lam_try)) * g(A_lin, L, lam0)
-#
-# B = (ATA_lin + lam0* L)
-# B_inv_A_trans_y, exitCode = gmres(B, ATy[0::, 0], tol=1e-7, restart=25)
-# f_func_tay = np.ones(len(lam_try)) *  f(ATy, y, B_inv_A_trans_y)
-#
-# for j in range(len(lam_try)):
-#
-#     B = (ATA_lin + lam_try[j] * L)
-#
-#     B_inv_A_trans_y, exitCode = gmres(B, ATy[0::, 0], tol=1e-7, restart=25)
-#     #print(exitCode)
-#
-#     CheckB_inv_ATy = np.matmul(B, B_inv_A_trans_y)
-#     if np.allclose(CheckB_inv_ATy, ATy[0::, 0], atol=1e-7):
-#         f_try_func[j] = f(ATy, y, B_inv_A_trans_y)
-#     else:
-#         f_try_func[j] = np.nan
-#     delta_lam = lam_try[j] - lam0
-#
-#     g_try_func[j] = g(A_lin, L, lam_try[j])
-#
-#     B_inv_L = np.zeros(np.shape(B))
-#     for i in range(len(B)):
-#         B_inv_L[:, i], exitCode = gmres(B, L[:, i], tol=1e-5, restart=25)
-#         if exitCode != 0:
-#             print(exitCode)
-#
-#     B_inv_L_2 = np.matmul(B_inv_L, B_inv_L)
-#     B_inv_L_3 = np.matmul(B_inv_L_2, B_inv_L)
-#     B_inv_L_4 = np.matmul(B_inv_L_2, B_inv_L_2)
-#     B_inv_L_5 = np.matmul(np.matmul(B_inv_L_2, B_inv_L_2), B_inv_L)
-#
-#     f_func_tay[j] = f_func_tay[j] + f_tayl(delta_lam, B_inv_A_trans_y, ATy[0::, 0], B_inv_L, B_inv_L_2, B_inv_L_3, B_inv_L_4, B_inv_L_5)
-#     g_func_tay[j] = g_func_tay[j] + g_tayl(delta_lam, B_inv_L, B_inv_L_2, B_inv_L_3, B_inv_L_4, B_inv_L_5)
+lam0 =minimum[1] / minimum[0]
+lam_try = np.linspace(lam0-1e4,lam0+1e4,101)
+f_try_func = np.zeros(len(lam_try))
+g_try_func = np.zeros(len(lam_try))
+
+g_func_tay = np.ones(len(lam_try)) * g(A_lin, L, lam0)
+
+B = (ATA_lin + lam0* L)
+B_inv_A_trans_y, exitCode = gmres(B, ATy[0::, 0], tol=tol, restart=25)
+f_func_tay = np.ones(len(lam_try)) *  f(ATy, y, B_inv_A_trans_y)
+
+for j in range(len(lam_try)):
+
+    B = (ATA_lin + lam_try[j] * L)
+
+    B_inv_A_trans_y, exitCode = gmres(B, ATy[0::, 0], tol=tol, restart=25)
+    #print(exitCode)
+
+    CheckB_inv_ATy = np.matmul(B, B_inv_A_trans_y)
+    # CheckB_inv_L = np.matmul(B, B_inv_L)
+    # print(np.linalg.norm(L- CheckB_inv_L)/np.linalg.norm(L)<relative_tol_L)
+    if np.linalg.norm(ATy[0::, 0]- CheckB_inv_ATy)/np.linalg.norm(ATy[0::, 0])<=tol :
+        f_try_func[j] = f(ATy, y, B_inv_A_trans_y)
+    else:
+        f_try_func[j] = np.nan
+    delta_lam = lam_try[j] - lam0
+
+    g_try_func[j] = g(A_lin, L, lam_try[j])
+
+    B_inv_L = np.zeros(np.shape(B))
+    for i in range(len(B)):
+        B_inv_L[:, i], exitCode = gmres(B, L[:, i], tol=tol, restart=25)
+        if exitCode != 0:
+            print(exitCode)
+
+    B_inv_L_2 = np.matmul(B_inv_L, B_inv_L)
+    B_inv_L_3 = np.matmul(B_inv_L_2, B_inv_L)
+    B_inv_L_4 = np.matmul(B_inv_L_2, B_inv_L_2)
+    B_inv_L_5 = np.matmul(B_inv_L_4, B_inv_L)
+
+    f_func_tay[j] = f_func_tay[j] + f_tayl(delta_lam, B_inv_A_trans_y, ATy[0::, 0], B_inv_L, B_inv_L_2, B_inv_L_3, B_inv_L_4, B_inv_L_5)
+    g_func_tay[j] = g_func_tay[j] + g_tayl(delta_lam, B_inv_L, B_inv_L_2, B_inv_L_3, B_inv_L_4, B_inv_L_5)
 
 # fig,axs = plt.subplots()
 # axs.plot(lam_try,f_func_tay, color = 'red',linewidth = 5)
@@ -653,9 +655,7 @@ around lam0 delta_lam = '''
 
 
 '''do the sampling'''
-
-startTime = time.time()
-
+ #10**(orderOfMagnitude(abs_tol * np.linalg.norm(L[:,1]))-2)
 #hyperarameters
 number_samples = 10000
 gammas = np.zeros(number_samples)
@@ -673,18 +673,18 @@ B = (ATA_lin + lambdas[0] * L)
 
 B_inv_L = np.zeros(np.shape(B))
 for i in range(len(B)):
-    B_inv_L[:, i], exitCode = gmres(B, L[:, i], tol=1e-5, restart=20)
+    B_inv_L[:, i], exitCode = gmres(B, L[:, i], tol=tol, restart=25)
     if exitCode != 0:
         print(exitCode)
 
-B_inv_A_trans_y, exitCode = gmres(B, ATy[0::, 0], tol=1e-5, restart=20)
+B_inv_A_trans_y, exitCode = gmres(B, ATy[0::, 0], tol=tol, restart=25)
 if exitCode != 0:
     print(exitCode)
 
 B_inv_L_2 = np.matmul(B_inv_L, B_inv_L)
-B_inv_L_3 = 0#np.matmul(B_inv_L_2, B_inv_L)
-B_inv_L_4 = 0#np.matmul(B_inv_L_2, B_inv_L_2)
-B_inv_L_5 = 0#np.matmul(np.matmul(B_inv_L_2, B_inv_L_2), B_inv_L)
+B_inv_L_3 = np.matmul(B_inv_L_2, B_inv_L)
+B_inv_L_4 = np.matmul(B_inv_L_2, B_inv_L_2)
+B_inv_L_5 = np.matmul(B_inv_L_4, B_inv_L)
 
 
 
@@ -696,47 +696,10 @@ betaG = 1e-4
 betaD = 1e-4
 alphaG = 1
 alphaD = 1
-f_mode = f(ATy, y, B_inv_A_trans_y)
+rate = f(ATy, y, B_inv_A_trans_y) / 2 + betaG + betaD * lambdas[0]
 
+startTime = time.time()
 for t in range(number_samples-1):
-    #######
-    # # draw new lambda
-    # gam_p = normal(gammas[t], wgam)
-    # # draw new lambda
-    # delt_p = normal(deltas[t], wdelt)
-    # while delt_p < 0 or gam_p < 0:
-    #     delt_p = normal(deltas[t], wdelt)
-    #     gam_p = normal(gammas[t], wgam)
-    #
-    # G_p = g(A_lin, L, delt_p/gam_p)
-    # G  = g(A_lin, L, lambdas[t])
-    #
-    # Bp = (ATA_lin + delt_p/gam_p * L)
-    # Bp_inv_A_trans_y, exitCode = gmres(Bp, ATy[0::, 0], tol=1e-7, restart=25)
-    # if exitCode != 0:
-    #     print(exitCode)
-    # F_p = f(ATy, y, Bp_inv_A_trans_y)
-    # F = f(ATy, y, B_inv_A_trans_y)
-    #
-    # log_MH_ratio = (SpecNumLayers - 1)/ 2  * (np.log(delt_p) - np.log(deltas[t])) - 0.5 * (G_p - G + gam_p * F_p - gammas[t] * F) - betaD * (delt_p + gam_p - gammas[t] - deltas[t])
-    # #accept or rejeict new lam_p
-    # u = uniform(0,1)
-    # if np.log(u) <= log_MH_ratio:
-    # #accept
-    #     k = k + 1
-    #     gammas[t + 1] = gam_p
-    #     deltas[t + 1] = delt_p
-    # else:
-    #     #rejcet
-    #     gammas[t + 1] = gammas[t]
-    #     deltas[t + 1] = deltas[t]
-    #
-    # lambdas[t + 1] = deltas[t + 1]/gammas[t + 1]
-    #
-    # B = (ATA_lin + lambdas[t+1] * L)
-    # B_inv_A_trans_y, exitCode = gmres(B, ATy[0::, 0], tol=1e-7, restart=25)
-    # if exitCode != 0:
-    #     print(exitCode)
 
 
     # # draw new lambda
@@ -746,17 +709,6 @@ for t in range(number_samples-1):
             lam_p = normal(lambdas[t], wLam)
 
     delta_lam = lam_p - lambdas[t]
-
-    #delta_f = f_tayl(delta_lam, B_inv_A_trans_y, ATy[0::, 0], B_inv_L, B_inv_L_2, B_inv_L_3, B_inv_L_4,B_inv_L_5)
-    # Bp = (ATA_lin + lam_p * L)
-    # Bp_inv_A_trans_y, exitCode = gmres(Bp, ATy[0::, 0], tol=1e-7, restart=25)
-    # if exitCode != 0:
-    #     print(exitCode)
-    # F_p = f(ATy, y, Bp_inv_A_trans_y)
-    # F = f(ATy, y, B_inv_A_trans_y)
-    # delta_f = f(ATy, y, Bp_inv_A_trans_y) - f(ATy, y, B_inv_A_trans_y)
-    # delta_g= g(A_lin, L, lam_p) - g(A_lin, L, lambdas[t])
-
     delta_f = f_tayl(delta_lam, B_inv_A_trans_y, ATy[0::, 0], B_inv_L, B_inv_L_2, B_inv_L_3, B_inv_L_4,B_inv_L_5)
     delta_g = g_tayl(delta_lam, B_inv_L, B_inv_L_2, B_inv_L_3, B_inv_L_4, B_inv_L_5)
 
@@ -768,38 +720,42 @@ for t in range(number_samples-1):
     #accept
         k = k + 1
         lambdas[t + 1] = lam_p
+        #only calc when lambda is updated
+        #B = (ATA_lin + lambdas[t+1] * L)
+        B = (ATA_lin + lam_p * L)
+        B_inv_A_trans_y, exitCode = gmres(B, ATy[0::, 0], tol=tol, restart=25)
+        # if exitCode != 0:
+        #     print(exitCode)
+        # CheckB_inv_ATy = np.matmul(B, B_inv_A_trans_y)
+        # print(np.allclose(CheckB_inv_ATy, ATy[0::, 0], rtol=relative_tol_ATy))
+
+        B_inv_L = np.zeros(np.shape(B))
+        for i in range(len(B)):
+            B_inv_L[:, i], exitCode = gmres(B, L[:, i], tol=tol, restart=25)
+            # if exitCode != 0:
+            #    print(exitCode)
+        #CheckB_inv_L = np.matmul(B, B_inv_L)
+        #print(np.linalg.norm(L- CheckB_inv_L)/np.linalg.norm(L)<relative_tol_L)
+
+        B_inv_L_2 = np.matmul(B_inv_L, B_inv_L)
+        B_inv_L_3 = np.matmul(B_inv_L_2, B_inv_L)
+        B_inv_L_4 = np.matmul(B_inv_L_2, B_inv_L_2)
+        B_inv_L_5 = np.matmul(B_inv_L_4, B_inv_L)
+
+        rate = f(ATy, y, B_inv_A_trans_y)/2 + betaG + betaD * lam_p#lambdas[t+1]
+
     else:
         #rejcet
         lambdas[t + 1] = np.copy(lambdas[t])
 
-    B = (ATA_lin + lambdas[t+1] * L)
-    B_inv_A_trans_y, exitCode = gmres(B, ATy[0::, 0], tol=1e-5, restart=20)
-    if exitCode != 0:
-        print(exitCode)
-
-    B_inv_L = np.zeros(np.shape(B))
-    for i in range(len(B)):
-        B_inv_L[:, i], exitCode = gmres(B, L[:, i], tol=1e-5, restart=20)
-        if exitCode != 0:
-            print(exitCode)
-
-    B_inv_L_2 = np.matmul(B_inv_L, B_inv_L)
-    B_inv_L_3 = 0#np.matmul(B_inv_L_2, B_inv_L)
-    B_inv_L_4 = 0#np.matmul(B_inv_L_2, B_inv_L_2)
-    B_inv_L_5 = 0#np.matmul(np.matmul(B_inv_L_2, B_inv_L_2), B_inv_L)
-
-
     #draw gamma with a gibs step
-    #shape = (SpecNumMeas) / 2 + alphaD + alphaG
     shape =  (SpecNumLayers - 1)/ 2 + alphaD + alphaG
-    delta_lam_mode = lambdas[t + 1] - lambdas[0]
-    delta_f_mode = f_tayl(delta_lam_mode, B_inv_A_trans_y, ATy[0::, 0], B_inv_L, B_inv_L_2, B_inv_L_3, B_inv_L_4, B_inv_L_5)
 
-    rate = (f_mode + delta_f_mode)/2 + betaG + betaD * lambdas[t+1]
 
     gammas[t+1] = np.random.gamma(shape, scale = 1/rate)
 
     deltas[t+1] = lambdas[t+1] * gammas[t+1]
+
 
 
 
@@ -837,15 +793,15 @@ new_delt = deltas[burnIn::math.ceil(IntAutoDelt)]
 #SetDelta = new_delt[np.random.randint(low = 0,high =len(new_delt),size =1)]
 
 
-fig, axs = plt.subplots(3, 1, sharey=True, tight_layout=True)
-n_bins = 100
+fig, axs = plt.subplots(3, 1,tight_layout=True)
+n_bins = 20
 
 # We can set the number of bins with the *bins* keyword argument.
-axs[0].hist(new_gam,bins=int(n_bins/math.ceil(IntAutoGam)))
+axs[0].hist(new_gam,bins=n_bins)#int(n_bins/math.ceil(IntAutoGam)))
 axs[0].set_title('$\gamma$')
-axs[1].hist(new_delt,bins=int(n_bins/math.ceil(IntAutoDelt)))
+axs[1].hist(new_delt,bins=n_bins)#int(n_bins/math.ceil(IntAutoDelt)))
 axs[1].set_title('$\delta$')
-axs[2].hist(new_lamb,bins=10)
+axs[2].hist(new_lamb,bins=n_bins)#10)
 axs[2].xaxis.set_major_formatter(scientific_formatter)
 axs[2].set_title('$\lambda =\delta / \gamma $')
 plt.savefig('HistoResults.png')
@@ -869,12 +825,12 @@ for p in range(paraSamp):
     for i in range(len(SetB)):
         e = np.zeros(len(SetB))
         e[i] = 1
-        SetB_inv[:, i], exitCode = gmres(SetB, e, tol=1e-7, restart=25)
+        SetB_inv[:, i], exitCode = gmres(SetB, e, tol=tol, restart=25)
         if exitCode != 0:
             print(exitCode)
 
-    CheckSetB_inv = np.matmul(SetB, SetB_inv)
-    print(np.allclose(CheckSetB_inv, np.eye(len(SetB)), atol=1e-7))
+    CheckB_inv = np.matmul(SetB, SetB_inv)
+    print(np.linalg.norm(np.eye(len(SetB))- CheckB_inv)/np.linalg.norm(np.eye(len(SetB)))<tol)
 
 
 
@@ -942,7 +898,7 @@ def MargPostU(Params):
 
     Bp= ATA_lin + Params[1]/Params[0] * L
 
-    B_inv_A_trans_y, exitCode = gmres(Bp, ATy[0::, 0], tol=1e-7, restart=25)
+    B_inv_A_trans_y, exitCode = gmres(Bp, ATy[0::, 0], tol=tol, restart=25)
     if exitCode != 0:
         print(exitCode)
 
@@ -957,8 +913,8 @@ def MargPostSupp(Params):
 
 MargPost = pytwalk.pytwalk( n=2, U=MargPostU, Supp=MargPostSupp)
 
-
-MargPost.Run( T=500000, x0=MargPostInit(minimum), xp0=np.array([normal(minimum[0], minimum[0]/4), normal(minimum[1],minimum[1]/4)]) )
+tWalkSampNum= 500000
+MargPost.Run( T=tWalkSampNum, x0=MargPostInit(minimum), xp0=np.array([normal(minimum[0], minimum[0]/4), normal(minimum[1],minimum[1]/4)]) )
 MargPost.Ana()
 #MargPost.TS()
 
@@ -976,13 +932,13 @@ AutoCorrDataPyTWalk= np.loadtxt("autoCorrPyTWalk.txt", skiprows=3, dtype='float'
 with open("autoCorrPyTWalk.txt") as fID:
     for n, line in enumerate(fID):
        if n == 1:
-            IntAutoDeltaPyT, IntAutoGamPyT, IntAutoLamPyT = [float(IAuto) for IAuto in line.split()]
+            IntAutoDeltPyT, IntAutoGamPyT, IntAutoLamPyT = [float(IAuto) for IAuto in line.split()]
             break
 
 lambasPyT = SampParas[:,1]/SampParas[:,0]
 
 
-fig, axs = plt.subplots(3, 1, sharey=True, tight_layout=True)
+fig, axs = plt.subplots(3, 1, tight_layout=True)
 n_bins = 20
 #burnIn = 50
 # We can set the number of bins with the *bins* keyword argument.
@@ -998,29 +954,68 @@ plt.show()
 
 
 #plot trace
-fig, axs = plt.subplots( 2,1, sharey=True, tight_layout=True)
-axs[0].plot(range(len(gammas[burnIn::])), neg_log_likehood(gammas[burnIn::],y, Ax).T)
+fig, axs = plt.subplots( 2,1, tight_layout=True)
+axs[0].plot(range(len(gammas)), neg_log_likehood(gammas,y, Ax).T)
 axs[0].set_xlabel('mtc samples')
 axs[0].set_ylabel('neg-log-likelihood')
-axs[1].plot(range(len(SampParas[burnIn::,0])), neg_log_likehood(SampParas[burnIn::,0],y, Ax).T)
+axs[1].plot(range(len(SampParas[:,0])), neg_log_likehood(SampParas[:,0],y, Ax).T)
 axs[1].set_xlabel('t-walk samples')
 axs[1].set_ylabel('-log $\pi(y |  x ,\gamma)$')
 plt.savefig('TraceMTC.png')
 plt.show()
 
+#plot para traces for MTC
+fig, axs = plt.subplots( 3,1,  tight_layout=True, figsize=(7, 8))
+fig.suptitle(str(number_samples)+' mtc samples')
+axs[0].plot(range(len(gammas)), gammas)
+axs[0].set_xlabel(r'samples with $\tau_{int}=$' + str(math.ceil(IntAutoGam)))
+axs[0].set_ylabel('$\gamma$')
+axs[1].plot(range(len(deltas)), deltas)
+axs[1].set_xlabel(r'samples with $\tau_{int}$= ' + str(math.ceil(IntAutoDelt)))
+axs[1].set_ylabel('$\delta$')
+axs[2].plot(range(len(lambdas)), lambdas)
+axs[2].set_xlabel(r'samples with $\tau_{int}$= ' + str(math.ceil(IntAutoLam)))
+axs[2].set_ylabel('$\lambda$')
+plt.savefig('TraceMTCPara.png')
+plt.show()
+
+#plot para traces for t-walk
+fig, axs = plt.subplots( 2,1, tight_layout=True)
+fig.suptitle(str(tWalkSampNum)+' t-walk samples')
+axs[0].plot(range(len(SampParas[:,0])), SampParas[:,0])
+axs[0].set_xlabel(r'samples with $\tau_{int}=$' + str(math.ceil(IntAutoGamPyT)))
+axs[0].set_ylabel('$\gamma$')
+axs[1].plot(range(len(SampParas[:,1])), SampParas[:,1])
+axs[1].set_xlabel(r'samples with $\tau_{int}$= ' + str(math.ceil(IntAutoDeltPyT)))
+axs[1].set_ylabel('$\delta$')
+plt.savefig('TracetWalkPara.png')
+plt.show()
+
+
 
 print('bla')
 
 '''make figure for f and g including the best lambdas and taylor series'''
-fig,axs = plt.subplots(1,2, figsize=(14, 5))
 
+B_MTC = ATA_lin + np.mean(lambdas) * L
+B_MTC_inv_A_trans_y, exitCode = gmres(B_MTC, ATy[0::, 0], tol=tol, restart=25)
+if exitCode != 0:
+    print(exitCode)
+lamPyT = np.mean(lambasPyT[burnIn::math.ceil(IntAutoLamPyT)])
+B_tW = ATA_lin + lamPyT * L
+B_tW_inv_A_trans_y, exitCode = gmres(B_tW, ATy[0::, 0], tol=tol, restart=25)
+if exitCode != 0:
+    print(exitCode)
+
+
+fig,axs = plt.subplots(1,2, figsize=(14, 5))
 axs[0].plot(lam,f_func)
 axs[0].scatter(lam0,f_try_func[50], color = 'green', s= 70, zorder=4)
 axs[0].annotate('mode $\lambda_0$ of marginal posterior',(lam0+2e4,f_try_func[50]), color = 'green', fontsize = 14.7)
-axs[0].scatter(np.mean(lambdas),f_func[239], color = 'red', zorder=5)
-axs[0].annotate('MTC $\lambda$ sample mean',(np.mean(lambdas)+1e4,f_func[239]), color = 'red')
-axs[0].scatter(np.mean(lambasPyT[burnIn::math.ceil(IntAutoLamPyT)]),f_func[238], color = 'k', s = 35, zorder=5)
-axs[0].annotate('T-Walk $\lambda$ sample mean',(np.mean(lambasPyT[burnIn::math.ceil(IntAutoLamPyT)])+1e5,f_func[238]+2e6), color = 'k')
+axs[0].scatter(np.mean(lambdas),f(ATy, y, B_MTC_inv_A_trans_y), color = 'red', zorder=5)
+axs[0].annotate('MTC $\lambda$ sample mean',(np.mean(lambdas)+1e4,f(ATy, y, B_MTC_inv_A_trans_y)), color = 'red')
+axs[0].scatter(lamPyT,f(ATy, y, B_tW_inv_A_trans_y), color = 'k', s = 35, zorder=5)
+axs[0].annotate('T-Walk $\lambda$ sample mean',(lamPyT+1e5,f(ATy, y, B_tW_inv_A_trans_y)+2e6), color = 'k')
 axs[0].set_xscale('log')
 axs[0].set_yscale('log')
 axs[0].set_ylabel('f($\lambda$)')
@@ -1045,10 +1040,10 @@ axs[1].plot(lam,g_func)
 axs[1].scatter(lam0,g_try_func[50], color = 'green', s=70, zorder=4)
 axs[1].annotate('mode $\lambda_0$ of marginal posterior',(lam0+3e5,g_try_func[50]), color = 'green')
 #axs[1].scatter(np.mean(lambdas),g_func[239], color = 'red', zorder=5)
-axs[1].errorbar(np.mean(lambdas),g_func[239], color = 'red', zorder=5, xerr=np.sqrt(np.var(lambdas)), fmt='o')
-axs[1].annotate('MTC $\lambda$ sample mean',(np.mean(lambdas)+1e4,g_func[239]-45), color = 'red')
-axs[1].scatter(np.mean(lambasPyT[burnIn::math.ceil(IntAutoLamPyT)]),g_func[238], color = 'k', s=35, zorder=5)
-axs[1].annotate('T-Walk $\lambda$ sample mean',(np.mean(lambasPyT[burnIn::math.ceil(IntAutoLamPyT)])+1e6,g_func[238]+50), color = 'k')
+axs[1].errorbar(np.mean(lambdas),g(A_lin, L, np.mean(lambdas) ), color = 'red', zorder=5, xerr=np.sqrt(np.var(lambdas)), fmt='o')
+axs[1].annotate('MTC $\lambda$ sample mean',(np.mean(lambdas)+1e4,g(A_lin, L, np.mean(lambdas) )-45), color = 'red')
+axs[1].scatter(lamPyT,g(A_lin, L, lamPyT) , color = 'k', s=35, zorder=5)
+axs[1].annotate('T-Walk $\lambda$ sample mean',(lamPyT+1e6,g(A_lin, L, lamPyT) +50), color = 'k')
 axs[1].set_xscale('log')
 axs[1].set_xlabel('$\lambda$')
 axs[1].set_ylabel('g($\lambda$)')
@@ -1066,7 +1061,6 @@ inset_ax.tick_params(
     left=False,      # ticks along the bottom edge are off
     top=False,         # ticks along the top edge are off
     labelleft=False)
-
 plt.savefig('f_and_g.png')
 plt.show()
 
@@ -1083,7 +1077,7 @@ SqNormCurve = np.zeros(len(lamLCurve))
 for i in range(len(lamLCurve)):
     B = (ATA_lin + lamLCurve[i] * L)
 
-    B_inv_A_trans_y, exitCode = gmres(B, ATy[0::, 0], tol=1e-7, restart=25)
+    B_inv_A_trans_y, exitCode = gmres(B, ATy[0::, 0], tol=tol, restart=25)
     if exitCode != 0:
         print(exitCode)
 
