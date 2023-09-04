@@ -2,6 +2,7 @@ import numpy as np
 import cmasher as cmr
 import matplotlib as mpl
 import time
+import pickle as pl
 #import matlab.engine
 from functions import *
 from errors import *
@@ -913,7 +914,7 @@ def MargPostSupp(Params):
 
 MargPost = pytwalk.pytwalk( n=2, U=MargPostU, Supp=MargPostSupp)
 
-tWalkSampNum= 500000
+tWalkSampNum= 100000
 MargPost.Run( T=tWalkSampNum, x0=MargPostInit(minimum), xp0=np.array([normal(minimum[0], minimum[0]/4), normal(minimum[1],minimum[1]/4)]) )
 MargPost.Ana()
 #MargPost.TS()
@@ -932,7 +933,7 @@ AutoCorrDataPyTWalk= np.loadtxt("autoCorrPyTWalk.txt", skiprows=3, dtype='float'
 with open("autoCorrPyTWalk.txt") as fID:
     for n, line in enumerate(fID):
        if n == 1:
-            IntAutoDeltPyT, IntAutoGamPyT, IntAutoLamPyT = [float(IAuto) for IAuto in line.split()]
+            IntAutoDeltaPyT, IntAutoGamPyT, IntAutoLamPyT = [float(IAuto) for IAuto in line.split()]
             break
 
 lambasPyT = SampParas[:,1]/SampParas[:,0]
@@ -961,7 +962,9 @@ axs[0].set_ylabel('neg-log-likelihood')
 axs[1].plot(range(len(SampParas[:,0])), neg_log_likehood(SampParas[:,0],y, Ax).T)
 axs[1].set_xlabel('t-walk samples')
 axs[1].set_ylabel('-log $\pi(y |  x ,\gamma)$')
-plt.savefig('TraceMTC.png')
+with open('TraceMC.pickle', 'wb') as f: # should be 'wb' rather than 'w'
+    pl.dump(fig, f)
+plt.savefig('TraceMC.png')
 plt.show()
 
 #plot para traces for MTC
@@ -976,8 +979,14 @@ axs[1].set_ylabel('$\delta$')
 axs[2].plot(range(len(lambdas)), lambdas)
 axs[2].set_xlabel(r'samples with $\tau_{int}$= ' + str(math.ceil(IntAutoLam)))
 axs[2].set_ylabel('$\lambda$')
+with open('TraceMTCPara.pickle', 'wb') as f: # should be 'wb' rather than 'w'
+    pl.dump(fig, f)
 plt.savefig('TraceMTCPara.png')
 plt.show()
+
+# #to open figure
+# fig_handle = pl.load(open('TraceMTCPara.pickle','rb'))
+# fig_handle.show()
 
 #plot para traces for t-walk
 fig, axs = plt.subplots( 2,1, tight_layout=True)
@@ -986,8 +995,10 @@ axs[0].plot(range(len(SampParas[:,0])), SampParas[:,0])
 axs[0].set_xlabel(r'samples with $\tau_{int}=$' + str(math.ceil(IntAutoGamPyT)))
 axs[0].set_ylabel('$\gamma$')
 axs[1].plot(range(len(SampParas[:,1])), SampParas[:,1])
-axs[1].set_xlabel(r'samples with $\tau_{int}$= ' + str(math.ceil(IntAutoDeltPyT)))
+axs[1].set_xlabel(r'samples with $\tau_{int}$= ' + str(math.ceil(IntAutoDeltaPyT)))
 axs[1].set_ylabel('$\delta$')
+with open('TracetWalkPara.pickle', 'wb') as f: # should be 'wb' rather than 'w'
+    pl.dump(fig, f)
 plt.savefig('TracetWalkPara.png')
 plt.show()
 
@@ -997,7 +1008,7 @@ print('bla')
 
 '''make figure for f and g including the best lambdas and taylor series'''
 
-B_MTC = ATA_lin + np.mean(lambdas) * L
+B_MTC = ATA_lin + np.mean(new_lamb) * L
 B_MTC_inv_A_trans_y, exitCode = gmres(B_MTC, ATy[0::, 0], tol=tol, restart=25)
 if exitCode != 0:
     print(exitCode)
@@ -1061,6 +1072,8 @@ inset_ax.tick_params(
     left=False,      # ticks along the bottom edge are off
     top=False,         # ticks along the top edge are off
     labelleft=False)
+with open('f_and_g.pickle', 'wb') as f: # should be 'wb' rather than 'w'
+    pl.dump(fig, f)
 plt.savefig('f_and_g.png')
 plt.show()
 
@@ -1071,7 +1084,7 @@ print('bla')
 #L-curve
 
 lamLCurve = np.linspace(1e-7,1e10,500)
-xLCurve = np.zeros(len(lamLCurve))
+
 NormLCurve = np.zeros(len(lamLCurve))
 SqNormCurve = np.zeros(len(lamLCurve))
 for i in range(len(lamLCurve)):
@@ -1081,7 +1094,7 @@ for i in range(len(lamLCurve)):
     if exitCode != 0:
         print(exitCode)
 
-    NormLCurve[i] = np.linalg.norm( y - np.matmul(A_lin,B_inv_A_trans_y))
+    NormLCurve[i] = np.linalg.norm( np.matmul(A_lin,B_inv_A_trans_y) - y)
     SqNormCurve[i] = np.sqrt(np.matmul(np.matmul(B_inv_A_trans_y.T, L), B_inv_A_trans_y))
 
 fig, axs = plt.subplots( 1,1, sharey=True, tight_layout=True)
