@@ -194,7 +194,6 @@ y = add_noise(Ax, 0.01)
 ATy = np.matmul(A_lin.T, y)
 
 
-
 """start the mtc algo with first guesses of noise and lumping const delta"""
 
 tol = 1e-4
@@ -236,6 +235,46 @@ minimum = optimize.fmin(MargPost, [1/np.var(y),1/(2*np.mean(vari))])
 print(minimum)
 print(minimum[1]/minimum[0])
 
+'''L-curve refularoization
+'''
+
+tol = 1e-4
+#lamLCurve = np.logspace(-7,5,200)
+lamLCurve = np.linspace(1e6,1e10,200)
+
+NormLCurve = np.zeros(len(lamLCurve))
+xTLxCurve = np.zeros(len(lamLCurve))
+for i in range(len(lamLCurve)):
+    B = (ATA_lin + lamLCurve[i] * L)
+
+    x, exitCode = gmres(B, ATy[0::, 0], tol=tol, restart=25)
+    if exitCode != 0:
+        print(exitCode)
+
+    NormLCurve[i] =np.linalg.norm( np.matmul(A_lin,x) - y[0,:])
+    #NormLCurve[i] =np.linalg.norm( np.matmul(A_lin,x))
+    #NormLCurve[i] = np.sqrt(np.sum((np.matmul(A_lin, x) - y)**2))
+    xTLxCurve[i] = np.sqrt(np.matmul(np.matmul(x.T, L), x))
+    #xTLxCurve[i] = np.log(np.linalg.norm(x))
+
+fig, axs = plt.subplots( 1,1)
+plt.scatter(NormLCurve,xTLxCurve)
+axs.set_xscale('log')
+axs.set_yscale('log')
+axs.set_ylabel(r'$\sqrt{x^T L x}$')
+axs.set_xlabel(r'$|| Ax - y ||$')
+plt.savefig('LCurve.png')
+plt.show()
+
+B = (ATA_lin + lamLCurve[0] * L)
+
+x, exitCode = gmres(B, ATy[0::, 0], tol=tol, restart=25)
+if exitCode != 0:
+    print(exitCode)
+
+plt.plot(np.matmul(A_lin,x),range(SpecNumMeas))
+plt.plot(y,range(SpecNumMeas))
+plt.show()
 
 
 
