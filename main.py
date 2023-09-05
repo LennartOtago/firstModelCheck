@@ -658,7 +658,7 @@ for j in range(len(lam_try)):
 '''do the sampling'''
  #10**(orderOfMagnitude(abs_tol * np.linalg.norm(L[:,1]))-2)
 #hyperarameters
-number_samples = 10000
+number_samples = 1000
 gammas = np.zeros(number_samples)
 deltas = np.zeros(number_samples)
 lambdas = np.zeros(number_samples)
@@ -914,7 +914,7 @@ def MargPostSupp(Params):
 
 MargPost = pytwalk.pytwalk( n=2, U=MargPostU, Supp=MargPostSupp)
 
-tWalkSampNum= 100000
+tWalkSampNum= 1000
 MargPost.Run( T=tWalkSampNum, x0=MargPostInit(minimum), xp0=np.array([normal(minimum[0], minimum[0]/4), normal(minimum[1],minimum[1]/4)]) )
 MargPost.Ana()
 #MargPost.TS()
@@ -962,8 +962,8 @@ axs[0].set_ylabel('neg-log-likelihood')
 axs[1].plot(range(len(SampParas[:,0])), neg_log_likehood(SampParas[:,0],y, Ax).T)
 axs[1].set_xlabel('t-walk samples')
 axs[1].set_ylabel('-log $\pi(y |  x ,\gamma)$')
-with open('TraceMC.pickle', 'wb') as f: # should be 'wb' rather than 'w'
-    pl.dump(fig, f)
+with open('TraceMC.pickle', 'wb') as filID: # should be 'wb' rather than 'w'
+    pl.dump(fig, filID)
 plt.savefig('TraceMC.png')
 plt.show()
 
@@ -979,8 +979,8 @@ axs[1].set_ylabel('$\delta$')
 axs[2].plot(range(len(lambdas)), lambdas)
 axs[2].set_xlabel(r'samples with $\tau_{int}$= ' + str(math.ceil(IntAutoLam)))
 axs[2].set_ylabel('$\lambda$')
-with open('TraceMTCPara.pickle', 'wb') as f: # should be 'wb' rather than 'w'
-    pl.dump(fig, f)
+with open('TraceMTCPara.pickle', 'wb') as filID: # should be 'wb' rather than 'w'
+    pl.dump(fig, filID)
 plt.savefig('TraceMTCPara.png')
 plt.show()
 
@@ -997,8 +997,8 @@ axs[0].set_ylabel('$\gamma$')
 axs[1].plot(range(len(SampParas[:,1])), SampParas[:,1])
 axs[1].set_xlabel(r'samples with $\tau_{int}$= ' + str(math.ceil(IntAutoDeltaPyT)))
 axs[1].set_ylabel('$\delta$')
-with open('TracetWalkPara.pickle', 'wb') as f: # should be 'wb' rather than 'w'
-    pl.dump(fig, f)
+with open('TracetWalkPara.pickle', 'wb') as filID: # should be 'wb' rather than 'w'
+    pl.dump(fig, filID)
 plt.savefig('TracetWalkPara.png')
 plt.show()
 
@@ -1012,6 +1012,9 @@ B_MTC = ATA_lin + np.mean(new_lamb) * L
 B_MTC_inv_A_trans_y, exitCode = gmres(B_MTC, ATy[0::, 0], tol=tol, restart=25)
 if exitCode != 0:
     print(exitCode)
+
+f_MTC = f(ATy, y, B_MTC_inv_A_trans_y)
+
 lamPyT = np.mean(lambasPyT[burnIn::math.ceil(IntAutoLamPyT)])
 B_tW = ATA_lin + lamPyT * L
 B_tW_inv_A_trans_y, exitCode = gmres(B_tW, ATy[0::, 0], tol=tol, restart=25)
@@ -1019,14 +1022,16 @@ if exitCode != 0:
     print(exitCode)
 
 
+f_tW = f(ATy, y, B_tW_inv_A_trans_y)
+
 fig,axs = plt.subplots(1,2, figsize=(14, 5))
 axs[0].plot(lam,f_func)
 axs[0].scatter(lam0,f_try_func[50], color = 'green', s= 70, zorder=4)
 axs[0].annotate('mode $\lambda_0$ of marginal posterior',(lam0+2e4,f_try_func[50]), color = 'green', fontsize = 14.7)
-axs[0].scatter(np.mean(lambdas),f(ATy, y, B_MTC_inv_A_trans_y), color = 'red', zorder=5)
-axs[0].annotate('MTC $\lambda$ sample mean',(np.mean(lambdas)+1e4,f(ATy, y, B_MTC_inv_A_trans_y)), color = 'red')
-axs[0].scatter(lamPyT,f(ATy, y, B_tW_inv_A_trans_y), color = 'k', s = 35, zorder=5)
-axs[0].annotate('T-Walk $\lambda$ sample mean',(lamPyT+1e5,f(ATy, y, B_tW_inv_A_trans_y)+2e6), color = 'k')
+axs[0].scatter(np.mean(lambdas),f_MTC, color = 'red', zorder=5)
+axs[0].annotate('MTC $\lambda$ sample mean',(np.mean(lambdas)+1e4,f_MTC), color = 'red')
+axs[0].scatter(lamPyT,f_tW, color = 'k', s = 35, zorder=5)
+axs[0].annotate('T-Walk $\lambda$ sample mean',(lamPyT+1e5,f_tW+2e6), color = 'k')
 axs[0].set_xscale('log')
 axs[0].set_yscale('log')
 axs[0].set_ylabel('f($\lambda$)')
@@ -1081,29 +1086,36 @@ plt.show()
 
 print('bla')
 
-#L-curve
+'''L-curve refularoization
+'''
 
-lamLCurve = np.linspace(1e-7,1e10,500)
+tol = 1e-4
+#lamLCurve = np.logspace(-7,5,200)
+lamLCurve = np.linspace(1e8,1e9,200)
 
 NormLCurve = np.zeros(len(lamLCurve))
-SqNormCurve = np.zeros(len(lamLCurve))
+xTLxCurve = np.zeros(len(lamLCurve))
 for i in range(len(lamLCurve)):
     B = (ATA_lin + lamLCurve[i] * L)
 
-    B_inv_A_trans_y, exitCode = gmres(B, ATy[0::, 0], tol=tol, restart=25)
+    x, exitCode = gmres(B, ATy[0::, 0], tol=tol, restart=25)
     if exitCode != 0:
         print(exitCode)
 
-    NormLCurve[i] = np.linalg.norm( np.matmul(A_lin,B_inv_A_trans_y) - y)
-    SqNormCurve[i] = np.sqrt(np.matmul(np.matmul(B_inv_A_trans_y.T, L), B_inv_A_trans_y))
+    NormLCurve[i] =np.linalg.norm( np.matmul(A_lin,x) - y[0,:])
+    #NormLCurve[i] =np.linalg.norm( np.matmul(A_lin,x))
+    #NormLCurve[i] = np.sqrt(np.sum((np.matmul(A_lin, x) - y)**2))
+    xTLxCurve[i] = np.sqrt(np.matmul(np.matmul(x.T, L), x))
+    #xTLxCurve[i] = np.log(np.linalg.norm(x))
 
-fig, axs = plt.subplots( 1,1, sharey=True, tight_layout=True)
-plt.plot(NormLCurve,SqNormCurve)
+fig, axs = plt.subplots( 1,1)
+plt.scatter(NormLCurve,xTLxCurve)
 axs.set_xscale('log')
 axs.set_yscale('log')
+axs.set_ylabel(r'$\sqrt{x^T L x}$')
+axs.set_xlabel(r'$|| Ax - y ||$')
 plt.savefig('LCurve.png')
 plt.show()
-
 
 print('bla')
 

@@ -240,7 +240,7 @@ print(minimum[1]/minimum[0])
 
 tol = 1e-4
 #lamLCurve = np.logspace(-7,5,200)
-lamLCurve = np.linspace(1e6,1e10,200)
+lamLCurve = np.linspace(1e8,1e9,200)
 
 NormLCurve = np.zeros(len(lamLCurve))
 xTLxCurve = np.zeros(len(lamLCurve))
@@ -266,7 +266,7 @@ axs.set_xlabel(r'$|| Ax - y ||$')
 plt.savefig('LCurve.png')
 plt.show()
 
-B = (ATA_lin + lamLCurve[0] * L)
+B = (ATA_lin + lamLCurve[-1] * L)
 
 x, exitCode = gmres(B, ATy[0::, 0], tol=tol, restart=25)
 if exitCode != 0:
