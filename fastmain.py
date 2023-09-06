@@ -1,4 +1,4 @@
-
+from importetFunctions import *
 import time
 import math
 from functions import *
@@ -193,6 +193,8 @@ Ax = np.matmul(A_lin, theta)
 y = add_noise(Ax, 0.01)
 ATy = np.matmul(A_lin.T, y)
 
+np.savetxt('dataY.txt', y, header = 'Data y including noise', fmt = '%.15f')
+
 
 """start the mtc algo with first guesses of noise and lumping const delta"""
 
@@ -237,10 +239,9 @@ print(minimum[1]/minimum[0])
 
 '''L-curve refularoization
 '''
-
 tol = 1e-4
-#lamLCurve = np.logspace(-7,5,200)
-lamLCurve = np.linspace(1e8,1e9,200)
+lamLCurve = np.logspace(-10,7,200)
+#lamLCurve = np.linspace(1e-7,1e10,1500)
 
 NormLCurve = np.zeros(len(lamLCurve))
 xTLxCurve = np.zeros(len(lamLCurve))
@@ -251,14 +252,29 @@ for i in range(len(lamLCurve)):
     if exitCode != 0:
         print(exitCode)
 
-    NormLCurve[i] =np.linalg.norm( np.matmul(A_lin,x) - y[0,:])
+    NormLCurve[i] = np.linalg.norm( np.matmul(A_lin,x) - y[0::,0])
     #NormLCurve[i] =np.linalg.norm( np.matmul(A_lin,x))
     #NormLCurve[i] = np.sqrt(np.sum((np.matmul(A_lin, x) - y)**2))
     xTLxCurve[i] = np.sqrt(np.matmul(np.matmul(x.T, L), x))
-    #xTLxCurve[i] = np.log(np.linalg.norm(x))
+    #xTLxCurve[i] = np.linalg.norm(np.matmul(L,x))
+
+A_linu, A_lins, A_linvh = csvd(A_lin)
+#reg_c = l_cuve(A_linu, A_lins, y[0::,0], plotit=True)
+reg_c = l_corner(NormLCurve,xTLxCurve,lamLCurve,A_linu,A_lins,y[0::,0])
+B = (ATA_lin + reg_c * L)
+B = (ATA_lin + minimum[1]/minimum[0] * L)
+
+x, exitCode = gmres(B, ATy[0::, 0], tol=tol, restart=25)
+if exitCode != 0:
+    print(exitCode)
+
 
 fig, axs = plt.subplots( 1,1)
 plt.scatter(NormLCurve,xTLxCurve)
+plt.scatter(np.linalg.norm(np.matmul(A_lin, x) - y[0::, 0]),np.sqrt(np.matmul(np.matmul(x.T, L), x)))
+plt.annotate('$\lambda_0$ = ' + str(math.ceil(minimum[1]/minimum[0])), (np.linalg.norm(np.matmul(A_lin, x) - y[0::, 0]),np.sqrt(np.matmul(np.matmul(x.T, L), x))))
+plt.annotate('$\lambda$ = ' + str(math.ceil(lamLCurve[0])), (NormLCurve[0],xTLxCurve[0]))
+plt.annotate('$\lambda$ = ' + str(math.ceil(lamLCurve[-1])), (NormLCurve[-1],xTLxCurve[-1]))
 axs.set_xscale('log')
 axs.set_yscale('log')
 axs.set_ylabel(r'$\sqrt{x^T L x}$')
@@ -266,15 +282,14 @@ axs.set_xlabel(r'$|| Ax - y ||$')
 plt.savefig('LCurve.png')
 plt.show()
 
-B = (ATA_lin + lamLCurve[-1] * L)
 
-x, exitCode = gmres(B, ATy[0::, 0], tol=tol, restart=25)
-if exitCode != 0:
-    print(exitCode)
 
-plt.plot(np.matmul(A_lin,x),range(SpecNumMeas))
-plt.plot(y,range(SpecNumMeas))
-plt.show()
+np.savetxt('LCurve.txt', np.vstack((NormLCurve,xTLxCurve, lamLCurve)).T, header = 'Norm ||Ax - y|| \t sqrt(x.T L x) \t lambdas', fmt = '%.15f \t %.15f \t %.15f')
+
+np.savetxt('A_lin.txt', A_lin, header = 'linear forward model A', fmt = '%.15f', delimiter= '\t')
+
+
+
 
 
 

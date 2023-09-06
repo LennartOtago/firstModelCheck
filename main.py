@@ -1,6 +1,4 @@
-import numpy as np
-import cmasher as cmr
-import matplotlib as mpl
+from importetFunctions import *
 import time
 import pickle as pl
 #import matlab.engine
@@ -302,6 +300,8 @@ neigbours[-1] = len(layers)-3, np.nan
 for i in range(1,len(layers)-2):
     neigbours[i] = i-1, i+1
 L = generate_L(neigbours)
+np.savetxt('GraphLaplacian.txt', L, header = 'Graph Lalplacian', fmt = '%.15f', delimiter= '\t')
+
 
 
 #taylor exapnsion for f to do so we need y (data)
@@ -441,6 +441,8 @@ Ax = np.matmul(A_lin, theta)
 #convolve measurements and add noise
 y = add_noise(Ax, 0.01)
 ATy = np.matmul(A_lin.T, y)
+
+np.savetxt('dataY.txt', y, header = 'Data y including noise', fmt = '%.15f')
 
 #plt.plot( y, tang_heights_lin)
 
@@ -658,7 +660,7 @@ for j in range(len(lam_try)):
 '''do the sampling'''
  #10**(orderOfMagnitude(abs_tol * np.linalg.norm(L[:,1]))-2)
 #hyperarameters
-number_samples = 1000
+number_samples = 10000
 gammas = np.zeros(number_samples)
 deltas = np.zeros(number_samples)
 lambdas = np.zeros(number_samples)
@@ -766,10 +768,10 @@ np.savetxt('samples.txt', np.vstack((gammas, deltas, lambdas)).T, header = 'gamm
 
 #delt_aav, delt_diff, delt_ddiff, delt_itau, delt_itau_diff, delt_itau_aav, delt_acorrn = uWerr(deltas, acorr=None, s_tau=1.5, fast_threshold=5000)
 
-# import matlab.engine
-# eng = matlab.engine.start_matlab()
-# eng.Run_Autocorr_Ana_MTC(nargout=0)
-# eng.quit()
+import matlab.engine
+eng = matlab.engine.start_matlab()
+eng.Run_Autocorr_Ana_MTC(nargout=0)
+eng.quit()
 
 
 AutoCorrData = np.loadtxt("auto_corr_dat.txt", skiprows=3, dtype='float')
@@ -799,14 +801,14 @@ n_bins = 20
 
 # We can set the number of bins with the *bins* keyword argument.
 axs[0].hist(new_gam,bins=n_bins)#int(n_bins/math.ceil(IntAutoGam)))
-axs[0].set_title('$\gamma$')
+axs[0].set_title(str(len(new_gam)) + ' effective $\gamma$ samples')
 axs[1].hist(new_delt,bins=n_bins)#int(n_bins/math.ceil(IntAutoDelt)))
-axs[1].set_title('$\delta$')
+axs[1].set_title(str(len(new_delt)) + ' effective $\delta$ samples')
 axs[2].hist(new_lamb,bins=n_bins)#10)
 axs[2].xaxis.set_major_formatter(scientific_formatter)
-axs[2].set_title('$\lambda =\delta / \gamma $')
+axs[2].set_title(str(len(new_lamb)) + ' effective $\lambda =\delta / \gamma$ samples')
 plt.savefig('HistoResults.png')
-plt.show()
+#plt.show()
 
 
 
@@ -815,8 +817,8 @@ paraSamp = 10
 Results = np.zeros((paraSamp,len(theta)))
 for p in range(paraSamp):
     #SetLambda = new_lamb[np.random.randint(low=0, high=len(new_lamb), size=1)]
-    SetGamma = new_gam[np.random.randint(low=0, high=len(new_gam), size=1)] #minimum[0]
-    SetDelta = new_delt[np.random.randint(low=0, high=len(new_delt), size=1)] #minimum[1]
+    SetGamma = minimum[0] #new_gam[np.random.randint(low=0, high=len(new_gam), size=1)] #minimum[0]
+    SetDelta = minimum[1] #new_delt[np.random.randint(low=0, high=len(new_delt), size=1)] #minimum[1]
     v_1 = np.sqrt(SetGamma) * np.random.multivariate_normal(np.zeros(len(ATA_lin)),  ATA_lin)
     v_2 = np.sqrt(SetDelta) * np.random.multivariate_normal(np.zeros(len(L)),  L)
 
@@ -853,15 +855,20 @@ line3 = ax2.plot(y,tang_heights_lin, color = 'gold', label = 'data')
 ax2.spines['top'].set_color('gold')
 ax2.set_xlabel('Data')
 ax2.tick_params(labelcolor="gold")
-ax1.set_xlabel('Ozone Value')
+ax1.set_xlabel('Ozone Source Value')
 multicolor_ylabel(ax1,('(Tangent)','Height in km'),('k', 'gold'),axis='y')
 
 ax1.legend(['true parameter value', 'MC estimate'])
 plt.ylabel('Height in km')
 fig3.savefig('FirstRecRes.png')
-plt.show()
+#plt.show()
 
-
+fig3, ax1 = plt.subplots()
+#plt.plot(theta,layers[0:-1] + d_height/2, color = 'red')
+line1 = plt.plot(theta,layers[0:-1] + d_height/2, color = [0,0.5,0.5], linewidth = 5, label = 'true parameter value')
+ax1.set_xlabel('Ozone Source Value')
+ax1.set_ylabel('Height in km')
+fig3.savefig('TrueProfile.png')
 
 
 #doesnt work cause too sensitive to noise when close to zero
@@ -881,7 +888,7 @@ plt.show()
 
 
 
-print('bla')
+print('MTC Done')
 
 
 import pytwalk
@@ -913,9 +920,11 @@ def MargPostSupp(Params):
 	return all(0 < Params)
 
 MargPost = pytwalk.pytwalk( n=2, U=MargPostU, Supp=MargPostSupp)
-
-tWalkSampNum= 1000
+startTime = time.time()
+tWalkSampNum= 40000
 MargPost.Run( T=tWalkSampNum, x0=MargPostInit(minimum), xp0=np.array([normal(minimum[0], minimum[0]/4), normal(minimum[1],minimum[1]/4)]) )
+elapsedtWalkTime = time.time() - startTime
+print('Elapsed Time for t-walk: ' + str(elapsedtWalkTime))
 MargPost.Ana()
 #MargPost.TS()
 
@@ -926,6 +935,11 @@ MargPost.SavetwalkOutput("MargPostDat.txt")
 
 #load data and make histogram
 SampParas = np.loadtxt("MargPostDat.txt")
+
+
+eng = matlab.engine.start_matlab()
+eng.Run_Autocorr_PyTWalk(nargout=0)
+eng.quit()
 
 AutoCorrDataPyTWalk= np.loadtxt("autoCorrPyTWalk.txt", skiprows=3, dtype='float')
 #IntAutoLam, IntAutoGam , IntAutoDelt = np.loadtxt("auto_corr_dat.txt",userow = 1, skiprows=1, dtype='float'
@@ -944,14 +958,14 @@ n_bins = 20
 #burnIn = 50
 # We can set the number of bins with the *bins* keyword argument.
 axs[0].hist(SampParas[burnIn::math.ceil(IntAutoGamPyT),0],bins=n_bins)
-axs[0].set_title('$\gamma$')
+axs[0].set_title( str(len(SampParas[burnIn::math.ceil(IntAutoGamPyT),0]))+ ' effective $\gamma$ sample' )
 axs[1].hist(SampParas[burnIn::math.ceil(IntAutoDeltaPyT),1],bins=n_bins)
-axs[1].set_title('$\delta$')
+axs[1].set_title(str(len(SampParas[burnIn::math.ceil(IntAutoDeltaPyT),1])) + ' effective $\delta$ samples')
 axs[2].hist(lambasPyT[burnIn::math.ceil(IntAutoLamPyT)],bins=n_bins)
 axs[2].xaxis.set_major_formatter(scientific_formatter)
-axs[2].set_title('$\lambda =\delta / \gamma  $')
+axs[2].set_title(str(len(lambasPyT[burnIn::math.ceil(IntAutoLamPyT)])) + ' effective $\lambda =\delta / \gamma samples $')
 plt.savefig('PyTWalkHistoResults.png')
-plt.show()
+#plt.show()
 
 
 #plot trace
@@ -965,13 +979,13 @@ axs[1].set_ylabel('-log $\pi(y |  x ,\gamma)$')
 with open('TraceMC.pickle', 'wb') as filID: # should be 'wb' rather than 'w'
     pl.dump(fig, filID)
 plt.savefig('TraceMC.png')
-plt.show()
+#plt.show()
 
 #plot para traces for MTC
 fig, axs = plt.subplots( 3,1,  tight_layout=True, figsize=(7, 8))
-fig.suptitle(str(number_samples)+' mtc samples')
+fig.suptitle(str(number_samples)+' mtc samples in ' + str(math.ceil(elapsed)) + 's')
 axs[0].plot(range(len(gammas)), gammas)
-axs[0].set_xlabel(r'samples with $\tau_{int}=$' + str(math.ceil(IntAutoGam)))
+axs[0].set_xlabel(r'samples with $\tau_{int}=$ ' + str(math.ceil(IntAutoGam)))
 axs[0].set_ylabel('$\gamma$')
 axs[1].plot(range(len(deltas)), deltas)
 axs[1].set_xlabel(r'samples with $\tau_{int}$= ' + str(math.ceil(IntAutoDelt)))
@@ -982,7 +996,7 @@ axs[2].set_ylabel('$\lambda$')
 with open('TraceMTCPara.pickle', 'wb') as filID: # should be 'wb' rather than 'w'
     pl.dump(fig, filID)
 plt.savefig('TraceMTCPara.png')
-plt.show()
+#plt.show()
 
 # #to open figure
 # fig_handle = pl.load(open('TraceMTCPara.pickle','rb'))
@@ -990,9 +1004,9 @@ plt.show()
 
 #plot para traces for t-walk
 fig, axs = plt.subplots( 2,1, tight_layout=True)
-fig.suptitle(str(tWalkSampNum)+' t-walk samples')
+fig.suptitle(str(tWalkSampNum)+' t-walk samples in ' + str(math.ceil(elapsedtWalkTime)) + 's')
 axs[0].plot(range(len(SampParas[:,0])), SampParas[:,0])
-axs[0].set_xlabel(r'samples with $\tau_{int}=$' + str(math.ceil(IntAutoGamPyT)))
+axs[0].set_xlabel(r'samples with $\tau_{int}=$ ' + str(math.ceil(IntAutoGamPyT)))
 axs[0].set_ylabel('$\gamma$')
 axs[1].plot(range(len(SampParas[:,1])), SampParas[:,1])
 axs[1].set_xlabel(r'samples with $\tau_{int}$= ' + str(math.ceil(IntAutoDeltaPyT)))
@@ -1000,11 +1014,11 @@ axs[1].set_ylabel('$\delta$')
 with open('TracetWalkPara.pickle', 'wb') as filID: # should be 'wb' rather than 'w'
     pl.dump(fig, filID)
 plt.savefig('TracetWalkPara.png')
-plt.show()
+#plt.show()
 
 
 
-print('bla')
+print('t-walk Done')
 
 '''make figure for f and g including the best lambdas and taylor series'''
 
@@ -1077,21 +1091,22 @@ inset_ax.tick_params(
     left=False,      # ticks along the bottom edge are off
     top=False,         # ticks along the top edge are off
     labelleft=False)
-with open('f_and_g.pickle', 'wb') as f: # should be 'wb' rather than 'w'
-    pl.dump(fig, f)
+with open('f_and_g.pickle', 'wb') as filID: # should be 'wb' rather than 'w'
+    pl.dump(fig, filID)
 plt.savefig('f_and_g.png')
-plt.show()
+#plt.show()
 
 
 
 print('bla')
 
-'''L-curve refularoization
+
+'''L-curve regularization
 '''
 
 tol = 1e-4
-#lamLCurve = np.logspace(-7,5,200)
-lamLCurve = np.linspace(1e8,1e9,200)
+lamLCurve = np.logspace(-10,7,200)
+#lamLCurve = np.linspace(1e-7,1e10,1500)
 
 NormLCurve = np.zeros(len(lamLCurve))
 xTLxCurve = np.zeros(len(lamLCurve))
@@ -1102,20 +1117,35 @@ for i in range(len(lamLCurve)):
     if exitCode != 0:
         print(exitCode)
 
-    NormLCurve[i] =np.linalg.norm( np.matmul(A_lin,x) - y[0,:])
+    NormLCurve[i] = np.linalg.norm( np.matmul(A_lin,x) - y[0::,0])
     #NormLCurve[i] =np.linalg.norm( np.matmul(A_lin,x))
     #NormLCurve[i] = np.sqrt(np.sum((np.matmul(A_lin, x) - y)**2))
     xTLxCurve[i] = np.sqrt(np.matmul(np.matmul(x.T, L), x))
-    #xTLxCurve[i] = np.log(np.linalg.norm(x))
+    #xTLxCurve[i] = np.linalg.norm(np.matmul(L,x))
+
+A_linu, A_lins, A_linvh = csvd(A_lin)
+#reg_c = l_cuve(A_linu, A_lins, y[0::,0], plotit=True)
+reg_c = l_corner(NormLCurve,xTLxCurve,lamLCurve,A_linu,A_lins,y[0::,0])
+B = (ATA_lin + reg_c * L)
+B = (ATA_lin + minimum[1]/minimum[0] * L)
+
+x, exitCode = gmres(B, ATy[0::, 0], tol=tol, restart=25)
+if exitCode != 0:
+    print(exitCode)
+
 
 fig, axs = plt.subplots( 1,1)
 plt.scatter(NormLCurve,xTLxCurve)
+plt.scatter(np.linalg.norm(np.matmul(A_lin, x) - y[0::, 0]),np.sqrt(np.matmul(np.matmul(x.T, L), x)))
+plt.annotate('$\lambda_0$ = ' + str(math.ceil(minimum[1]/minimum[0])), (np.linalg.norm(np.matmul(A_lin, x) - y[0::, 0]),np.sqrt(np.matmul(np.matmul(x.T, L), x))))
+plt.annotate('$\lambda$ = ' + str(math.ceil(lamLCurve[0])), (NormLCurve[0],xTLxCurve[0]))
+plt.annotate('$\lambda$ = ' + str(math.ceil(lamLCurve[-1])), (NormLCurve[-1],xTLxCurve[-1]))
 axs.set_xscale('log')
 axs.set_yscale('log')
 axs.set_ylabel(r'$\sqrt{x^T L x}$')
 axs.set_xlabel(r'$|| Ax - y ||$')
 plt.savefig('LCurve.png')
-plt.show()
+#plt.show()
 
 print('bla')
 

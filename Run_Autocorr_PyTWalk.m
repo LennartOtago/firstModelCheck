@@ -39,3 +39,15 @@ fprintf(fileID,'%1.5f %2.5f %3.5f\n', [ x; y; z]);
 fclose(fileID);
 
 close all
+
+%%
+
+for i = 1:length(tmax_del)
+    tmax_del
+    
+end
+
+
+
+
+
