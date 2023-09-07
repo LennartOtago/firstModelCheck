@@ -11,6 +11,13 @@ plt.rcParams.update({'font.size': 15})
 import pandas as pd
 from numpy.random import uniform, normal, gamma
 
+# import pickle as pl
+# #to open figure
+# fig_handle = pl.load(open('/Users/lennart/Downloads/TraceMTCPara.pickle','rb'))
+# fig_handle.show()
+
+
+
 from matplotlib.ticker import FuncFormatter
 def scientific(x, pos):
     # x:  tick value
@@ -37,7 +44,7 @@ ObsHeight = 300 # in km
 #find best configuration of layers and num_meas
 #so that cond(A) is not inf
 #exp case first
-SpecNumMeas = 105
+SpecNumMeas = 60#105
 SpecNumLayers = 46
 LayersCore = np.linspace(MinH, MaxH, SpecNumLayers)
 layers = np.zeros(SpecNumLayers + 2)
@@ -240,8 +247,8 @@ print(minimum[1]/minimum[0])
 '''L-curve refularoization
 '''
 tol = 1e-4
-lamLCurve = np.logspace(-10,7,200)
-#lamLCurve = np.linspace(1e-7,1e10,1500)
+lamLCurve = np.logspace(-6,10,200)
+#lamLCurve = np.linspace(1e-1,1e4,300)
 
 NormLCurve = np.zeros(len(lamLCurve))
 xTLxCurve = np.zeros(len(lamLCurve))
@@ -260,8 +267,8 @@ for i in range(len(lamLCurve)):
 
 A_linu, A_lins, A_linvh = csvd(A_lin)
 #reg_c = l_cuve(A_linu, A_lins, y[0::,0], plotit=True)
-reg_c = l_corner(NormLCurve,xTLxCurve,lamLCurve,A_linu,A_lins,y[0::,0])
-B = (ATA_lin + reg_c * L)
+#reg_c = l_corner(NormLCurve,xTLxCurve,lamLCurve,A_linu,A_lins,y[0::,0])
+#B = (ATA_lin + reg_c * L)
 B = (ATA_lin + minimum[1]/minimum[0] * L)
 
 x, exitCode = gmres(B, ATy[0::, 0], tol=tol, restart=25)
@@ -273,8 +280,8 @@ fig, axs = plt.subplots( 1,1)
 plt.scatter(NormLCurve,xTLxCurve)
 plt.scatter(np.linalg.norm(np.matmul(A_lin, x) - y[0::, 0]),np.sqrt(np.matmul(np.matmul(x.T, L), x)))
 plt.annotate('$\lambda_0$ = ' + str(math.ceil(minimum[1]/minimum[0])), (np.linalg.norm(np.matmul(A_lin, x) - y[0::, 0]),np.sqrt(np.matmul(np.matmul(x.T, L), x))))
-plt.annotate('$\lambda$ = ' + str(math.ceil(lamLCurve[0])), (NormLCurve[0],xTLxCurve[0]))
-plt.annotate('$\lambda$ = ' + str(math.ceil(lamLCurve[-1])), (NormLCurve[-1],xTLxCurve[-1]))
+plt.annotate('$\lambda$ = ' + str(np.round(lamLCurve[0],2)), (NormLCurve[0],xTLxCurve[0]))
+plt.annotate('$\lambda$ = ' + str(np.round(lamLCurve[-1],2)), (NormLCurve[-1],xTLxCurve[-1]))
 axs.set_xscale('log')
 axs.set_yscale('log')
 axs.set_ylabel(r'$\sqrt{x^T L x}$')
@@ -402,6 +409,8 @@ print(np.mean(gammas[30::]))
 print(np.mean(deltas[30::]))
 print(np.mean(lambdas[30::]))
 np.savetxt('samples.txt', np.vstack((gammas, deltas, lambdas)).T, header = 'Acceptance Ratio: ' + str(k/number_samples) + '\n Elapsed Time: ' + str(elapsed) + ' \n gammas \t deltas \t lambdas \n ', fmt = '%.15f \t %.15f \t %.15f')
+
+
 
 
 print('bla')

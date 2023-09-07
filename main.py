@@ -148,7 +148,7 @@ ObsHeight = 300 # in km
 #find best configuration of layers and num_meas
 #so that cond(A) is not inf
 #exp case first
-SpecNumMeas = 105
+SpecNumMeas = 60#105
 SpecNumLayers = 46
 LayersCore = np.linspace(MinH, MaxH, SpecNumLayers)
 layers = np.zeros(SpecNumLayers + 2)
