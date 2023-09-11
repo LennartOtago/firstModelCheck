@@ -44,7 +44,7 @@ ObsHeight = 300 # in km
 #find best configuration of layers and num_meas
 #so that cond(A) is not inf
 #exp case first
-SpecNumMeas = 60#105
+SpecNumMeas =  105
 SpecNumLayers = 46
 LayersCore = np.linspace(MinH, MaxH, SpecNumLayers)
 layers = np.zeros(SpecNumLayers + 2)
@@ -247,7 +247,7 @@ print(minimum[1]/minimum[0])
 '''L-curve refularoization
 '''
 tol = 1e-4
-lamLCurve = np.logspace(-6,10,200)
+lamLCurve = np.logspace(-20,20,500)
 #lamLCurve = np.linspace(1e-1,1e4,300)
 
 NormLCurve = np.zeros(len(lamLCurve))
@@ -275,20 +275,60 @@ x, exitCode = gmres(B, ATy[0::, 0], tol=tol, restart=25)
 if exitCode != 0:
     print(exitCode)
 
+lamLCurveZoom = np.logspace(4,10,500)
+NormLCurveZoom = np.zeros(len(lamLCurve))
+xTLxCurveZoom = np.zeros(len(lamLCurve))
+for i in range(len(lamLCurveZoom)):
+    B = (ATA_lin + lamLCurveZoom[i] * L)
 
-fig, axs = plt.subplots( 1,1)
-plt.scatter(NormLCurve,xTLxCurve)
-plt.scatter(np.linalg.norm(np.matmul(A_lin, x) - y[0::, 0]),np.sqrt(np.matmul(np.matmul(x.T, L), x)))
-plt.annotate('$\lambda_0$ = ' + str(math.ceil(minimum[1]/minimum[0])), (np.linalg.norm(np.matmul(A_lin, x) - y[0::, 0]),np.sqrt(np.matmul(np.matmul(x.T, L), x))))
-plt.annotate('$\lambda$ = ' + str(np.round(lamLCurve[0],2)), (NormLCurve[0],xTLxCurve[0]))
-plt.annotate('$\lambda$ = ' + str(np.round(lamLCurve[-1],2)), (NormLCurve[-1],xTLxCurve[-1]))
+    x, exitCode = gmres(B, ATy[0::, 0], tol=tol, restart=25)
+    if exitCode != 0:
+        print(exitCode)
+
+    NormLCurveZoom[i] = np.linalg.norm( np.matmul(A_lin,x) - y[0::,0])
+    xTLxCurveZoom[i] = np.sqrt(np.matmul(np.matmul(x.T, L), x))
+
+A_linu, A_lins, A_linvh = csvd(A_lin)
+B = (ATA_lin + minimum[1]/minimum[0] * L)
+x, exitCode = gmres(B, ATy[0::, 0], tol=tol, restart=25)
+if exitCode != 0:
+    print(exitCode)
+
+fig, axs = plt.subplots( 1,1, tight_layout=True)
+axs.scatter(NormLCurve,xTLxCurve, zorder = 0)
+axs.scatter(np.linalg.norm(np.matmul(A_lin, x) - y[0::, 0]),np.sqrt(np.matmul(np.matmul(x.T, L), x)))
+#axs.annotate('$\lambda_0$ = ' + str(math.ceil(minimum[1]/minimum[0])), (np.linalg.norm(np.matmul(A_lin, x) - y[0::, 0]),np.sqrt(np.matmul(np.matmul(x.T, L), x))))
+#axs.annotate('$\lambda$ = 1e' + str(orderOfMagnitude(lamLCurve[0])), (NormLCurve[0],xTLxCurve[0]))
+#axs.annotate('$\lambda$ = 1e' + str(orderOfMagnitude(lamLCurve[-1])), (NormLCurve[-1],xTLxCurve[-1]))
+import mpl_toolkits as mplT
+#from mpl_toolkits.axes_grid1.inset_locator import mark_inset, zoomed_inset_axes, inset_axes
+#axins = zoomed_inset_axes(axs,zoom = 1,loc='lower left')
+
+#axins.scatter(NormLCurveZoom,xTLxCurveZoom)#,'o', color='black')
+#axins.plot(MTCnorms[:,0], MTCnorms[:,1], marker = "." ,mfc = 'black' , markeredgecolor='r',markersize=10,linestyle = 'None')
+#axins.scatter(norm_data, norm_f)
+x1, x2, y1, y2 = NormLCurveZoom[0], NormLCurveZoom[-1], xTLxCurveZoom[0], xTLxCurveZoom[-1] # specify the limits
+#axins = mplT.axes_grid1.inset_locator.inset_axes( parent_axes = axs,  bbox_transform=axs.transAxes, bbox_to_anchor =(0.05,0.05,0.75,0.75) , width = '100%' , height = '100%')#,  loc= 'lower left')
+axins = axs.inset_axes(  [0.01,0.05,0.75,0.75])#,  loc= 'lower left')
+
+axins.scatter(NormLCurveZoom,xTLxCurveZoom)#,'o', color='black')
+axins.set_xscale('log')
+axins.set_yscale('log')
+axins.set_xlim(x1, x2) # apply the x-limits
+axins.set_ylim(y2, y1) # apply the y-limits (negative gradient)
+axins.set_xticklabels([])
+axins.set_yticklabels([])
+axs.indicate_inset_zoom(axins, edgecolor="black")
+#axins.tick_params( bottom=False, left=False, labelbottom = False, labelleft = False)
+#mark_inset(axs, axins, loc1=2, loc2=4 ,fc="none", ec="0.5")
+
 axs.set_xscale('log')
 axs.set_yscale('log')
 axs.set_ylabel(r'$\sqrt{x^T L x}$')
 axs.set_xlabel(r'$|| Ax - y ||$')
+axs.set_title('L-curve for m=' + str(SpecNumMeas))
 plt.savefig('LCurve.png')
 plt.show()
-
 
 
 np.savetxt('LCurve.txt', np.vstack((NormLCurve,xTLxCurve, lamLCurve)).T, header = 'Norm ||Ax - y|| \t sqrt(x.T L x) \t lambdas', fmt = '%.15f \t %.15f \t %.15f')

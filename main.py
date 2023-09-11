@@ -148,7 +148,7 @@ ObsHeight = 300 # in km
 #find best configuration of layers and num_meas
 #so that cond(A) is not inf
 #exp case first
-SpecNumMeas = 60#105
+SpecNumMeas = 105
 SpecNumLayers = 46
 LayersCore = np.linspace(MinH, MaxH, SpecNumLayers)
 layers = np.zeros(SpecNumLayers + 2)
@@ -436,10 +436,13 @@ how many measurements we want to do in between the max angle and min angle
  because measurment will collect more than just the stuff around the tangent height'''
 #take linear
 num_mole = (pressure_values / (constants.Boltzmann * 1e7  * temp_values))
-theta = (num_mole * w_cross * VMR_O3 * Source)
+theta = (num_mole * w_cross * Source * VMR_O3)
 Ax = np.matmul(A_lin, theta)
+
 #convolve measurements and add noise
 y = add_noise(Ax, 0.01)
+y[y < 0] = 0
+#ATy = np.matmul(A_lin.T, y)
 ATy = np.matmul(A_lin.T, y)
 
 np.savetxt('dataY.txt', y, header = 'Data y including noise', fmt = '%.15f')
@@ -660,7 +663,7 @@ for j in range(len(lam_try)):
 '''do the sampling'''
  #10**(orderOfMagnitude(abs_tol * np.linalg.norm(L[:,1]))-2)
 #hyperarameters
-number_samples = 10000
+number_samples = 1000
 gammas = np.zeros(number_samples)
 deltas = np.zeros(number_samples)
 lambdas = np.zeros(number_samples)
@@ -816,11 +819,11 @@ plt.savefig('HistoResults.png')
 paraSamp = 10
 Results = np.zeros((paraSamp,len(theta)))
 for p in range(paraSamp):
-    #SetLambda = new_lamb[np.random.randint(low=0, high=len(new_lamb), size=1)]
-    SetGamma = minimum[0] #new_gam[np.random.randint(low=0, high=len(new_gam), size=1)] #minimum[0]
-    SetDelta = minimum[1] #new_delt[np.random.randint(low=0, high=len(new_delt), size=1)] #minimum[1]
-    v_1 = np.sqrt(SetGamma) * np.random.multivariate_normal(np.zeros(len(ATA_lin)),  ATA_lin)
-    v_2 = np.sqrt(SetDelta) * np.random.multivariate_normal(np.zeros(len(L)),  L)
+    # SetLambda = new_lamb[np.random.randint(low=0, high=len(new_lamb), size=1)]
+    SetGamma = minimum[0]  # new_gam[np.random.randint(low=0, high=len(new_gam), size=1)] #minimum[0]
+    SetDelta = minimum[1]  # new_delt[np.random.randint(low=0, high=len(new_delt), size=1)] #minimum[1]
+    v_1 = np.sqrt(SetGamma) * np.random.multivariate_normal(np.zeros(len(ATA_lin)), ATA_lin)
+    v_2 = np.sqrt(SetDelta) * np.random.multivariate_normal(np.zeros(len(L)), L)
 
     SetB = SetGamma * ATA_lin + SetDelta * L
 
@@ -833,23 +836,42 @@ for p in range(paraSamp):
             print(exitCode)
 
     CheckB_inv = np.matmul(SetB, SetB_inv)
-    print(np.linalg.norm(np.eye(len(SetB))- CheckB_inv)/np.linalg.norm(np.eye(len(SetB)))<tol)
+    print(np.linalg.norm(np.eye(len(SetB)) - CheckB_inv) / np.linalg.norm(np.eye(len(SetB))) < tol)
 
-
-
-    Results[p,:] = np.matmul(SetB_inv,(SetGamma * ATy[0::,0] + v_1+ v_2) )
+    Results[p, :] = np.matmul(SetB_inv, (SetGamma * ATy[0::, 0] + v_1 + v_2))
+    # while any(Results[p,:] < 0):
+    #     #SetLambda = new_lamb[np.random.randint(low=0, high=len(new_lamb), size=1)]
+    #     SetGamma = minimum[0] #new_gam[np.random.randint(low=0, high=len(new_gam), size=1)] #minimum[0]
+    #     SetDelta = minimum[1] #new_delt[np.random.randint(low=0, high=len(new_delt), size=1)] #minimum[1]
+    #     v_1 = np.sqrt(SetGamma) * np.random.multivariate_normal(np.zeros(len(ATA_lin)),  ATA_lin)
+    #     v_2 = np.sqrt(SetDelta) * np.random.multivariate_normal(np.zeros(len(L)),  L)
+    #
+    #     SetB = SetGamma * ATA_lin + SetDelta * L
+    #
+    #     SetB_inv = np.zeros(np.shape(SetB))
+    #     for i in range(len(SetB)):
+    #         e = np.zeros(len(SetB))
+    #         e[i] = 1
+    #         SetB_inv[:, i], exitCode = gmres(SetB, e, tol=tol, restart=25)
+    #         if exitCode != 0:
+    #             print(exitCode)
+    #
+    #     CheckB_inv = np.matmul(SetB, SetB_inv)
+    #     print(np.linalg.norm(np.eye(len(SetB))- CheckB_inv)/np.linalg.norm(np.eye(len(SetB)))<tol)
+    #
+    #
+    #
+    #     Results[p,:] = np.matmul(SetB_inv,(SetGamma * ATy[0::,0] + v_1+ v_2) )
 
 fig3, ax1 = plt.subplots()
 #plt.plot(theta,layers[0:-1] + d_height/2, color = 'red')
-line1 = plt.plot(theta,layers[0:-1] + d_height/2, color = [0,0.5,0.5], linewidth = 5, label = 'true parameter value')
+line1 = plt.plot(theta,layers[0:-1] + d_height/2, color = [0,0.5,0.5], linewidth = 5, label = 'true parameter value', zorder=0)
 #line1, = plt.plot(theta* max(np.mean(Results,0))/max(theta),layers[0:-1] + d_height/2, color = [0,0.5,0.5], linewidth = 5, label = 'true parameter value')
 #line2, = plt.plot(np.mean(Results,0),layers[0:-1] + d_height/2,color = 'green', label = 'MC estimate')
 # for i in range(paraSamp):
 #     line2, = plt.plot(Results[i,:],layers[0:-1] + d_height/2,color = 'green', label = 'MC estimate')
-#
-line2 = plt.errorbar(np.mean(Results,0),layers[0:-1] + d_height/2,capsize=4, xerr = np.sqrt(np.var(Results,0))/2 ,color = 'red', label = 'MC estimate')#, label = 'MC estimate')
-
-
+line2 = plt.errorbar(np.mean(Results,0),layers[0:-1] + d_height/2,capsize=4,yerr = np.zeros(len(layers[0:-1])),color = 'red', label = 'MC estimate')#, label = 'MC estimate')
+line4 = plt.errorbar(np.mean(Results,0),layers[0:-1] + d_height/2,capsize=4, xerr = np.sqrt(np.var(Results,0))/2 ,color = 'red', label = 'MC estimate')#, label = 'MC estimate')
 ax2 = ax1.twiny() # ax1 and ax2 share y-axis
 line3 = ax2.plot(y,tang_heights_lin, color = 'gold', label = 'data')
 ax2.spines['top'].set_color('gold')
@@ -857,18 +879,30 @@ ax2.set_xlabel('Data')
 ax2.tick_params(labelcolor="gold")
 ax1.set_xlabel('Ozone Source Value')
 multicolor_ylabel(ax1,('(Tangent)','Height in km'),('k', 'gold'),axis='y')
-
 ax1.legend(['true parameter value', 'MC estimate'])
 plt.ylabel('Height in km')
 fig3.savefig('FirstRecRes.png')
-#plt.show()
+plt.show()
 
-fig3, ax1 = plt.subplots()
+fig4, ax1 = plt.subplots()
 #plt.plot(theta,layers[0:-1] + d_height/2, color = 'red')
-line1 = plt.plot(theta,layers[0:-1] + d_height/2, color = [0,0.5,0.5], linewidth = 5, label = 'true parameter value')
+#line1 = plt.plot(theta,layers[0:-1] + d_height/2, color = [0,0.5,0.5], linewidth = 5, label = 'true parameter value')
+#line2 = plt.plot(num_mole,layers[0:-1] + d_height/2, color = [0,0.5,0.5], linewidth = 5, label = 'true parameter value')
+line3 = plt.plot(VMR_O3,layers[0:-1] + d_height/2, color = [0,0.5,0.5], linewidth = 5, label = 'true parameter value')
+#line4 = plt.plot(Source,layers[0:-1] + d_height/2, color = [0,0.5,0.5], linewidth = 5, label = 'true parameter value')
+line5 = plt.plot(num_mole * w_cross * Source,layers[0:-1] + d_height/2, color = [0,0.5,0.5], linewidth = 5, label = 'true parameter value')
 ax1.set_xlabel('Ozone Source Value')
 ax1.set_ylabel('Height in km')
+plt.show()
 fig3.savefig('TrueProfile.png')
+
+fig5, ax1 = plt.subplots()
+#plt.plot(theta,layers[0:-1] + d_height/2, color = 'red')
+line1 = plt.plot(np.mean(Results,0)[1:-1]/(num_mole[1:-1,0] * w_cross[1:-1,0] * Source[1:-1,0] ),layers[1:-2] + d_height[1:-1]/2, color = [0,0.5,0.5], linewidth = 5, label = 'true parameter value')
+ax1.set_xlabel('Ozone Source Value')
+ax1.set_ylabel('Height in km')
+plt.show()
+#fig3.savefig('TrueProfile.png')
 
 
 #doesnt work cause too sensitive to noise when close to zero
