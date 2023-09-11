@@ -818,6 +818,9 @@ plt.savefig('HistoResults.png')
 #draw paramter samples
 paraSamp = 10
 Results = np.zeros((paraSamp,len(theta)))
+NormRes = np.zeros(paraSamp)
+xTLxRes = np.zeros(paraSamp)
+
 for p in range(paraSamp):
     # SetLambda = new_lamb[np.random.randint(low=0, high=len(new_lamb), size=1)]
     SetGamma = minimum[0]  # new_gam[np.random.randint(low=0, high=len(new_gam), size=1)] #minimum[0]
@@ -839,29 +842,11 @@ for p in range(paraSamp):
     print(np.linalg.norm(np.eye(len(SetB)) - CheckB_inv) / np.linalg.norm(np.eye(len(SetB))) < tol)
 
     Results[p, :] = np.matmul(SetB_inv, (SetGamma * ATy[0::, 0] + v_1 + v_2))
-    # while any(Results[p,:] < 0):
-    #     #SetLambda = new_lamb[np.random.randint(low=0, high=len(new_lamb), size=1)]
-    #     SetGamma = minimum[0] #new_gam[np.random.randint(low=0, high=len(new_gam), size=1)] #minimum[0]
-    #     SetDelta = minimum[1] #new_delt[np.random.randint(low=0, high=len(new_delt), size=1)] #minimum[1]
-    #     v_1 = np.sqrt(SetGamma) * np.random.multivariate_normal(np.zeros(len(ATA_lin)),  ATA_lin)
-    #     v_2 = np.sqrt(SetDelta) * np.random.multivariate_normal(np.zeros(len(L)),  L)
-    #
-    #     SetB = SetGamma * ATA_lin + SetDelta * L
-    #
-    #     SetB_inv = np.zeros(np.shape(SetB))
-    #     for i in range(len(SetB)):
-    #         e = np.zeros(len(SetB))
-    #         e[i] = 1
-    #         SetB_inv[:, i], exitCode = gmres(SetB, e, tol=tol, restart=25)
-    #         if exitCode != 0:
-    #             print(exitCode)
-    #
-    #     CheckB_inv = np.matmul(SetB, SetB_inv)
-    #     print(np.linalg.norm(np.eye(len(SetB))- CheckB_inv)/np.linalg.norm(np.eye(len(SetB)))<tol)
-    #
-    #
-    #
-    #     Results[p,:] = np.matmul(SetB_inv,(SetGamma * ATy[0::,0] + v_1+ v_2) )
+
+    NormRes[p] = np.linalg.norm( np.matmul(A_lin,Results[p, :]) - y[0::,0])
+    xTLxRes[p] = np.sqrt(np.matmul(np.matmul(Results[p, :].T, L), Results[p, :]))
+
+
 
 fig3, ax1 = plt.subplots()
 #plt.plot(theta,layers[0:-1] + d_height/2, color = 'red')
@@ -1135,12 +1120,11 @@ plt.savefig('f_and_g.png')
 print('bla')
 
 
-'''L-curve regularization
+'''L-curve refularoization
 '''
-
 tol = 1e-4
-lamLCurve = np.logspace(-10,7,200)
-#lamLCurve = np.linspace(1e-7,1e10,1500)
+lamLCurve = np.logspace(-20,20,500)
+#lamLCurve = np.linspace(1e-1,1e4,300)
 
 NormLCurve = np.zeros(len(lamLCurve))
 xTLxCurve = np.zeros(len(lamLCurve))
@@ -1159,27 +1143,63 @@ for i in range(len(lamLCurve)):
 
 A_linu, A_lins, A_linvh = csvd(A_lin)
 #reg_c = l_cuve(A_linu, A_lins, y[0::,0], plotit=True)
-reg_c = l_corner(NormLCurve,xTLxCurve,lamLCurve,A_linu,A_lins,y[0::,0])
-B = (ATA_lin + reg_c * L)
+#reg_c = l_corner(NormLCurve,xTLxCurve,lamLCurve,A_linu,A_lins,y[0::,0])
+#B = (ATA_lin + reg_c * L)
 B = (ATA_lin + minimum[1]/minimum[0] * L)
 
 x, exitCode = gmres(B, ATy[0::, 0], tol=tol, restart=25)
 if exitCode != 0:
     print(exitCode)
 
+lamLCurveZoom = np.logspace(4,10,500)
+NormLCurveZoom = np.zeros(len(lamLCurve))
+xTLxCurveZoom = np.zeros(len(lamLCurve))
+for i in range(len(lamLCurveZoom)):
+    B = (ATA_lin + lamLCurveZoom[i] * L)
 
-fig, axs = plt.subplots( 1,1)
-plt.scatter(NormLCurve,xTLxCurve)
-plt.scatter(np.linalg.norm(np.matmul(A_lin, x) - y[0::, 0]),np.sqrt(np.matmul(np.matmul(x.T, L), x)))
-plt.annotate('$\lambda_0$ = ' + str(math.ceil(minimum[1]/minimum[0])), (np.linalg.norm(np.matmul(A_lin, x) - y[0::, 0]),np.sqrt(np.matmul(np.matmul(x.T, L), x))))
-plt.annotate('$\lambda$ = ' + str(math.ceil(lamLCurve[0])), (NormLCurve[0],xTLxCurve[0]))
-plt.annotate('$\lambda$ = ' + str(math.ceil(lamLCurve[-1])), (NormLCurve[-1],xTLxCurve[-1]))
+    x, exitCode = gmres(B, ATy[0::, 0], tol=tol, restart=25)
+    if exitCode != 0:
+        print(exitCode)
+
+    NormLCurveZoom[i] = np.linalg.norm( np.matmul(A_lin,x) - y[0::,0])
+    xTLxCurveZoom[i] = np.sqrt(np.matmul(np.matmul(x.T, L), x))
+
+A_linu, A_lins, A_linvh = csvd(A_lin)
+B = (ATA_lin + minimum[1]/minimum[0] * L)
+x, exitCode = gmres(B, ATy[0::, 0], tol=tol, restart=25)
+if exitCode != 0:
+    print(exitCode)
+
+fig, axs = plt.subplots( 1,1, tight_layout=True)
+axs.scatter(NormLCurve,xTLxCurve, zorder = 0)
+axs.scatter(np.linalg.norm(np.matmul(A_lin, x) - y[0::, 0]),np.sqrt(np.matmul(np.matmul(x.T, L), x)))
+#axs.annotate('$\lambda_0$ = ' + str(math.ceil(minimum[1]/minimum[0])), (np.linalg.norm(np.matmul(A_lin, x) - y[0::, 0]),np.sqrt(np.matmul(np.matmul(x.T, L), x))))
+#axs.annotate('$\lambda$ = 1e' + str(orderOfMagnitude(lamLCurve[0])), (NormLCurve[0],xTLxCurve[0]))
+#axs.annotate('$\lambda$ = 1e' + str(orderOfMagnitude(lamLCurve[-1])), (NormLCurve[-1],xTLxCurve[-1]))
+axs.scatter(NormRes, xTLxRes)#, marker = "." ,mfc = 'black' , markeredgecolor='r',markersize=10,linestyle = 'None')
+
+x1, x2, y1, y2 = NormLCurveZoom[0], NormLCurveZoom[-1], xTLxCurveZoom[0], xTLxCurveZoom[-1] # specify the limits
+#axins = mplT.axes_grid1.inset_locator.inset_axes( parent_axes = axs,  bbox_transform=axs.transAxes, bbox_to_anchor =(0.05,0.05,0.75,0.75) , width = '100%' , height = '100%')#,  loc= 'lower left')
+axins = axs.inset_axes([0.01,0.05,0.75,0.75])
+axins.scatter(NormRes, xTLxRes)
+axins.scatter(NormLCurveZoom,xTLxCurveZoom)
+#axins.scatter(NormRes, xTLxRes)
+#,'o', color='black')
+axins.set_xscale('log')
+axins.set_yscale('log')
+axins.set_xlim(x1, x2) # apply the x-limits
+axins.set_ylim(y2, 1.1*max(xTLxRes) ) # apply the y-limits (negative gradient)
+axins.set_xticklabels([])
+axins.set_yticklabels([])
+axs.indicate_inset_zoom(axins, edgecolor="black")
+
 axs.set_xscale('log')
 axs.set_yscale('log')
 axs.set_ylabel(r'$\sqrt{x^T L x}$')
 axs.set_xlabel(r'$|| Ax - y ||$')
+axs.set_title('L-curve for m=' + str(SpecNumMeas))
 plt.savefig('LCurve.png')
-#plt.show()
+plt.show()
 
 print('bla')
 

@@ -309,7 +309,7 @@ import mpl_toolkits as mplT
 #axins.scatter(norm_data, norm_f)
 x1, x2, y1, y2 = NormLCurveZoom[0], NormLCurveZoom[-1], xTLxCurveZoom[0], xTLxCurveZoom[-1] # specify the limits
 #axins = mplT.axes_grid1.inset_locator.inset_axes( parent_axes = axs,  bbox_transform=axs.transAxes, bbox_to_anchor =(0.05,0.05,0.75,0.75) , width = '100%' , height = '100%')#,  loc= 'lower left')
-axins = axs.inset_axes(  [0.01,0.05,0.75,0.75])#,  loc= 'lower left')
+axins = axs.inset_axes([0.01,0.05,0.75,0.75])
 
 axins.scatter(NormLCurveZoom,xTLxCurveZoom)#,'o', color='black')
 axins.set_xscale('log')
