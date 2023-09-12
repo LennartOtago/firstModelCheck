@@ -663,7 +663,7 @@ for j in range(len(lam_try)):
 '''do the sampling'''
  #10**(orderOfMagnitude(abs_tol * np.linalg.norm(L[:,1]))-2)
 #hyperarameters
-number_samples = 1000
+number_samples = 10000
 gammas = np.zeros(number_samples)
 deltas = np.zeros(number_samples)
 lambdas = np.zeros(number_samples)
@@ -940,7 +940,7 @@ def MargPostSupp(Params):
 
 MargPost = pytwalk.pytwalk( n=2, U=MargPostU, Supp=MargPostSupp)
 startTime = time.time()
-tWalkSampNum= 40000
+tWalkSampNum= 100000
 MargPost.Run( T=tWalkSampNum, x0=MargPostInit(minimum), xp0=np.array([normal(minimum[0], minimum[0]/4), normal(minimum[1],minimum[1]/4)]) )
 elapsedtWalkTime = time.time() - startTime
 print('Elapsed Time for t-walk: ' + str(elapsedtWalkTime))
@@ -1171,18 +1171,18 @@ if exitCode != 0:
     print(exitCode)
 
 fig, axs = plt.subplots( 1,1, tight_layout=True)
-axs.scatter(NormLCurve,xTLxCurve, zorder = 0)
-axs.scatter(np.linalg.norm(np.matmul(A_lin, x) - y[0::, 0]),np.sqrt(np.matmul(np.matmul(x.T, L), x)))
+axs.scatter(NormLCurve,xTLxCurve, zorder = 0, color = 'black')
+axs.scatter(np.linalg.norm(np.matmul(A_lin, x) - y[0::, 0]),np.sqrt(np.matmul(np.matmul(x.T, L), x)), color = 'black')
 #axs.annotate('$\lambda_0$ = ' + str(math.ceil(minimum[1]/minimum[0])), (np.linalg.norm(np.matmul(A_lin, x) - y[0::, 0]),np.sqrt(np.matmul(np.matmul(x.T, L), x))))
 #axs.annotate('$\lambda$ = 1e' + str(orderOfMagnitude(lamLCurve[0])), (NormLCurve[0],xTLxCurve[0]))
 #axs.annotate('$\lambda$ = 1e' + str(orderOfMagnitude(lamLCurve[-1])), (NormLCurve[-1],xTLxCurve[-1]))
-axs.scatter(NormRes, xTLxRes)#, marker = "." ,mfc = 'black' , markeredgecolor='r',markersize=10,linestyle = 'None')
+axs.scatter(NormRes, xTLxRes, color = 'red')#, marker = "." ,mfc = 'black' , markeredgecolor='r',markersize=10,linestyle = 'None')
 
 x1, x2, y1, y2 = NormLCurveZoom[0], NormLCurveZoom[-1], xTLxCurveZoom[0], xTLxCurveZoom[-1] # specify the limits
 #axins = mplT.axes_grid1.inset_locator.inset_axes( parent_axes = axs,  bbox_transform=axs.transAxes, bbox_to_anchor =(0.05,0.05,0.75,0.75) , width = '100%' , height = '100%')#,  loc= 'lower left')
 axins = axs.inset_axes([0.01,0.05,0.75,0.75])
-axins.scatter(NormRes, xTLxRes)
-axins.scatter(NormLCurveZoom,xTLxCurveZoom)
+axins.scatter(NormRes, xTLxRes, color = 'red')
+axins.scatter(NormLCurveZoom,xTLxCurveZoom, color = 'black')
 #axins.scatter(NormRes, xTLxRes)
 #,'o', color='black')
 axins.set_xscale('log')
