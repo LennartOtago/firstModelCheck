@@ -194,7 +194,7 @@ how many measurements we want to do in between the max angle and min angle
  because measurment will collect more than just the stuff around the tangent height'''
 #take linear
 num_mole = (pressure_values / (constants.Boltzmann * 1e7  * temp_values))
-theta = (num_mole * w_cross * VMR_O3 * Source)
+theta = VMR_O3 #(num_mole * w_cross * VMR_O3 * Source)
 Ax = np.matmul(A_lin, theta)
 #convolve measurements and add noise
 y = add_noise(Ax, 0.01)

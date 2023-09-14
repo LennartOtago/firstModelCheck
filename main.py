@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 plt.rcParams.update({'font.size': 15})
 import pandas as pd
 from numpy.random import uniform, normal, gamma
+import scipy as scy
 from scipy.stats import norm
 from scipy.optimize import curve_fit
 import matplotlib.patheffects as path_effects
@@ -32,6 +33,7 @@ MinH = 5
 MaxH = 95
 R = 6371 # earth radiusin km
 ObsHeight = 300 # in km
+scalingConstkm = 1e-3
 #FakeObsHeight = MaxH + 5
 
 
@@ -203,6 +205,7 @@ A_lin, tang_heights_lin = gen_forward_map(meas_ang[0:-1],layers,ObsHeight,R)
 A_linu, A_lins, A_linvh = np.linalg.svd(A_lin)
 ATA_lin = np.matmul(A_lin.T,A_lin)
 #condition number for A
+A_lin = A_lin
 cond_A_lin =  np.max(A_lins)/np.min(A_lins)
 print("normal: " + str(orderOfMagnitude(cond_A_lin)))
 
@@ -320,7 +323,7 @@ VMR_O3, height_values, pressure_values = testReal.get_data(filename, ObsHeight *
 #d_height = (height_values[1::] - height_values[0:-1] )
 d_height = layers[1::] - layers[0:-1]
 
-pressure_values = pressure_values * 1e-1 # in cgs
+pressure_values = pressure_values * 1e2 # in cgs
 N_A = constants.Avogadro # in mol^-1
 k_b_cgs = constants.Boltzmann * 1e7#in J K^-1
 R_gas = N_A * k_b_cgs # in ..cm^3
@@ -331,7 +334,7 @@ R_gas = N_A * k_b_cgs # in ..cm^3
 
 temp_values = get_temp_values(layers[0:-1] + d_height/2 )
 #x = VMR_O3 * N_A * pressure_values /(R_gas * temp_values)#* 1e-13
-
+#https://hitran.org/docs/definitions-and-units/
 #files = '/home/lennartgolks/Python/firstModelCheck/634f1dc4.par' #/home/lennartgolks/Python /Users/lennart/PycharmProjects
 files = '634f1dc4.par' #/home/lennartgolks/Python /Users/lennart/PycharmProjects
 
@@ -360,15 +363,12 @@ for i, lines in enumerate(data_set):
 
 
 
-#constants in si
-h = constants.h * 1e7#in J Hz^-1
+#load constants in si annd convert to cgs units by multiplying
+h = scy.constants.h #* 1e7#in J Hz^-1
 c_cgs = constants.c * 1e2# in m/s
-k_b_cgs = constants.Boltzmann * 1e7#in J K^-1
+k_b_cgs = constants.Boltzmann #* 1e7#in J K^-1
 T = temp_values[0:-1] #in K
 N_A = constants.Avogadro # in mol^-1
-
-C2 = h * c_cgs /k_b_cgs
-C1 = h * c_cgs**2
 
 
 mol_M = 48 #g/mol for Ozone
@@ -381,8 +381,11 @@ lamba = 1/v_0
 f_0 = c_cgs*v_0
 print("Frequency " + str(np.around(v_0*c_cgs/1e9,2)) + " in GHz")
 
+C1 =2 * scy.constants.h * scy.constants.c**2 * v_0**3 * 1e8
+C2 = scy.constants.h * scy.constants.c * 1e2 * v_0  / (scy.constants.Boltzmann * temp_values )
 #plancks function
-Source = np.array(2 * C1/(lamba**5 * (np.exp(C2/(lamba*temp_values))-1))).reshape((47,1))
+Source = np.array(C1 /(np.exp(C2) - 1) ).reshape((47,1))
+
 #differs from HITRAN, implemented as in Urban et al
 T_ref = 296 #K usually
 p_ref = pressure_values[0]
@@ -424,9 +427,19 @@ p_ref = pressure_values[0]
 
 # vmr might not have correct units
 #C4 =  [V(x_wvnmbrs[500],sigma[temp],gamma[temp])/sum(V(x_wvnmbrs,sigma[temp],gamma[temp])) for temp in range(0, len(temp_values)) ] #scaling trhough dopller/voigt profile
-w_cross = np.ones((len(height_values),1)) * S[ind,0] * 1e17
+
+'''weighted absorption cross section according to Hitran and MIPAS instrument description
+S is: The spectral line intensity (cm^−1/(molecule cm^−2))
+f_broad in (1/cm^-1) is the broadening due to pressure and doppler effect,
+ usually one can describe this as the convolution of Lorentz profile and Gaussian profile
+ VMR_O3 is the ozone profile in units of molecule (unitless)
+ has to be extended if multiple gases are to be monitored
+ I multiply with 1e-4 to go from cm^2 to m^2
+ '''
+f_broad = 1
+w_cross = S[ind,0] * VMR_O3 * f_broad * 1e-4
 w_cross[0], w_cross[-1] = 0, 0
-#S[ind,0] * C4[i][0]
+
 
 
 ''' calculate model depending on where the Satellite is and 
@@ -435,13 +448,14 @@ how many measurements we want to do in between the max angle and min angle
  we specify the angles
  because measurment will collect more than just the stuff around the tangent height'''
 #take linear
-num_mole = (pressure_values / (constants.Boltzmann * 1e7  * temp_values))
-theta = (num_mole * w_cross * Source * VMR_O3)
+num_mole = pressure_values / (scy.constants.Boltzmann * temp_values)
+scalingConst = 1e16
+theta =(num_mole * w_cross * Source * scalingConst )
 Ax = np.matmul(A_lin, theta)
 
 #convolve measurements and add noise
 y = add_noise(Ax, 0.01)
-y[y < 0] = 0
+#y[y < 0] = 0
 #ATy = np.matmul(A_lin.T, y)
 ATy = np.matmul(A_lin.T, y)
 
@@ -463,7 +477,7 @@ np.savetxt('dataY.txt', y, header = 'Data y including noise', fmt = '%.15f')
 
 """start the mtc algo with first guesses of noise and lumping const delta"""
 
-tol = 1e-4
+tol = 1e-8
 vari = np.zeros((len(theta)-2,1))
 
 for j in range(1,len(theta)-1):
@@ -703,6 +717,8 @@ betaD = 1e-4
 alphaG = 1
 alphaD = 1
 rate = f(ATy, y, B_inv_A_trans_y) / 2 + betaG + betaD * lambdas[0]
+# draw gamma with a gibs step
+shape = (SpecNumLayers - 1) / 2 + alphaD + alphaG
 
 startTime = time.time()
 for t in range(number_samples-1):
@@ -754,8 +770,7 @@ for t in range(number_samples-1):
         #rejcet
         lambdas[t + 1] = np.copy(lambdas[t])
 
-    #draw gamma with a gibs step
-    shape =  (SpecNumLayers - 1)/ 2 + alphaD + alphaG
+
 
 
     gammas[t+1] = np.random.gamma(shape, scale = 1/rate)
@@ -823,8 +838,8 @@ xTLxRes = np.zeros(paraSamp)
 
 for p in range(paraSamp):
     # SetLambda = new_lamb[np.random.randint(low=0, high=len(new_lamb), size=1)]
-    SetGamma = minimum[0]  # new_gam[np.random.randint(low=0, high=len(new_gam), size=1)] #minimum[0]
-    SetDelta = minimum[1]  # new_delt[np.random.randint(low=0, high=len(new_delt), size=1)] #minimum[1]
+    SetGamma = new_gam[np.random.randint(low=0, high=len(new_gam), size=1)] #minimum[0]
+    SetDelta  = new_delt[np.random.randint(low=0, high=len(new_delt), size=1)] #minimum[1]
     v_1 = np.sqrt(SetGamma) * np.random.multivariate_normal(np.zeros(len(ATA_lin)), ATA_lin)
     v_2 = np.sqrt(SetDelta) * np.random.multivariate_normal(np.zeros(len(L)), L)
 
@@ -847,43 +862,45 @@ for p in range(paraSamp):
     xTLxRes[p] = np.sqrt(np.matmul(np.matmul(Results[p, :].T, L), Results[p, :]))
 
 
-
-fig3, ax1 = plt.subplots()
+scalConst = scalingConst * scalingConstkm
+fig3, ax1 = plt.subplots(tight_layout=True)
 #plt.plot(theta,layers[0:-1] + d_height/2, color = 'red')
-line1 = plt.plot(theta,layers[0:-1] + d_height/2, color = [0,0.5,0.5], linewidth = 5, label = 'true parameter value', zorder=0)
+line1 = plt.plot(theta/ (scalConst),layers[0:-1] + d_height/2, color = [0,0.5,0.5], linewidth = 5, label = 'true parameter value', zorder=0)
 #line1, = plt.plot(theta* max(np.mean(Results,0))/max(theta),layers[0:-1] + d_height/2, color = [0,0.5,0.5], linewidth = 5, label = 'true parameter value')
 #line2, = plt.plot(np.mean(Results,0),layers[0:-1] + d_height/2,color = 'green', label = 'MC estimate')
 # for i in range(paraSamp):
 #     line2, = plt.plot(Results[i,:],layers[0:-1] + d_height/2,color = 'green', label = 'MC estimate')
-line2 = plt.errorbar(np.mean(Results,0),layers[0:-1] + d_height/2,capsize=4,yerr = np.zeros(len(layers[0:-1])),color = 'red', label = 'MC estimate')#, label = 'MC estimate')
-line4 = plt.errorbar(np.mean(Results,0),layers[0:-1] + d_height/2,capsize=4, xerr = np.sqrt(np.var(Results,0))/2 ,color = 'red', label = 'MC estimate')#, label = 'MC estimate')
+line2 = plt.errorbar(np.mean(Results / (scalConst),0),layers[0:-1] + d_height/2,capsize=4,yerr = np.zeros(len(layers[0:-1])),color = 'red', label = 'MC estimate')#, label = 'MC estimate')
+line4 = plt.errorbar(np.mean(Results / (scalConst),0),layers[0:-1] + d_height/2,capsize=4, xerr = np.sqrt(np.var(Results /(scalConst),0))/2 ,color = 'red', label = 'MC estimate')#, label = 'MC estimate')
 ax2 = ax1.twiny() # ax1 and ax2 share y-axis
 line3 = ax2.plot(y,tang_heights_lin, color = 'gold', label = 'data')
 ax2.spines['top'].set_color('gold')
 ax2.set_xlabel('Data')
 ax2.tick_params(labelcolor="gold")
-ax1.set_xlabel('Ozone Source Value')
+ax1.set_xlabel(r'Spectral Ozone radiance $\frac{W}{m^2 sr}\frac{1}{\frac{1}{cm}}$')
 multicolor_ylabel(ax1,('(Tangent)','Height in km'),('k', 'gold'),axis='y')
 ax1.legend(['true parameter value', 'MC estimate'])
 plt.ylabel('Height in km')
 fig3.savefig('FirstRecRes.png')
 plt.show()
 
-fig4, ax1 = plt.subplots()
-#plt.plot(theta,layers[0:-1] + d_height/2, color = 'red')
-#line1 = plt.plot(theta,layers[0:-1] + d_height/2, color = [0,0.5,0.5], linewidth = 5, label = 'true parameter value')
-#line2 = plt.plot(num_mole,layers[0:-1] + d_height/2, color = [0,0.5,0.5], linewidth = 5, label = 'true parameter value')
-line3 = plt.plot(VMR_O3,layers[0:-1] + d_height/2, color = [0,0.5,0.5], linewidth = 5, label = 'true parameter value')
-#line4 = plt.plot(Source,layers[0:-1] + d_height/2, color = [0,0.5,0.5], linewidth = 5, label = 'true parameter value')
-line5 = plt.plot(num_mole * w_cross * Source,layers[0:-1] + d_height/2, color = [0,0.5,0.5], linewidth = 5, label = 'true parameter value')
-ax1.set_xlabel('Ozone Source Value')
-ax1.set_ylabel('Height in km')
-plt.show()
-fig3.savefig('TrueProfile.png')
+# fig4, ax1 = plt.subplots()
+# #plt.plot(theta,layers[0:-1] + d_height/2, color = 'red')
+# #line1 = plt.plot(theta,layers[0:-1] + d_height/2, color = [0,0.5,0.5], linewidth = 5, label = 'true parameter value')
+# #line2 = plt.plot(num_mole,layers[0:-1] + d_height/2, color = [0,0.5,0.5], linewidth = 5, label = 'true parameter value')
+# line3 = plt.plot(VMR_O3,layers[0:-1] + d_height/2, color = [0,0.5,0.5], linewidth = 5, label = 'true parameter value')
+# #line4 = plt.plot(Source,layers[0:-1] + d_height/2, color = [0,0.5,0.5], linewidth = 5, label = 'true parameter value')
+# line5 = plt.plot(num_mole * w_cross * Source,layers[0:-1] + d_height/2, color = [0,0.5,0.5], linewidth = 5, label = 'true parameter value')
+# ax1.set_xlabel('Ozone Source Value')
+# ax1.set_ylabel('Height in km')
+# plt.show()
+# fig3.savefig('TrueProfile.png')
 
 fig5, ax1 = plt.subplots()
-#plt.plot(theta,layers[0:-1] + d_height/2, color = 'red')
-line1 = plt.plot(np.mean(Results,0)[1:-1]/(num_mole[1:-1,0] * w_cross[1:-1,0] * Source[1:-1,0] ),layers[1:-2] + d_height[1:-1]/2, color = [0,0.5,0.5], linewidth = 5, label = 'true parameter value')
+line2 = plt.plot(num_mole[1:-1,0],layers[1:-2] + d_height[1:-1]/2, color = [0,0.5,0.5], linewidth = 5, label = 'true parameter value')
+
+#plt.plot(theta,layers[0:-1] + d_height/2, color = 'red')np.mean(Results,0)[1:-1]/( num_mole[1:-1,0] * Source[1:-1,0] *)
+#line1 = plt.plot(np.mean(Results,0)[1:-1]/(S[ind,0] * f_broad * 1e-4 * scalingConst*Source[1:-1,0]  ),layers[1:-2] + d_height[1:-1]/2, color = [0,0.5,0.5], linewidth = 5, label = 'true parameter value')
 ax1.set_xlabel('Ozone Source Value')
 ax1.set_ylabel('Height in km')
 plt.show()
