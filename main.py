@@ -27,13 +27,42 @@ def scientific(x, pos):
     return '%.e' % x
 scientific_formatter = FuncFormatter(scientific)
 
+
+import pandas
+df = pandas.read_excel('ExampleOzoneProfiles.xlsx')
+
+#print the column names
+print(df.columns)
+
+#get the values for a given column
+press = df['Pressure (hPa)'].values #in hectpp [ascal pr millibars]
+O3 = df['Ozone (VMR)'].values
+pressure_values = press[7:44]
+VMR_O3 = O3[7:44]
+scalingConstkm = 1e-3
+height_values = 145366.45 * (1 - ( press[7:44] /1013.25)**0.190284 ) * 0.3048 * scalingConstkm
+
+# fig, axs = plt.subplots()
+# axs.plot(VMR_O3,pressure_values )
+# axs.invert_yaxis()
+# axs.set_yscale('log')
+# #plt.show()
+#
+# fig, axs = plt.subplots()
+# axs.plot(VMR_O3,height_values)
+# #plt.show()
+#
+# fig, axs = plt.subplots()
+# axs.plot(pressure_values ,height_values)
+# plt.show()
+
 """ analayse forward map without any real data values"""
 
-MinH = 5
-MaxH = 95
+MinH = height_values[0]
+MaxH = height_values[-1]
 R = 6371 # earth radiusin km
-ObsHeight = 300 # in km
-scalingConstkm = 1e-3
+ObsHeight = 500 # in km
+
 #FakeObsHeight = MaxH + 5
 
 
@@ -151,17 +180,19 @@ scalingConstkm = 1e-3
 #so that cond(A) is not inf
 #exp case first
 SpecNumMeas = 105
-SpecNumLayers = 46
-LayersCore = np.linspace(MinH, MaxH, SpecNumLayers)
-layers = np.zeros(SpecNumLayers + 2)
-layers[1:-1] =  LayersCore
-layers[0]= MinH-3
-layers[-1] = MaxH+5
-#fing minimum and max angle in radians
-MaxAng = np.arcsin((layers[-1]+ R) / (R + ObsHeight))
-MinAng = np.arcsin((layers[0] + R) / (R + ObsHeight))
+SpecNumLayers = len(height_values)-1
+#height_diff = height_values[1:-1] - height_values[0:-2]
+# LayersCore = height_values #np.linspace(MinH, MaxH, SpecNumLayers)
+# layers = np.zeros(SpecNumLayers + 2)
+# layers[1:-1] =  LayersCore
+# layers[0]= MinH-3
+# layers[-1] = MaxH+5
+# find minimum and max angle in radians
+# min and max angle are defined by the height values of the retrived profile
+MaxAng = np.arcsin((height_values[-1]+ R) / (R + ObsHeight))
+MinAng = np.arcsin((height_values[0] + R) / (R + ObsHeight))
 #add zero layers
-SpecNumLayers = SpecNumLayers + 2
+#SpecNumLayers = SpecNumLayers + 2
 #meas_ang = MinAng + ((MaxAng - MinAng) * np.exp(coeff * (np.linspace(0, int(spec_num_meas) - 1, int(spec_num_meas) + 1) - (int(spec_num_meas) - 1))))
 #meas_ang = np.linspace(min_ang, max_ang, num_meas+ 1)
 
@@ -200,12 +231,13 @@ SpecNumLayers = SpecNumLayers + 2
 #find best configuration of layers and num_meas
 #so that cond(A) is not inf
 #meas_ang = min_ang + ((max_ang - min_ang) * np.exp(coeff * (np.linspace(0, int(num_meas) - 1, int(num_meas)+1) - (int(num_meas) - 1))))
-meas_ang = np.linspace(MinAng, MaxAng, SpecNumMeas + 1)
-A_lin, tang_heights_lin = gen_forward_map(meas_ang[0:-1],layers,ObsHeight,R)
-A_linu, A_lins, A_linvh = np.linalg.svd(A_lin)
+meas_ang = np.linspace(MinAng, MaxAng, SpecNumMeas)
+A_lin, tang_heights_lin, extraHeight = gen_forward_map(meas_ang,height_values,ObsHeight,R)
+
 ATA_lin = np.matmul(A_lin.T,A_lin)
 #condition number for A
 A_lin = A_lin
+A_linu, A_lins, A_linvh = np.linalg.svd(A_lin)
 cond_A_lin =  np.max(A_lins)/np.min(A_lins)
 print("normal: " + str(orderOfMagnitude(cond_A_lin)))
 
@@ -215,7 +247,7 @@ print("normal: " + str(orderOfMagnitude(cond_A_lin)))
 tot_r = np.zeros(SpecNumMeas)
 #calculate total length
 for j in range(0, SpecNumMeas):
-    tot_r[j] = 2*np.sqrt( (layers[-1] + R)**2 - (tang_heights_lin[j] + R )**2 )
+    tot_r[j] = 2*(np.sqrt( ( extraHeight + R)**2 - (tang_heights_lin[j] + R )**2) )
 print('Distance through layers check: ' + str(np.allclose( sum(A_lin.T), tot_r)))
 
 
@@ -297,10 +329,10 @@ print('Distance through layers check: ' + str(np.allclose( sum(A_lin.T), tot_r))
 
 
 #graph Laplacian
-neigbours = np.zeros((len(layers)-1,2))
+neigbours = np.zeros((len(height_values),2))
 neigbours[0] = np.nan, 1
-neigbours[-1] = len(layers)-3, np.nan
-for i in range(1,len(layers)-2):
+neigbours[-1] = len(height_values)-2, np.nan
+for i in range(1,len(height_values)-1):
     neigbours[i] = i-1, i+1
 L = generate_L(neigbours)
 np.savetxt('GraphLaplacian.txt', L, header = 'Graph Lalplacian', fmt = '%.15f', delimiter= '\t')
@@ -317,13 +349,11 @@ np.savetxt('GraphLaplacian.txt', L, header = 'Graph Lalplacian', fmt = '%.15f', 
 #filename = '/home/lennartgolks/Python/firstModelCheck/tropical.O3.xml' #/home/lennartgolks/Python /Users/lennart/PycharmProjects/firstModelCheck/tropical.O3.xml
 filename = 'tropical.O3.xml'
 
-VMR_O3, height_values, pressure_values = testReal.get_data(filename, ObsHeight * 1e3)
+#VMR_O3, height_values, pressure_values = testReal.get_data(filename, ObsHeight * 1e3)
 #[parts if VMR_O3 * 1e6 = ppm], [m], [Pa] = [kg / (m s^2) ]\
 #height_values = np.around(height_values * 1e-3,2)#in km 1e2 # in cm
 #d_height = (height_values[1::] - height_values[0:-1] )
-d_height = layers[1::] - layers[0:-1]
-
-pressure_values = pressure_values * 1e2 # in cgs
+#d_height = layers[1::] - layers[0:-1]
 N_A = constants.Avogadro # in mol^-1
 k_b_cgs = constants.Boltzmann * 1e7#in J K^-1
 R_gas = N_A * k_b_cgs # in ..cm^3
@@ -332,7 +362,7 @@ R_gas = N_A * k_b_cgs # in ..cm^3
 # plt.plot(VMR_O3, layers)
 # plt.show()
 
-temp_values = get_temp_values(layers[0:-1] + d_height/2 )
+temp_values = get_temp_values(height_values)
 #x = VMR_O3 * N_A * pressure_values /(R_gas * temp_values)#* 1e-13
 #https://hitran.org/docs/definitions-and-units/
 #files = '/home/lennartgolks/Python/firstModelCheck/634f1dc4.par' #/home/lennartgolks/Python /Users/lennart/PycharmProjects
@@ -367,7 +397,7 @@ for i, lines in enumerate(data_set):
 h = scy.constants.h #* 1e7#in J Hz^-1
 c_cgs = constants.c * 1e2# in m/s
 k_b_cgs = constants.Boltzmann #* 1e7#in J K^-1
-T = temp_values[0:-1] #in K
+#T = temp_values[0:-1] #in K
 N_A = constants.Avogadro # in mol^-1
 
 
@@ -384,7 +414,7 @@ print("Frequency " + str(np.around(v_0*c_cgs/1e9,2)) + " in GHz")
 C1 =2 * scy.constants.h * scy.constants.c**2 * v_0**3 * 1e8
 C2 = scy.constants.h * scy.constants.c * 1e2 * v_0  / (scy.constants.Boltzmann * temp_values )
 #plancks function
-Source = np.array(C1 /(np.exp(C2) - 1) ).reshape((47,1))
+Source = np.array(C1 /(np.exp(C2) - 1) ).reshape((SpecNumLayers+1,1))
 
 #differs from HITRAN, implemented as in Urban et al
 T_ref = 296 #K usually
@@ -449,8 +479,24 @@ how many measurements we want to do in between the max angle and min angle
  because measurment will collect more than just the stuff around the tangent height'''
 #take linear
 num_mole = pressure_values / (scy.constants.Boltzmann * temp_values)
+num_mole = 1 / (scy.constants.Boltzmann * temp_values)
 scalingConst = 1e16
-theta =(num_mole * w_cross * Source * scalingConst )
+theta =(num_mole * w_cross.reshape((SpecNumLayers+1,1)) * Source * scalingConst )
+
+
+
+
+#pressure_values[-1] = 1e-2
+A_lin = A_lin * pressure_values.T
+ATA_lin = np.matmul(A_lin.T,A_lin)
+A_linu, A_lins, A_linvh = np.linalg.svd(A_lin)
+cond_A_lin =  np.max(A_lins)/np.min(A_lins)
+print("normal: " + str(orderOfMagnitude(cond_A_lin)))
+
+ATA_linu, ATA_lins, ATA_linvh = np.linalg.svd(ATA_lin)
+cond_ATA_lin = np.max(ATA_lins)/np.min(ATA_lins)
+print("Condition Number A^T A: " + str(orderOfMagnitude(cond_ATA_lin)))
+
 Ax = np.matmul(A_lin, theta)
 
 #convolve measurements and add noise
@@ -595,7 +641,7 @@ for i in range(len(B)):
     e[i] = 1
     B_inv[:, i], exitCode = gmres(B, e, tol=tol, restart=25)
     if exitCode!= 0 :
-        print(exitCode)
+        print('B_inv ' + str(exitCode))
 
 B_inv_L = np.matmul(B_inv, L)
 num_sam = 10
@@ -612,7 +658,7 @@ MCErrL2 = stdL2/ np.sqrt(num_sam)
 around lam0 delta_lam = '''
 
 lam0 =minimum[1] / minimum[0]
-lam_try = np.linspace(lam0-1e4,lam0+1e4,101)
+lam_try = np.linspace(lam0-1e3,lam0+1e3,101)
 f_try_func = np.zeros(len(lam_try))
 g_try_func = np.zeros(len(lam_try))
 
@@ -644,7 +690,7 @@ for j in range(len(lam_try)):
     for i in range(len(B)):
         B_inv_L[:, i], exitCode = gmres(B, L[:, i], tol=tol, restart=25)
         if exitCode != 0:
-            print(exitCode)
+            print('B_inv_L ' + str(exitCode))
 
     B_inv_L_2 = np.matmul(B_inv_L, B_inv_L)
     B_inv_L_3 = np.matmul(B_inv_L_2, B_inv_L)
@@ -709,9 +755,9 @@ B_inv_L_5 = np.matmul(B_inv_L_4, B_inv_L)
 
 
 k = 0
-wLam = 2e4
-wgam = 1e-5
-wdelt = 1e-1
+wLam = 3e3
+#wgam = 1e-5
+#wdelt = 1e-1
 betaG = 1e-4
 betaD = 1e-4
 alphaG = 1
@@ -865,13 +911,13 @@ for p in range(paraSamp):
 scalConst = scalingConst * scalingConstkm
 fig3, ax1 = plt.subplots(tight_layout=True)
 #plt.plot(theta,layers[0:-1] + d_height/2, color = 'red')
-line1 = plt.plot(theta/ (scalConst),layers[0:-1] + d_height/2, color = [0,0.5,0.5], linewidth = 5, label = 'true parameter value', zorder=0)
+line1 = plt.plot(theta/ (scalConst),height_values, color = [0,0.5,0.5], linewidth = 5, label = 'true parameter value', zorder=0)
 #line1, = plt.plot(theta* max(np.mean(Results,0))/max(theta),layers[0:-1] + d_height/2, color = [0,0.5,0.5], linewidth = 5, label = 'true parameter value')
 #line2, = plt.plot(np.mean(Results,0),layers[0:-1] + d_height/2,color = 'green', label = 'MC estimate')
 # for i in range(paraSamp):
 #     line2, = plt.plot(Results[i,:],layers[0:-1] + d_height/2,color = 'green', label = 'MC estimate')
-line2 = plt.errorbar(np.mean(Results / (scalConst),0),layers[0:-1] + d_height/2,capsize=4,yerr = np.zeros(len(layers[0:-1])),color = 'red', label = 'MC estimate')#, label = 'MC estimate')
-line4 = plt.errorbar(np.mean(Results / (scalConst),0),layers[0:-1] + d_height/2,capsize=4, xerr = np.sqrt(np.var(Results /(scalConst),0))/2 ,color = 'red', label = 'MC estimate')#, label = 'MC estimate')
+line2 = plt.errorbar(np.mean(Results / (scalConst),0),height_values,capsize=4,yerr = np.zeros(len(height_values)),color = 'red', label = 'MC estimate')#, label = 'MC estimate')
+line4 = plt.errorbar(np.mean(Results / (scalConst),0),height_values,capsize=4, xerr = np.sqrt(np.var(Results /(scalConst),0))/2 ,color = 'red', label = 'MC estimate')#, label = 'MC estimate')
 ax2 = ax1.twiny() # ax1 and ax2 share y-axis
 line3 = ax2.plot(y,tang_heights_lin, color = 'gold', label = 'data')
 ax2.spines['top'].set_color('gold')
@@ -897,7 +943,7 @@ plt.show()
 # fig3.savefig('TrueProfile.png')
 
 fig5, ax1 = plt.subplots()
-line2 = plt.plot(num_mole[1:-1,0],layers[1:-2] + d_height[1:-1]/2, color = [0,0.5,0.5], linewidth = 5, label = 'true parameter value')
+line2 = plt.plot(num_mole[:,0],height_values, color = [0,0.5,0.5], linewidth = 5, label = 'true parameter value')
 
 #plt.plot(theta,layers[0:-1] + d_height/2, color = 'red')np.mean(Results,0)[1:-1]/( num_mole[1:-1,0] * Source[1:-1,0] *)
 #line1 = plt.plot(np.mean(Results,0)[1:-1]/(S[ind,0] * f_broad * 1e-4 * scalingConst*Source[1:-1,0]  ),layers[1:-2] + d_height[1:-1]/2, color = [0,0.5,0.5], linewidth = 5, label = 'true parameter value')
@@ -906,7 +952,11 @@ ax1.set_ylabel('Height in km')
 plt.show()
 #fig3.savefig('TrueProfile.png')
 
-
+fig5, ax1 = plt.subplots()
+plt.plot(num_mole[:,0] * VMR_O3 * 1e-6,height_values, color = [0,0.5,0.5], linewidth = 5)
+ax1.set_xlabel('Ozone Source Value')
+ax1.set_ylabel('Height in km')
+plt.show()
 #doesnt work cause too sensitive to noise when close to zero
 # XRES = np.copy(RecX)
 # XRES[XRES<0] = 0

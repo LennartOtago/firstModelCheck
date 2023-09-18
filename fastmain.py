@@ -1,74 +1,64 @@
-from importetFunctions import *
 import time
-import math
 from functions import *
 from errors import *
 from scipy import constants, optimize
-from scipy.sparse.linalg import gmres, minres
-import testReal
+from scipy.sparse.linalg import gmres
 import matplotlib.pyplot as plt
-plt.rcParams.update({'font.size': 15})
 import pandas as pd
 from numpy.random import uniform, normal, gamma
-
-# import pickle as pl
-# #to open figure
-# fig_handle = pl.load(open('/Users/lennart/Downloads/TraceMTCPara.pickle','rb'))
-# fig_handle.show()
-
-
-
+import scipy as scy
 from matplotlib.ticker import FuncFormatter
+
+plt.rcParams.update({'font.size': 15})
 def scientific(x, pos):
     # x:  tick value
     # pos: tick position
     return '%.e' % x
 scientific_formatter = FuncFormatter(scientific)
 
+
+
+df = pd.read_excel('ExampleOzoneProfiles.xlsx')
+
+#print the column names
+print(df.columns)
+
+#get the values for a given column
+press = df['Pressure (hPa)'].values #in hectpp [ascal pr millibars]
+O3 = df['Ozone (VMR)'].values
+pressure_values = press[7:44]
+VMR_O3 = O3[7:44]
+scalingConstkm = 1e-3
+height_values = 145366.45 * (1 - ( press[7:44] /1013.25)**0.190284 ) * 0.3048 * scalingConstkm
+
+
+
 """ analayse forward map without any real data values"""
 
-MinH = 5
-MaxH = 95
+MinH = height_values[0]
+MaxH = height_values[-1]
 R = 6371 # earth radiusin km
-ObsHeight = 300 # in km
-#FakeObsHeight = MaxH + 5
-
-
-
-
-
+ObsHeight = 500 # in km
 
 
 ''' do svd for one specific set up for linear case and then exp case'''
 
-#find best configuration of layers and num_meas
-#so that cond(A) is not inf
-#exp case first
-SpecNumMeas =  105
-SpecNumLayers = 46
-LayersCore = np.linspace(MinH, MaxH, SpecNumLayers)
-layers = np.zeros(SpecNumLayers + 2)
-layers[1:-1] =  LayersCore
-layers[0]= MinH-3
-layers[-1] = MaxH+5
-#fing minimum and max angle in radians
-MaxAng = np.arcsin((layers[-1]+ R) / (R + ObsHeight))
-MinAng = np.arcsin((layers[0] + R) / (R + ObsHeight))
-#add zero layers
-SpecNumLayers = SpecNumLayers + 2
-#meas_ang = MinAng + ((MaxAng - MinAng) * np.exp(coeff * (np.linspace(0, int(spec_num_meas) - 1, int(spec_num_meas) + 1) - (int(spec_num_meas) - 1))))
-#meas_ang = np.linspace(min_ang, max_ang, num_meas+ 1)
-
+SpecNumMeas = 105
+SpecNumLayers = len(height_values)-1
+MaxAng = np.arcsin((height_values[-1]+ R) / (R + ObsHeight))
+MinAng = np.arcsin((height_values[0] + R) / (R + ObsHeight))
 
 
 #find best configuration of layers and num_meas
 #so that cond(A) is not inf
 #meas_ang = min_ang + ((max_ang - min_ang) * np.exp(coeff * (np.linspace(0, int(num_meas) - 1, int(num_meas)+1) - (int(num_meas) - 1))))
-meas_ang = np.linspace(MinAng, MaxAng, SpecNumMeas + 1)
-A_lin, tang_heights_lin = gen_forward_map(meas_ang[0:-1],layers,ObsHeight,R)
-A_linu, A_lins, A_linvh = np.linalg.svd(A_lin)
+meas_ang = np.linspace(MinAng, MaxAng, SpecNumMeas)
+A_lin, tang_heights_lin, extraHeight = gen_forward_map(meas_ang,height_values,ObsHeight,R)
+
 ATA_lin = np.matmul(A_lin.T,A_lin)
 #condition number for A
+A_lin = A_lin
+A_linu, A_lins, A_linvh = np.linalg.svd(A_lin)
 cond_A_lin =  np.max(A_lins)/np.min(A_lins)
 print("normal: " + str(orderOfMagnitude(cond_A_lin)))
 
@@ -78,22 +68,23 @@ print("normal: " + str(orderOfMagnitude(cond_A_lin)))
 tot_r = np.zeros(SpecNumMeas)
 #calculate total length
 for j in range(0, SpecNumMeas):
-    tot_r[j] = 2*np.sqrt( (layers[-1] + R)**2 - (tang_heights_lin[j] + R )**2 )
+    tot_r[j] = 2*(np.sqrt( ( extraHeight + R)**2 - (tang_heights_lin[j] + R )**2) )
 print('Distance through layers check: ' + str(np.allclose( sum(A_lin.T), tot_r)))
 
 
 
 
 
-
-
 #graph Laplacian
-neigbours = np.zeros((len(layers)-1,2))
+neigbours = np.zeros((len(height_values),2))
 neigbours[0] = np.nan, 1
-neigbours[-1] = len(layers)-3, np.nan
-for i in range(1,len(layers)-2):
+neigbours[-1] = len(height_values)-2, np.nan
+for i in range(1,len(height_values)-1):
     neigbours[i] = i-1, i+1
 L = generate_L(neigbours)
+
+np.savetxt('GraphLaplacian.txt', L, header = 'Graph Lalplacian', fmt = '%.15f', delimiter= '\t')
+
 
 
 #taylor exapnsion for f to do so we need y (data)
@@ -106,13 +97,11 @@ L = generate_L(neigbours)
 #filename = '/home/lennartgolks/Python/firstModelCheck/tropical.O3.xml' #/home/lennartgolks/Python /Users/lennart/PycharmProjects/firstModelCheck/tropical.O3.xml
 filename = 'tropical.O3.xml'
 
-VMR_O3, height_values, pressure_values = testReal.get_data(filename, ObsHeight * 1e3)
+#VMR_O3, height_values, pressure_values = testReal.get_data(filename, ObsHeight * 1e3)
 #[parts if VMR_O3 * 1e6 = ppm], [m], [Pa] = [kg / (m s^2) ]\
 #height_values = np.around(height_values * 1e-3,2)#in km 1e2 # in cm
 #d_height = (height_values[1::] - height_values[0:-1] )
-d_height = layers[1::] - layers[0:-1]
-
-pressure_values = pressure_values * 1e-1 # in cgs
+#d_height = layers[1::] - layers[0:-1]
 N_A = constants.Avogadro # in mol^-1
 k_b_cgs = constants.Boltzmann * 1e7#in J K^-1
 R_gas = N_A * k_b_cgs # in ..cm^3
@@ -121,9 +110,9 @@ R_gas = N_A * k_b_cgs # in ..cm^3
 # plt.plot(VMR_O3, layers)
 # plt.show()
 
-temp_values = get_temp_values(layers[0:-1] + d_height/2 )
+temp_values = get_temp_values(height_values)
 #x = VMR_O3 * N_A * pressure_values /(R_gas * temp_values)#* 1e-13
-
+#https://hitran.org/docs/definitions-and-units/
 #files = '/home/lennartgolks/Python/firstModelCheck/634f1dc4.par' #/home/lennartgolks/Python /Users/lennart/PycharmProjects
 files = '634f1dc4.par' #/home/lennartgolks/Python /Users/lennart/PycharmProjects
 
@@ -152,15 +141,12 @@ for i, lines in enumerate(data_set):
 
 
 
-#constants in si
-h = constants.h * 1e7#in J Hz^-1
+#load constants in si annd convert to cgs units by multiplying
+h = scy.constants.h #* 1e7#in J Hz^-1
 c_cgs = constants.c * 1e2# in m/s
-k_b_cgs = constants.Boltzmann * 1e7#in J K^-1
-T = temp_values[0:-1] #in K
+k_b_cgs = constants.Boltzmann #* 1e7#in J K^-1
+#T = temp_values[0:-1] #in K
 N_A = constants.Avogadro # in mol^-1
-
-C2 = h * c_cgs /k_b_cgs
-C1 = h * c_cgs**2
 
 
 mol_M = 48 #g/mol for Ozone
@@ -173,18 +159,34 @@ lamba = 1/v_0
 f_0 = c_cgs*v_0
 print("Frequency " + str(np.around(v_0*c_cgs/1e9,2)) + " in GHz")
 
+C1 =2 * scy.constants.h * scy.constants.c**2 * v_0**3 * 1e8
+C2 = scy.constants.h * scy.constants.c * 1e2 * v_0  / (scy.constants.Boltzmann * temp_values )
 #plancks function
-Source = np.array(2 * C1/(lamba**5 * (np.exp(C2/(lamba*temp_values))-1))).reshape((47,1))
+Source = np.array(C1 /(np.exp(C2) - 1) ).reshape((SpecNumLayers+1,1))
+
 #differs from HITRAN, implemented as in Urban et al
 T_ref = 296 #K usually
 p_ref = pressure_values[0]
 
 
+
+# plt.show()
+
 # vmr might not have correct units
 #C4 =  [V(x_wvnmbrs[500],sigma[temp],gamma[temp])/sum(V(x_wvnmbrs,sigma[temp],gamma[temp])) for temp in range(0, len(temp_values)) ] #scaling trhough dopller/voigt profile
-w_cross = np.ones((len(height_values),1)) * S[ind,0] * 1e17
+
+'''weighted absorption cross section according to Hitran and MIPAS instrument description
+S is: The spectral line intensity (cm^−1/(molecule cm^−2))
+f_broad in (1/cm^-1) is the broadening due to pressure and doppler effect,
+ usually one can describe this as the convolution of Lorentz profile and Gaussian profile
+ VMR_O3 is the ozone profile in units of molecule (unitless)
+ has to be extended if multiple gases are to be monitored
+ I multiply with 1e-4 to go from cm^2 to m^2
+ '''
+f_broad = 1
+w_cross = S[ind,0] * VMR_O3 * f_broad * 1e-4
 w_cross[0], w_cross[-1] = 0, 0
-#S[ind,0] * C4[i][0]
+
 
 
 ''' calculate model depending on where the Satellite is and 
@@ -193,19 +195,41 @@ how many measurements we want to do in between the max angle and min angle
  we specify the angles
  because measurment will collect more than just the stuff around the tangent height'''
 #take linear
-num_mole = (pressure_values / (constants.Boltzmann * 1e7  * temp_values))
-theta = VMR_O3 #(num_mole * w_cross * VMR_O3 * Source)
+A_scal = pressure_values.reshape((SpecNumLayers+1,1)) / ( temp_values)
+num_mole = 1 / (scy.constants.Boltzmann )#* temp_values)
+scalingConst = 1e16
+theta =(num_mole * w_cross.reshape((SpecNumLayers+1,1)) * Source * scalingConst )
+
+
+
+
+#pressure_values[-1] = 1e-2
+A_lin = A_lin * A_scal.T#pressure_values.T
+ATA_lin = np.matmul(A_lin.T,A_lin)
+A_linu, A_lins, A_linvh = np.linalg.svd(A_lin)
+cond_A_lin =  np.max(A_lins)/np.min(A_lins)
+print("normal: " + str(orderOfMagnitude(cond_A_lin)))
+
+ATA_linu, ATA_lins, ATA_linvh = np.linalg.svd(ATA_lin)
+cond_ATA_lin = np.max(ATA_lins)/np.min(ATA_lins)
+print("Condition Number A^T A: " + str(orderOfMagnitude(cond_ATA_lin)))
+
 Ax = np.matmul(A_lin, theta)
+
 #convolve measurements and add noise
 y = add_noise(Ax, 0.01)
+#y[y < 0] = 0
+#ATy = np.matmul(A_lin.T, y)
 ATy = np.matmul(A_lin.T, y)
 
 np.savetxt('dataY.txt', y, header = 'Data y including noise', fmt = '%.15f')
 
 
+
+
 """start the mtc algo with first guesses of noise and lumping const delta"""
 
-tol = 1e-4
+tol = 1e-6
 vari = np.zeros((len(theta)-2,1))
 
 for j in range(1,len(theta)-1):
@@ -244,105 +268,15 @@ minimum = optimize.fmin(MargPost, [1/np.var(y),1/(2*np.mean(vari))])
 print(minimum)
 print(minimum[1]/minimum[0])
 
-'''L-curve refularoization
-'''
-tol = 1e-4
-lamLCurve = np.logspace(-20,20,500)
-#lamLCurve = np.linspace(1e-1,1e4,300)
-
-NormLCurve = np.zeros(len(lamLCurve))
-xTLxCurve = np.zeros(len(lamLCurve))
-for i in range(len(lamLCurve)):
-    B = (ATA_lin + lamLCurve[i] * L)
-
-    x, exitCode = gmres(B, ATy[0::, 0], tol=tol, restart=25)
-    if exitCode != 0:
-        print(exitCode)
-
-    NormLCurve[i] = np.linalg.norm( np.matmul(A_lin,x) - y[0::,0])
-    #NormLCurve[i] =np.linalg.norm( np.matmul(A_lin,x))
-    #NormLCurve[i] = np.sqrt(np.sum((np.matmul(A_lin, x) - y)**2))
-    xTLxCurve[i] = np.sqrt(np.matmul(np.matmul(x.T, L), x))
-    #xTLxCurve[i] = np.linalg.norm(np.matmul(L,x))
-
-A_linu, A_lins, A_linvh = csvd(A_lin)
-#reg_c = l_cuve(A_linu, A_lins, y[0::,0], plotit=True)
-#reg_c = l_corner(NormLCurve,xTLxCurve,lamLCurve,A_linu,A_lins,y[0::,0])
-#B = (ATA_lin + reg_c * L)
-B = (ATA_lin + minimum[1]/minimum[0] * L)
-
-x, exitCode = gmres(B, ATy[0::, 0], tol=tol, restart=25)
-if exitCode != 0:
-    print(exitCode)
-
-lamLCurveZoom = np.logspace(4,10,500)
-NormLCurveZoom = np.zeros(len(lamLCurve))
-xTLxCurveZoom = np.zeros(len(lamLCurve))
-for i in range(len(lamLCurveZoom)):
-    B = (ATA_lin + lamLCurveZoom[i] * L)
-
-    x, exitCode = gmres(B, ATy[0::, 0], tol=tol, restart=25)
-    if exitCode != 0:
-        print(exitCode)
-
-    NormLCurveZoom[i] = np.linalg.norm( np.matmul(A_lin,x) - y[0::,0])
-    xTLxCurveZoom[i] = np.sqrt(np.matmul(np.matmul(x.T, L), x))
-
-A_linu, A_lins, A_linvh = csvd(A_lin)
-B = (ATA_lin + minimum[1]/minimum[0] * L)
-x, exitCode = gmres(B, ATy[0::, 0], tol=tol, restart=25)
-if exitCode != 0:
-    print(exitCode)
-
-fig, axs = plt.subplots( 1,1, tight_layout=True)
-axs.scatter(NormLCurve,xTLxCurve, zorder = 0)
-axs.scatter(np.linalg.norm(np.matmul(A_lin, x) - y[0::, 0]),np.sqrt(np.matmul(np.matmul(x.T, L), x)))
-#axs.annotate('$\lambda_0$ = ' + str(math.ceil(minimum[1]/minimum[0])), (np.linalg.norm(np.matmul(A_lin, x) - y[0::, 0]),np.sqrt(np.matmul(np.matmul(x.T, L), x))))
-#axs.annotate('$\lambda$ = 1e' + str(orderOfMagnitude(lamLCurve[0])), (NormLCurve[0],xTLxCurve[0]))
-#axs.annotate('$\lambda$ = 1e' + str(orderOfMagnitude(lamLCurve[-1])), (NormLCurve[-1],xTLxCurve[-1]))
-import mpl_toolkits as mplT
-#from mpl_toolkits.axes_grid1.inset_locator import mark_inset, zoomed_inset_axes, inset_axes
-#axins = zoomed_inset_axes(axs,zoom = 1,loc='lower left')
-
-#axins.scatter(NormLCurveZoom,xTLxCurveZoom)#,'o', color='black')
-#axins.plot(MTCnorms[:,0], MTCnorms[:,1], marker = "." ,mfc = 'black' , markeredgecolor='r',markersize=10,linestyle = 'None')
-#axins.scatter(norm_data, norm_f)
-x1, x2, y1, y2 = NormLCurveZoom[0], NormLCurveZoom[-1], xTLxCurveZoom[0], xTLxCurveZoom[-1] # specify the limits
-#axins = mplT.axes_grid1.inset_locator.inset_axes( parent_axes = axs,  bbox_transform=axs.transAxes, bbox_to_anchor =(0.05,0.05,0.75,0.75) , width = '100%' , height = '100%')#,  loc= 'lower left')
-axins = axs.inset_axes([0.01,0.05,0.75,0.75])
-
-axins.scatter(NormLCurveZoom,xTLxCurveZoom)#,'o', color='black')
-axins.set_xscale('log')
-axins.set_yscale('log')
-axins.set_xlim(x1, x2) # apply the x-limits
-axins.set_ylim(y2, y1) # apply the y-limits (negative gradient)
-axins.set_xticklabels([])
-axins.set_yticklabels([])
-axs.indicate_inset_zoom(axins, edgecolor="black")
-#axins.tick_params( bottom=False, left=False, labelbottom = False, labelleft = False)
-#mark_inset(axs, axins, loc1=2, loc2=4 ,fc="none", ec="0.5")
-
-axs.set_xscale('log')
-axs.set_yscale('log')
-axs.set_ylabel(r'$\sqrt{x^T L x}$')
-axs.set_xlabel(r'$|| Ax - y ||$')
-axs.set_title('L-curve for m=' + str(SpecNumMeas))
-plt.savefig('LCurve.png')
-plt.show()
-
-
-np.savetxt('LCurve.txt', np.vstack((NormLCurve,xTLxCurve, lamLCurve)).T, header = 'Norm ||Ax - y|| \t sqrt(x.T L x) \t lambdas', fmt = '%.15f \t %.15f \t %.15f')
-
-np.savetxt('A_lin.txt', A_lin, header = 'linear forward model A', fmt = '%.15f', delimiter= '\t')
-
 
 
 
 
 
 '''do the sampling'''
-
-number_samples = 10000
+ #10**(orderOfMagnitude(abs_tol * np.linalg.norm(L[:,1]))-2)
+#hyperarameters
+number_samples = 1000
 gammas = np.zeros(number_samples)
 deltas = np.zeros(number_samples)
 lambdas = np.zeros(number_samples)
@@ -362,6 +296,16 @@ for i in range(len(B)):
     if exitCode != 0:
         print(exitCode)
 
+B_inv = np.zeros(np.shape(B))
+for i in range(len(B)):
+    e = np.zeros(len(B))
+    e[i] = 1
+    B_inv[:, i], exitCode = gmres(B, e, tol=tol, restart=25)
+    if exitCode != 0:
+        print('B_inv ' + str(exitCode))
+
+B_inv_L = np.matmul(B_inv,L)
+
 B_inv_A_trans_y, exitCode = gmres(B, ATy[0::, 0], tol=tol, restart=25)
 if exitCode != 0:
     print(exitCode)
@@ -372,20 +316,25 @@ B_inv_L_4 = np.matmul(B_inv_L_2, B_inv_L_2)
 B_inv_L_5 = np.matmul(B_inv_L_4, B_inv_L)
 
 
+Bu, Bs, Bvh = np.linalg.svd(B)
+cond_B =  np.max(Bs)/np.min(Bs)
+print("normal: " + str(orderOfMagnitude(cond_B)))
 
 k = 0
-wLam = 2e4
-wgam = 1e-5
-wdelt = 1e-1
+wLam = 30
+#wgam = 1e-5
+#wdelt = 1e-1
 betaG = 1e-4
 betaD = 1e-4
 alphaG = 1
 alphaD = 1
 rate = f(ATy, y, B_inv_A_trans_y) / 2 + betaG + betaD * lambdas[0]
+# draw gamma with a gibs step
+shape = (SpecNumLayers - 1) / 2 + alphaD + alphaG
 
 startTime = time.time()
 for t in range(number_samples-1):
-
+    #print(t)
 
     # # draw new lambda
     lam_p = normal(lambdas[t], wLam)
@@ -397,7 +346,7 @@ for t in range(number_samples-1):
     delta_f = f_tayl(delta_lam, B_inv_A_trans_y, ATy[0::, 0], B_inv_L, B_inv_L_2, B_inv_L_3, B_inv_L_4,B_inv_L_5)
     delta_g = g_tayl(delta_lam, B_inv_L, B_inv_L_2, B_inv_L_3, B_inv_L_4, B_inv_L_5)
 
-    log_MH_ratio = ((SpecNumLayers - 1)/ 2) * (np.log(lam_p) - np.log(lambdas[t])) - 0.5 * (delta_g + gammas[t] * delta_f) - betaD * gammas[t] * delta_lam
+    log_MH_ratio = ((SpecNumLayers + 1)/ 2) * (np.log(lam_p) - np.log(lambdas[t])) - 0.5 * (delta_g + gammas[t] * delta_f) - betaD * gammas[t] * delta_lam
 
     #accept or rejeict new lam_p
     u = uniform()
@@ -414,11 +363,19 @@ for t in range(number_samples-1):
         # CheckB_inv_ATy = np.matmul(B, B_inv_A_trans_y)
         # print(np.allclose(CheckB_inv_ATy, ATy[0::, 0], rtol=relative_tol_ATy))
 
+        # B_inv = np.zeros(np.shape(B))
+        # for i in range(len(B)):
+        #     B_inv[:, i], exitCode = gmres(B, e, tol=tol, restart=25)
+        #     if exitCode != 0:
+        #         print('B_inv ' + str(exitCode))
+        #
+        # B_inv_L = np.matmul(B_inv, L)
+
         B_inv_L = np.zeros(np.shape(B))
         for i in range(len(B)):
             B_inv_L[:, i], exitCode = gmres(B, L[:, i], tol=tol, restart=25)
-            # if exitCode != 0:
-            #    print(exitCode)
+            if exitCode != 0:
+               print(exitCode)
         #CheckB_inv_L = np.matmul(B, B_inv_L)
         #print(np.linalg.norm(L- CheckB_inv_L)/np.linalg.norm(L)<relative_tol_L)
 
@@ -433,8 +390,7 @@ for t in range(number_samples-1):
         #rejcet
         lambdas[t + 1] = np.copy(lambdas[t])
 
-    #draw gamma with a gibs step
-    shape =  (SpecNumLayers - 1)/ 2 + alphaD + alphaG
+
 
 
     gammas[t+1] = np.random.gamma(shape, scale = 1/rate)
@@ -443,14 +399,116 @@ for t in range(number_samples-1):
 
 
 
+
 elapsed = time.time() - startTime
 print('acceptance ratio: ' + str(k/number_samples))
-print(np.mean(gammas[30::]))
-print(np.mean(deltas[30::]))
-print(np.mean(lambdas[30::]))
-np.savetxt('samples.txt', np.vstack((gammas, deltas, lambdas)).T, header = 'Acceptance Ratio: ' + str(k/number_samples) + '\n Elapsed Time: ' + str(elapsed) + ' \n gammas \t deltas \t lambdas \n ', fmt = '%.15f \t %.15f \t %.15f')
+np.savetxt('samples.txt', np.vstack((gammas, deltas, lambdas)).T, header = 'gammas \t deltas \t lambdas \n Acceptance Ratio: ' + str(k/number_samples) + '\n Elapsed Time: ' + str(elapsed), fmt = '%.15f \t %.15f \t %.15f')
+
+#delt_aav, delt_diff, delt_ddiff, delt_itau, delt_itau_diff, delt_itau_aav, delt_acorrn = uWerr(deltas, acorr=None, s_tau=1.5, fast_threshold=5000)
+
+import matlab.engine
+eng = matlab.engine.start_matlab()
+eng.Run_Autocorr_Ana_MTC(nargout=0)
+eng.quit()
+
+
+AutoCorrData = np.loadtxt("auto_corr_dat.txt", skiprows=3, dtype='float')
+#IntAutoLam, IntAutoGam , IntAutoDelt = np.loadtxt("auto_corr_dat.txt",userow = 1, skiprows=1, dtype='float'
+
+with open("auto_corr_dat.txt") as fID:
+    for n, line in enumerate(fID):
+       if n == 1:
+            IntAutoDelt, IntAutoGam, IntAutoLam = [float(IAuto) for IAuto in line.split()]
+            break
 
 
 
+#refine according to autocorrelation time
+burnIn = 50
 
-print('bla')
+new_lamb = lambdas[burnIn::math.ceil(IntAutoLam)]
+#SetLambda = new_lamb[np.random.randint(low=0, high=len(new_lamb), size=1)]
+new_gam = gammas[burnIn::math.ceil(IntAutoGam)]
+#SetGamma = new_gam[np.random.randint(low = 0,high =len(new_gam),size =1)]
+new_delt = deltas[burnIn::math.ceil(IntAutoDelt)]
+#SetDelta = new_delt[np.random.randint(low = 0,high =len(new_delt),size =1)]
+
+
+fig, axs = plt.subplots(3, 1,tight_layout=True)
+n_bins = 20
+
+# We can set the number of bins with the *bins* keyword argument.
+axs[0].hist(new_gam,bins=n_bins)#int(n_bins/math.ceil(IntAutoGam)))
+axs[0].set_title(str(len(new_gam)) + ' effective $\gamma$ samples')
+axs[1].hist(new_delt,bins=n_bins)#int(n_bins/math.ceil(IntAutoDelt)))
+axs[1].set_title(str(len(new_delt)) + ' effective $\delta$ samples')
+axs[2].hist(new_lamb,bins=n_bins)#10)
+axs[2].xaxis.set_major_formatter(scientific_formatter)
+axs[2].set_title(str(len(new_lamb)) + ' effective $\lambda =\delta / \gamma$ samples')
+plt.savefig('HistoResults.png')
+plt.show()
+
+
+#draw paramter samples
+paraSamp = 10
+Results = np.zeros((paraSamp,len(theta)))
+NormRes = np.zeros(paraSamp)
+xTLxRes = np.zeros(paraSamp)
+
+for p in range(paraSamp):
+    # SetLambda = new_lamb[np.random.randint(low=0, high=len(new_lamb), size=1)]
+    SetGamma = new_gam[np.random.randint(low=0, high=len(new_gam), size=1)] #minimum[0]
+    SetDelta  = new_delt[np.random.randint(low=0, high=len(new_delt), size=1)] #minimum[1]
+    v_1 = np.sqrt(SetGamma) * np.random.multivariate_normal(np.zeros(len(ATA_lin)), ATA_lin)
+    v_2 = np.sqrt(SetDelta) * np.random.multivariate_normal(np.zeros(len(L)), L)
+
+    SetB = SetGamma * ATA_lin + SetDelta * L
+
+    SetB_inv = np.zeros(np.shape(SetB))
+    for i in range(len(SetB)):
+        e = np.zeros(len(SetB))
+        e[i] = 1
+        SetB_inv[:, i], exitCode = gmres(SetB, e, tol=tol, restart=25)
+        if exitCode != 0:
+            print(exitCode)
+
+    CheckB_inv = np.matmul(SetB, SetB_inv)
+    print(np.linalg.norm(np.eye(len(SetB)) - CheckB_inv) / np.linalg.norm(np.eye(len(SetB))) < tol)
+
+    Results[p, :] = np.matmul(SetB_inv, (SetGamma * ATy[0::, 0] + v_1 + v_2))
+
+    NormRes[p] = np.linalg.norm( np.matmul(A_lin,Results[p, :]) - y[0::,0])
+    xTLxRes[p] = np.sqrt(np.matmul(np.matmul(Results[p, :].T, L), Results[p, :]))
+
+
+scalConst = scalingConst * scalingConstkm
+fig3, ax1 = plt.subplots(tight_layout=True)
+#plt.plot(theta,layers[0:-1] + d_height/2, color = 'red')
+line1 = plt.plot(theta/ (scalConst),height_values, color = [0,0.5,0.5], linewidth = 5, label = 'true parameter value', zorder=0)
+#line1, = plt.plot(theta* max(np.mean(Results,0))/max(theta),layers[0:-1] + d_height/2, color = [0,0.5,0.5], linewidth = 5, label = 'true parameter value')
+#line2, = plt.plot(np.mean(Results,0),layers[0:-1] + d_height/2,color = 'green', label = 'MC estimate')
+# for i in range(paraSamp):
+#     line2, = plt.plot(Results[i,:],layers[0:-1] + d_height/2,color = 'green', label = 'MC estimate')
+line2 = plt.errorbar(np.mean(Results,0 )/ (scalConst),height_values,capsize=4,yerr = np.zeros(len(height_values)),color = 'red', label = 'MC estimate')#, label = 'MC estimate')
+line4 = plt.errorbar(np.mean(Results / (scalConst),0),height_values,capsize=4, xerr = np.sqrt(np.var(Results /(scalConst),0))/2 ,color = 'red', label = 'MC estimate')#, label = 'MC estimate')
+ax2 = ax1.twiny() # ax1 and ax2 share y-axis
+line3 = ax2.plot(y,tang_heights_lin, color = 'gold', label = 'data')
+ax2.spines['top'].set_color('gold')
+ax2.set_xlabel('Data')
+ax2.tick_params(labelcolor="gold")
+ax1.set_xlabel(r'Spectral Ozone radiance $\frac{W}{m^2 sr}\frac{1}{\frac{1}{cm}}$')
+multicolor_ylabel(ax1,('(Tangent)','Height in km'),('k', 'gold'),axis='y')
+ax1.legend(['true parameter value', 'MC estimate'])
+plt.ylabel('Height in km')
+fig3.savefig('FirstRecRes.png')
+plt.show()
+
+
+
+fig5, ax1 = plt.subplots()
+line2 = plt.errorbar(np.mean(Results,0 ).reshape((SpecNumLayers+1,1)) / (num_mole * S[ind,0] * f_broad * 1e-4 * Source * scalingConst),height_values,capsize=4,yerr = np.zeros(len(height_values)),color = 'red', label = 'MC estimate')
+#plt.plot(theta,layers[0:-1] + d_height/2, color = 'red')np.mean(Results,0)[1:-1]/( num_mole[1:-1,0] * Source[1:-1,0] *)
+#line1 = plt.plot(np.mean(Results,0)[1:-1]/(S[ind,0] * f_broad * 1e-4 * scalingConst*Source[1:-1,0]  ),layers[1:-2] + d_height[1:-1]/2, color = [0,0.5,0.5], linewidth = 5, label = 'true parameter value')
+ax1.set_xlabel('Ozone Source Value')
+ax1.set_ylabel('Height in km')
+plt.show()

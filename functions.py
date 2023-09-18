@@ -192,17 +192,23 @@ where each collum is one measurment defined by a tangent height
 every entry is length in km each measurement goes through
 first non-zero entry of each row is the lowest layer (which should have a Ozone amount of 0)
 last entry of each row is highest layer (also 0 Ozone)'''
-def gen_forward_map(meas_ang, layers, obs_height, R):
+def gen_forward_map(meas_ang, height, obs_height, R):
     tang_height = np.around((np.sin(meas_ang) * (obs_height + R)) - R, 2)
-
     num_meas = len(tang_height)
+    # add one extra layer so that the difference in height can be calculated
+    layers = np.zeros(len(height)+1)
+    layers[0:-1] = height
+    layers[-1] = height[-1] + (height[-1] - height[-2])/2
 
-    A_height = np.zeros((num_meas, len(layers) - 1))
+
+    A_height = np.zeros((num_meas, len(layers)-1))
     t = 0
     for m in range(0, num_meas):
 
         while layers[t] <= tang_height[m]:
+
             t += 1
+
         # first dr
         A_height[m, t - 1] = np.sqrt((layers[t] + R) ** 2 - (tang_height[m] + R) ** 2)
         dr = A_height[m, t - 1]
@@ -210,7 +216,7 @@ def gen_forward_map(meas_ang, layers, obs_height, R):
             A_height[m, i] = np.sqrt((layers[i + 1] + R) ** 2 - (tang_height[m] + R) ** 2) - dr
             dr = dr + A_height[m, i]
 
-    return 2 * A_height, tang_height
+    return 2 * A_height, tang_height, layers[-1]
 
 
 def f(ATy, y, B_inv_A_trans_y):
