@@ -204,23 +204,23 @@ theta =(num_mole * w_cross.reshape((SpecNumLayers+1,1)) * Source * scalingConst 
 
 
 #pressure_values[-1] = 1e-2
-A_lin = A_lin * A_scal.T#pressure_values.T
-ATA_lin = np.matmul(A_lin.T,A_lin)
-A_linu, A_lins, A_linvh = np.linalg.svd(A_lin)
-cond_A_lin =  np.max(A_lins)/np.min(A_lins)
-print("normal: " + str(orderOfMagnitude(cond_A_lin)))
+A = A_lin * A_scal.T#pressure_values.T
+ATA = np.matmul(A.T,A)
+Au, As, Avh = np.linalg.svd(A)
+cond_A =  np.max(A_lins)/np.min(As)
+print("normal: " + str(orderOfMagnitude(cond_A)))
 
-ATA_linu, ATA_lins, ATA_linvh = np.linalg.svd(ATA_lin)
-cond_ATA_lin = np.max(ATA_lins)/np.min(ATA_lins)
-print("Condition Number A^T A: " + str(orderOfMagnitude(cond_ATA_lin)))
+ATAu, ATAs, ATAvh = np.linalg.svd(ATA)
+cond_ATA = np.max(ATAs)/np.min(ATAs)
+print("Condition Number A^T A: " + str(orderOfMagnitude(cond_ATA)))
 
-Ax = np.matmul(A_lin, theta)
+Ax = np.matmul(A, theta)
 
 #convolve measurements and add noise
 y = add_noise(Ax, 0.01)
 #y[y < 0] = 0
 #ATy = np.matmul(A_lin.T, y)
-ATy = np.matmul(A_lin.T, y)
+ATy = np.matmul(A.T, y)
 
 np.savetxt('dataY.txt', y, header = 'Data y including noise', fmt = '%.15f')
 
@@ -249,14 +249,14 @@ def MargPost(params):#, coeff):
 
     n = SpecNumLayers-1
 
-    Bp= ATA_lin + delta/gamma * L
+    Bp= ATA + delta/gamma * L
 
 
     B_inv_A_trans_y, exitCode = gmres(Bp, ATy[0::, 0], tol=tol, restart=25)
     if exitCode != 0:
         print(exitCode)
 
-    G = g(A_lin, L,  delta/gamma)
+    G = g(A, L,  delta/gamma)
     F = f(ATy, y,  B_inv_A_trans_y)
 
     return -n/2 * np.log(delta) + 0.5 * G + 0.5 * gamma * F + 1e-4 * ( delta + gamma)
@@ -276,7 +276,7 @@ print(minimum[1]/minimum[0])
 '''do the sampling'''
  #10**(orderOfMagnitude(abs_tol * np.linalg.norm(L[:,1]))-2)
 #hyperarameters
-number_samples = 1000
+number_samples = 5000
 gammas = np.zeros(number_samples)
 deltas = np.zeros(number_samples)
 lambdas = np.zeros(number_samples)
@@ -286,9 +286,9 @@ gammas[0] = minimum[0] #3.7e-5#1/np.var(y) * 1e1 #(0.01* np.max(Ax))1e-5#
 deltas[0] =  minimum[1] #0.275#1/(2*np.mean(vari))0.1#
 lambdas[0] = deltas[0]/gammas[0]
 
-ATy = np.matmul(A_lin.T, y)
+ATy = np.matmul(A.T, y)
 
-B = (ATA_lin + lambdas[0] * L)
+B = (ATA + lambdas[0] * L)
 
 B_inv_L = np.zeros(np.shape(B))
 for i in range(len(B)):
@@ -356,7 +356,7 @@ for t in range(number_samples-1):
         lambdas[t + 1] = lam_p
         #only calc when lambda is updated
         #B = (ATA_lin + lambdas[t+1] * L)
-        B = (ATA_lin + lam_p * L)
+        B = (ATA + lam_p * L)
         B_inv_A_trans_y, exitCode = gmres(B, ATy[0::, 0], tol=tol, restart=25)
         # if exitCode != 0:
         #     print(exitCode)
@@ -459,10 +459,10 @@ for p in range(paraSamp):
     # SetLambda = new_lamb[np.random.randint(low=0, high=len(new_lamb), size=1)]
     SetGamma = new_gam[np.random.randint(low=0, high=len(new_gam), size=1)] #minimum[0]
     SetDelta  = new_delt[np.random.randint(low=0, high=len(new_delt), size=1)] #minimum[1]
-    v_1 = np.sqrt(SetGamma) * np.random.multivariate_normal(np.zeros(len(ATA_lin)), ATA_lin)
+    v_1 = np.sqrt(SetGamma) * np.random.multivariate_normal(np.zeros(len(ATA)), ATA)
     v_2 = np.sqrt(SetDelta) * np.random.multivariate_normal(np.zeros(len(L)), L)
 
-    SetB = SetGamma * ATA_lin + SetDelta * L
+    SetB = SetGamma * ATA + SetDelta * L
 
     SetB_inv = np.zeros(np.shape(SetB))
     for i in range(len(SetB)):
@@ -477,7 +477,7 @@ for p in range(paraSamp):
 
     Results[p, :] = np.matmul(SetB_inv, (SetGamma * ATy[0::, 0] + v_1 + v_2))
 
-    NormRes[p] = np.linalg.norm( np.matmul(A_lin,Results[p, :]) - y[0::,0])
+    NormRes[p] = np.linalg.norm( np.matmul(A,Results[p, :]) - y[0::,0])
     xTLxRes[p] = np.sqrt(np.matmul(np.matmul(Results[p, :].T, L), Results[p, :]))
 
 

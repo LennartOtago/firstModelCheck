@@ -487,17 +487,17 @@ theta =(num_mole * w_cross.reshape((SpecNumLayers+1,1)) * Source * scalingConst 
 
 
 #pressure_values[-1] = 1e-2
-A_lin = A_lin * pressure_values.T
-ATA_lin = np.matmul(A_lin.T,A_lin)
-A_linu, A_lins, A_linvh = np.linalg.svd(A_lin)
-cond_A_lin =  np.max(A_lins)/np.min(A_lins)
-print("normal: " + str(orderOfMagnitude(cond_A_lin)))
+A = A_lin * pressure_values.T
+ATA = np.matmul(A.T,A)
+Au, As, Avh = np.linalg.svd(A)
+cond_A =  np.max(As)/np.min(As)
+print("normal: " + str(orderOfMagnitude(cond_A)))
 
-ATA_linu, ATA_lins, ATA_linvh = np.linalg.svd(ATA_lin)
-cond_ATA_lin = np.max(ATA_lins)/np.min(ATA_lins)
-print("Condition Number A^T A: " + str(orderOfMagnitude(cond_ATA_lin)))
+ATAu, ATAs, ATAvh = np.linalg.svd(ATA)
+cond_ATA = np.max(ATAs)/np.min(ATAs)
+print("Condition Number A^T A: " + str(orderOfMagnitude(cond_ATA)))
 
-Ax = np.matmul(A_lin, theta)
+Ax = np.matmul(A, theta)
 
 #convolve measurements and add noise
 y = add_noise(Ax, 0.01)
@@ -574,7 +574,7 @@ g_func = np.zeros(len(lam))
 
 for j in range(len(lam)):
 
-    B = (ATA_lin + lam[j] * L)
+    B = (ATA + lam[j] * L)
 
     B_inv_A_trans_y, exitCode = gmres(B, ATy[0::, 0], tol=tol, restart=25)
     #print(exitCode)
@@ -585,7 +585,7 @@ for j in range(len(lam)):
     else:
         f_func[j] = np.nan
 
-    g_func[j] = g(A_lin, L, lam[j])
+    g_func[j] = g(A, L, lam[j])
 
 # fig,axs = plt.subplots(1,2, figsize=(14, 5))
 # axs[1].plot(lam,g_func)
@@ -633,7 +633,7 @@ for j in range(len(lam)):
 '''check error in g(lambda)'''
 
 
-B = (ATA_lin + minimum[1]/minimum[0] * L)
+B = (ATA + minimum[1]/minimum[0] * L)
 
 B_inv = np.zeros(np.shape(B))
 for i in range(len(B)):
@@ -723,7 +723,7 @@ for j in range(len(lam_try)):
 '''do the sampling'''
  #10**(orderOfMagnitude(abs_tol * np.linalg.norm(L[:,1]))-2)
 #hyperarameters
-number_samples = 10000
+number_samples = 5000
 gammas = np.zeros(number_samples)
 deltas = np.zeros(number_samples)
 lambdas = np.zeros(number_samples)
