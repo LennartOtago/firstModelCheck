@@ -88,7 +88,8 @@ print('Distance through layers check: ' + str(np.allclose( sum(A_lin.T), tot_r))
 
 
 
-#graph Laplacian
+# graph Laplacian
+# direchlet boundary condition
 neigbours = np.zeros((len(height_values),2))
 neigbours[0] = np.nan, 1
 neigbours[-1] = len(height_values)-2, np.nan
@@ -381,34 +382,11 @@ deltas[0] =  minimum[1] #0.275#1/(2*np.mean(vari))0.1#
 lambdas[0] = deltas[0]/gammas[0]
 
 ATy = np.matmul(A.T, y)
-
 B = (ATA + lambdas[0] * L)
-
-B_inv_L = np.zeros(np.shape(B))
-for i in range(len(B)):
-    B_inv_L[:, i], exitCode = gmres(B, L[:, i], tol=tol, restart=25)
-    if exitCode != 0:
-        print(exitCode)
-
-B_inv = np.zeros(np.shape(B))
-for i in range(len(B)):
-    e = np.zeros(len(B))
-    e[i] = 1
-    B_inv[:, i], exitCode = gmres(B, e, tol=tol, restart=25)
-    if exitCode != 0:
-        print('B_inv ' + str(exitCode))
-
-B_inv_L = np.matmul(B_inv,L)
 
 B_inv_A_trans_y, exitCode = gmres(B, ATy[0::, 0], tol=tol, restart=25)
 if exitCode != 0:
     print(exitCode)
-
-B_inv_L_2 = np.matmul(B_inv_L, B_inv_L)
-B_inv_L_3 = np.matmul(B_inv_L_2, B_inv_L)
-B_inv_L_4 = np.matmul(B_inv_L_2, B_inv_L_2)
-B_inv_L_5 = np.matmul(B_inv_L_4, B_inv_L)
-
 
 Bu, Bs, Bvh = np.linalg.svd(B)
 cond_B =  np.max(Bs)/np.min(Bs)
@@ -426,6 +404,9 @@ rate = f(ATy, y, B_inv_A_trans_y) / 2 + betaG + betaD * lambdas[0]
 # draw gamma with a gibs step
 shape = SpecNumLayers/2 + alphaD + alphaG
 
+f_old = f(ATy, y,  B_inv_A_trans_y)
+g_old = g(A, L,  lambdas[0])
+
 startTime = time.time()
 for t in range(number_samples-1):
     #print(t)
@@ -437,8 +418,17 @@ for t in range(number_samples-1):
             lam_p = normal(lambdas[t], wLam)
 
     delta_lam = lam_p - lambdas[t]
-    delta_f = f_tayl(delta_lam, B_inv_A_trans_y, ATy[0::, 0], B_inv_L, B_inv_L_2, B_inv_L_3, B_inv_L_4,B_inv_L_5)
-    delta_g = g_tayl(delta_lam, B_inv_L, B_inv_L_2, B_inv_L_3, B_inv_L_4, B_inv_L_5)
+    B = (ATA + lam_p * L)
+    B_inv_A_trans_y, exitCode = gmres(B, ATy[0::, 0], tol=tol, restart=25)
+    if exitCode != 0:
+        print(exitCode)
+
+
+    f_new = f(ATy, y,  B_inv_A_trans_y)
+    g_new = g(A, L,  lam_p)
+
+    delta_f = f_new - f_old
+    delta_g = g_new - g_old
 
     log_MH_ratio = ((SpecNumLayers)/ 2) * (np.log(lam_p) - np.log(lambdas[t])) - 0.5 * (delta_g + gammas[t] * delta_f) - betaD * gammas[t] * delta_lam
 
@@ -449,24 +439,11 @@ for t in range(number_samples-1):
         k = k + 1
         lambdas[t + 1] = lam_p
         #only calc when lambda is updated
-        #B = (ATA_lin + lambdas[t+1] * L)
+
         B = (ATA + lam_p * L)
-        B_inv_A_trans_y, exitCode = gmres(B, ATy[0::, 0], tol=tol, restart=25)
-
-
-        B_inv_L = np.zeros(np.shape(B))
-        for i in range(len(B)):
-            B_inv_L[:, i], exitCode = gmres(B, L[:, i], tol=tol, restart=25)
-            if exitCode != 0:
-               print(exitCode)
-
-
-        B_inv_L_2 = np.matmul(B_inv_L, B_inv_L)
-        B_inv_L_3 = np.matmul(B_inv_L_2, B_inv_L)
-        B_inv_L_4 = np.matmul(B_inv_L_2, B_inv_L_2)
-        B_inv_L_5 = np.matmul(B_inv_L_4, B_inv_L)
-
-        rate = f(ATy, y, B_inv_A_trans_y)/2 + betaG + betaD * lam_p#lambdas[t+1]
+        f_old = np.copy(f_new)
+        g_old = np.copy(g_new)
+        rate = f_new/2 + betaG + betaD * lam_p#lambdas[t+1]
 
     else:
         #rejcet
@@ -478,7 +455,6 @@ for t in range(number_samples-1):
     gammas[t+1] = np.random.gamma(shape, scale = 1/rate)
 
     deltas[t+1] = lambdas[t+1] * gammas[t+1]
-
 
 
 

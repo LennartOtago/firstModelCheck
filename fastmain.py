@@ -324,6 +324,9 @@ rate = f(ATy, y, B_inv_A_trans_y) / 2 + betaG + betaD * lambdas[0]
 # draw gamma with a gibs step
 shape = SpecNumLayers/2 + alphaD + alphaG
 
+f_old = f(ATy, y,  B_inv_A_trans_y)
+g_old = g(A, L,  lambdas[0])
+
 startTime = time.time()
 for t in range(number_samples-1):
     #print(t)
@@ -358,9 +361,9 @@ for t in range(number_samples-1):
         #only calc when lambda is updated
 
         B = (ATA + lam_p * L)
-        f_old = f(ATy, y,  B_inv_A_trans_y)
-        g_old = g(A, L,  lambdas[t + 1])
-        rate = f(ATy, y, B_inv_A_trans_y)/2 + betaG + betaD * lam_p#lambdas[t+1]
+        f_old = np.copy(f_new)
+        g_old = np.copy(g_new)
+        rate = f_new/2 + betaG + betaD * lam_p#lambdas[t+1]
 
     else:
         #rejcet
@@ -422,4 +425,5 @@ axs[2].hist(new_lamb,bins=n_bins)#10)
 axs[2].xaxis.set_major_formatter(scientific_formatter)
 axs[2].set_title(str(len(new_lamb)) + ' effective $\lambda =\delta / \gamma$ samples')
 plt.savefig('HistoResults.png')
-#plt.show()
+plt.show()
+

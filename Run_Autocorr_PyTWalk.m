@@ -5,8 +5,8 @@ close all
 
 %data = importdata('MargPostDat.txt');
 data = readmatrix('MargPostDat.txt');
-deltas = data(:,1); %str2num(cell2mat(data.textdata(2:end,1)));
-gammas = data(:,2); %str2num(cell2mat(data.textdata(2:end,2)));
+gammas = data(:,1); %str2num(cell2mat(data.textdata(2:end,1)));
+deltas = data(:,2); %str2num(cell2mat(data.textdata(2:end,2)));
 lambdas = deltas./gammas;
 
 burn = 50;
@@ -33,9 +33,9 @@ z(1,1:length(rho_lam)) = rho_lam;
 headers ='Integrated Autocorrelation time\n';
 fileID = fopen('autoCorrPyTWalk.txt','w');
 fprintf(fileID,headers);
-fprintf(fileID,'%1.5f %2.5f %3.5f\n', (2*tauint_del), (2*tauint_gam), (2*tauint_lam));
-fprintf(fileID,'%1s %2s %3s\n', 'rho_delta', 'rho_gamma', 'rho_lambda');
-fprintf(fileID,'%1.5f %2.5f %3.5f\n', [ x; y; z]);
+fprintf(fileID,'%1.5f %2.5f %3.5f\n', (2*tauint_gam), (2*tauint_del), (2*tauint_lam));
+fprintf(fileID,'%1s %2s %3s\n', 'rho_gamma', 'rho_delta','rho_lambda');
+fprintf(fileID,'%1.5f %2.5f %3.5f\n', [ y; x; z]);
 fclose(fileID);
 
 close all

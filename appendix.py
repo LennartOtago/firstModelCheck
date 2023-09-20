@@ -450,3 +450,120 @@ around lam0 delta_lam = '''
 # plt.plot(RecO3,layers[1:-2] + d_height[1:-1]/2, color = 'green')
 #
 # plt.show()
+
+
+'''mtc sampling using taylor expansions 
+is slow for small matrices '''
+
+# number_samples = 10000
+# gammas = np.zeros(number_samples)
+# deltas = np.zeros(number_samples)
+# lambdas = np.zeros(number_samples)
+#
+# #inintialize sample
+# gammas[0] = minimum[0] #3.7e-5#1/np.var(y) * 1e1 #(0.01* np.max(Ax))1e-5#
+# deltas[0] =  minimum[1] #0.275#1/(2*np.mean(vari))0.1#
+# lambdas[0] = deltas[0]/gammas[0]
+#
+# ATy = np.matmul(A.T, y)
+#
+# B = (ATA + lambdas[0] * L)
+#
+# B_inv_L = np.zeros(np.shape(B))
+# for i in range(len(B)):
+#     B_inv_L[:, i], exitCode = gmres(B, L[:, i], tol=tol, restart=25)
+#     if exitCode != 0:
+#         print(exitCode)
+#
+# B_inv = np.zeros(np.shape(B))
+# for i in range(len(B)):
+#     e = np.zeros(len(B))
+#     e[i] = 1
+#     B_inv[:, i], exitCode = gmres(B, e, tol=tol, restart=25)
+#     if exitCode != 0:
+#         print('B_inv ' + str(exitCode))
+#
+# B_inv_L = np.matmul(B_inv,L)
+#
+# B_inv_A_trans_y, exitCode = gmres(B, ATy[0::, 0], tol=tol, restart=25)
+# if exitCode != 0:
+#     print(exitCode)
+#
+# B_inv_L_2 = np.matmul(B_inv_L, B_inv_L)
+# B_inv_L_3 = np.matmul(B_inv_L_2, B_inv_L)
+# B_inv_L_4 = np.matmul(B_inv_L_2, B_inv_L_2)
+# B_inv_L_5 = np.matmul(B_inv_L_4, B_inv_L)
+#
+#
+# Bu, Bs, Bvh = np.linalg.svd(B)
+# cond_B =  np.max(Bs)/np.min(Bs)
+# print("normal: " + str(orderOfMagnitude(cond_B)))
+
+
+# k = 0
+# wLam = 20
+# #wgam = 1e-5
+# #wdelt = 1e-1
+# betaG = 1e-4
+# betaD = 1e-4
+# alphaG = 1
+# alphaD = 1
+# rate = f(ATy, y, B_inv_A_trans_y) / 2 + betaG + betaD * lambdas[0]
+# # draw gamma with a gibs step
+# shape = SpecNumLayers/2 + alphaD + alphaG
+#
+# startTime = time.time()
+# for t in range(number_samples-1):
+#     #print(t)
+#
+#     # # draw new lambda
+#     lam_p = normal(lambdas[t], wLam)
+#
+#     while lam_p < 0:
+#             lam_p = normal(lambdas[t], wLam)
+#
+#     delta_lam = lam_p - lambdas[t]
+#     delta_f = f_tayl(delta_lam, B_inv_A_trans_y, ATy[0::, 0], B_inv_L, B_inv_L_2, B_inv_L_3, B_inv_L_4,B_inv_L_5)
+#     delta_g = g_tayl(delta_lam, B_inv_L, B_inv_L_2, B_inv_L_3, B_inv_L_4, B_inv_L_5)
+#
+#     log_MH_ratio = ((SpecNumLayers)/ 2) * (np.log(lam_p) - np.log(lambdas[t])) - 0.5 * (delta_g + gammas[t] * delta_f) - betaD * gammas[t] * delta_lam
+#
+#     #accept or rejeict new lam_p
+#     u = uniform()
+#     if np.log(u) <= log_MH_ratio:
+#     #accept
+#         k = k + 1
+#         lambdas[t + 1] = lam_p
+#         #only calc when lambda is updated
+#         #B = (ATA_lin + lambdas[t+1] * L)
+#         B = (ATA + lam_p * L)
+#         B_inv = np.zeros(np.shape(B))
+#         for i in range(len(B)):
+#             e = np.zeros(len(B))
+#             e[i] = 1
+#             B_inv[:, i], exitCode = gmres(B, e, tol=tol, restart=25)
+#             if exitCode != 0:
+#                 print('B_inv ' + str(exitCode))
+#
+#         B_inv_L = np.matmul(B_inv, L)
+#         B_inv_A_trans_y = np.matmul(B_inv, ATy[0::, 0])
+#
+#         B_inv_L_2 = np.matmul(B_inv_L, B_inv_L)
+#         B_inv_L_3 = np.matmul(B_inv_L_2, B_inv_L)
+#         B_inv_L_4 = np.matmul(B_inv_L_2, B_inv_L_2)
+#         B_inv_L_5 = np.matmul(B_inv_L_4, B_inv_L)
+#
+#         rate = f(ATy, y, B_inv_A_trans_y)/2 + betaG + betaD * lam_p#lambdas[t+1]
+#
+#     else:
+#         #rejcet
+#         lambdas[t + 1] = np.copy(lambdas[t])
+#
+#
+#
+#
+#     gammas[t+1] = np.random.gamma(shape, scale = 1/rate)
+#
+#     deltas[t+1] = lambdas[t+1] * gammas[t+1]
+#
+
