@@ -27,7 +27,7 @@ df = pd.read_excel('ExampleOzoneProfiles.xlsx')
 print(df.columns)
 
 #get the values for a given column
-press = df['Pressure (hPa)'].values #in hectpp [ascal pr millibars]
+press = df['Pressure (hPa)'].values #in hectpascal or millibars
 O3 = df['Ozone (VMR)'].values
 pressure_values = press[7:44]
 VMR_O3 = O3[7:44]
@@ -201,8 +201,8 @@ how many measurements we want to do in between the max angle and min angle
 #take linear
 num_mole = 1 / (scy.constants.Boltzmann )#* temp_values)
 
-AscalingConst = 1e5
-A_scal = pressure_values.reshape((SpecNumLayers,1)) * Source * AscalingConst/ ( temp_values)
+AscalConstKmToCm = 1e5
+A_scal = pressure_values.reshape((SpecNumLayers,1)) * Source * AscalConstKmToCm/ ( temp_values)
 scalingConst = 1e11
 #theta =(num_mole * w_cross.reshape((SpecNumLayers,1)) * Source * scalingConst )
 theta = num_mole* w_cross.reshape((SpecNumLayers,1)) * scalingConst
@@ -216,13 +216,14 @@ theta = num_mole* w_cross.reshape((SpecNumLayers,1)) * scalingConst
 """ plot forward model values """
 
 fig, axs = plt.subplots(tight_layout=True)
-plt.plot(pressure_values/max(pressure_values),height_values, label = 'pressure in hPa/' + str(np.around(max(pressure_values))) )
-plt.plot(w_cross/max(w_cross),height_values, label = 'weighted cross section in hPa/' + str(np.around(max(w_cross),36)) )
-plt.plot(Source/max(Source),height_values, label = r'Source in $\frac{W}{m^2 sr}\frac{1}{\frac{1}{cm}}$/' + str(np.around(max(Source[0]),5)) )
+#plt.plot(pressure_values/max(pressure_values),height_values, label = 'pressure in hPa/' + str(np.around(max(pressure_values),3)) )
+plt.plot(VMR_O3* 1e6,height_values, label = 'weighted cross section in ppmv/' + str(np.around(max(VMR_O3),5)) )
+#plt.plot(Source/max(Source),height_values, label = r'Source in $\frac{W}{m^2 sr}\frac{1}{\frac{1}{cm}}$/' + str(np.around(max(Source[0]),5)) )
+#plt.plot(temp_values/max(temp_values),height_values, label = r'Source in K/' + str(np.around(max(temp_values[0]),3)) )
 axs.legend()
 #axs.set_title()
 plt.savefig('theta.png')
-#plt.show()
+plt.show()
 
 
 
@@ -413,7 +414,7 @@ cond_B =  np.max(Bs)/np.min(Bs)
 print("Condition number B: " + str(orderOfMagnitude(cond_B)))
 
 k = 0
-wLam = 2e2
+wLam = 4.5e2
 #wgam = 1e-5
 #wdelt = 1e-1
 betaG = 1e-4
@@ -560,7 +561,7 @@ for p in range(paraSamp):
     xTLxRes[p] = np.sqrt(np.matmul(np.matmul(Results[p, :].T, L), Results[p, :]))
 
 
-scalConst = scalingConst * scalingConstkm
+scalConst = scalingConst #* scalingConstkm
 fig3, ax1 = plt.subplots(tight_layout=True)
 #plt.plot(theta,layers[0:-1] + d_height/2, color = 'red')
 line1 = plt.plot(theta/ (scalConst),height_values, color = [0,0.5,0.5], linewidth = 5, label = 'true parameter value', zorder=0)
