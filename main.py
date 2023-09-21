@@ -188,7 +188,7 @@ f_broad in (1/cm^-1) is the broadening due to pressure and doppler effect,
  '''
 f_broad = 1
 w_cross = S[ind,0] * VMR_O3 * f_broad * 1e-4
-w_cross[0], w_cross[-1] = 0, 0
+#w_cross[0], w_cross[-1] = 0, 0
 
 
 
@@ -197,12 +197,32 @@ how many measurements we want to do in between the max angle and min angle
  or max height and min height..
  we specify the angles
  because measurment will collect more than just the stuff around the tangent height'''
-#take linear
-A_scal = pressure_values.reshape((SpecNumLayers,1)) / ( temp_values)
-num_mole = 1 / (scy.constants.Boltzmann )#* temp_values)
-scalingConst = 1e16
-theta =(num_mole * w_cross.reshape((SpecNumLayers,1)) * Source * scalingConst )
 
+#take linear
+num_mole = 1 / (scy.constants.Boltzmann )#* temp_values)
+
+AscalingConst = 1e5
+A_scal = pressure_values.reshape((SpecNumLayers,1)) * Source * AscalingConst/ ( temp_values)
+scalingConst = 1e11
+#theta =(num_mole * w_cross.reshape((SpecNumLayers,1)) * Source * scalingConst )
+theta = num_mole* w_cross.reshape((SpecNumLayers,1)) * scalingConst
+
+# A_scal = pressure_values.reshape((SpecNumLayers,1)) / ( temp_values)
+# scalingConst_old = 1e16
+# theta =(num_mole * w_cross.reshape((SpecNumLayers,1)) * Source * scalingConst_old )
+#
+#
+
+""" plot forward model values """
+
+fig, axs = plt.subplots(tight_layout=True)
+plt.plot(pressure_values/max(pressure_values),height_values, label = 'pressure in hPa/' + str(np.around(max(pressure_values))) )
+plt.plot(w_cross/max(w_cross),height_values, label = 'weighted cross section in hPa/' + str(np.around(max(w_cross),36)) )
+plt.plot(Source/max(Source),height_values, label = r'Source in $\frac{W}{m^2 sr}\frac{1}{\frac{1}{cm}}$/' + str(np.around(max(Source[0]),5)) )
+axs.legend()
+#axs.set_title()
+plt.savefig('theta.png')
+#plt.show()
 
 
 
@@ -356,8 +376,8 @@ for j in range(len(lam_try)):
         if exitCode != 0:
             print('B_inv_L ' + str(exitCode))
     relative_tol_L = tol
-    CheckB_inv_L = np.matmul(B, B_inv_L)
-    print(np.linalg.norm(L- CheckB_inv_L)/np.linalg.norm(L)<relative_tol_L)
+    #CheckB_inv_L = np.matmul(B, B_inv_L)
+    #print(np.linalg.norm(L- CheckB_inv_L)/np.linalg.norm(L)<relative_tol_L)
     B_inv_L_2 = np.matmul(B_inv_L, B_inv_L)
     B_inv_L_3 = np.matmul(B_inv_L_2, B_inv_L)
     B_inv_L_4 = np.matmul(B_inv_L_2, B_inv_L_2)
@@ -390,10 +410,10 @@ if exitCode != 0:
 
 Bu, Bs, Bvh = np.linalg.svd(B)
 cond_B =  np.max(Bs)/np.min(Bs)
-print("normal: " + str(orderOfMagnitude(cond_B)))
+print("Condition number B: " + str(orderOfMagnitude(cond_B)))
 
 k = 0
-wLam = 20
+wLam = 2e2
 #wgam = 1e-5
 #wdelt = 1e-1
 betaG = 1e-4
@@ -551,11 +571,11 @@ line1 = plt.plot(theta/ (scalConst),height_values, color = [0,0.5,0.5], linewidt
 line2 = plt.errorbar(np.mean(Results,0 )/ (scalConst),height_values,capsize=4,yerr = np.zeros(len(height_values)),color = 'red', label = 'MC estimate')#, label = 'MC estimate')
 line4 = plt.errorbar(np.mean(Results / (scalConst),0),height_values,capsize=4, xerr = np.sqrt(np.var(Results /(scalConst),0))/2 ,color = 'red', label = 'MC estimate')#, label = 'MC estimate')
 ax2 = ax1.twiny() # ax1 and ax2 share y-axis
-line3 = ax2.plot(y,tang_heights_lin, color = 'gold', label = 'data')
+line3 = ax2.plot(y,tang_heights_lin, color = 'gold', label = r'data in \frac{W}{m^2 sr}\frac{1}{\frac{1}{cm}}')
 ax2.spines['top'].set_color('gold')
 ax2.set_xlabel('Data')
 ax2.tick_params(labelcolor="gold")
-ax1.set_xlabel(r'Spectral Ozone radiance $\frac{W}{m^2 sr}\frac{1}{\frac{1}{cm}}$')
+ax1.set_xlabel(r'Spectral Ozone radiance ')
 multicolor_ylabel(ax1,('(Tangent)','Height in km'),('k', 'gold'),axis='y')
 ax1.legend(['true parameter value', 'MC estimate'])
 plt.ylabel('Height in km')
