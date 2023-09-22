@@ -52,25 +52,20 @@ def generate_L(neigbours):
 
 
 def get_temp_values(height_values):
-    """ based on the ISA model see omnicalculator.com/physics/altitude-temperature"""
-    temp_values2 = np.zeros(len(height_values))
-    temp_values2[0] = 15 - (height_values[0] - 0) * 6.5 + 273.15
+    """ used to be based on the ISA model see omnicalculator.com/physics/altitude-temperature
+    now https://www.grc.nasa.gov/www/k-12/airplane/atmosmet.html """
+    temp_values = np.zeros(len(height_values))
+    #temp_values[0] = 288.15#15 - (height_values[0] - 0) * 6.49 + 273.15
     ###calculate temp values
-    for i in range(1, len(height_values)):
-        if 0 < height_values[i] < 11:
-            temp_values2[i] = temp_values2[i - 1] - (height_values[i] - height_values[i - 1]) * 6.5
-        if 11 <= height_values[i] < 13:
-            temp_values2[i] = -55 + 273.15
-        if 13 <= height_values[i] < 48:
-            temp_values2[i] = temp_values2[i - 1] + (height_values[i] - height_values[i - 1]) * 1.6
-        if 48 <= height_values[i] < 51:
-            temp_values2[i] = -1 + 273.15
-        if 51 <= height_values[i] < 86:
-            temp_values2[i] = temp_values2[i - 1] - (height_values[i] - height_values[i - 1]) * 2.5
-        if 85 < height_values[i]:
-            temp_values2[i] = -87 + 273.15
+    for i in range(0, len(height_values)):
+        if height_values[i] < 11:
+            temp_values[i] = np.around(15.04 - height_values[i] * 6.49 + 273.15,2)
+        if 11 <= height_values[i] < 25:
+            temp_values[i] = np.around(-55.46 + 273.15,2)
+        if 25 <= height_values[i] :
+            temp_values[i] = np.around(-131.21 + height_values[i] * 2.99 + 273.15,2)
 
-    return temp_values2.reshape((len(height_values), 1))
+    return temp_values.reshape((len(height_values),1))
 
 
 def gen_measurement(meas_ang, layers, w_cross, VMR_O3, P, T, Source, obs_height=300):

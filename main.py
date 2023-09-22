@@ -29,11 +29,16 @@ print(df.columns)
 #get the values for a given column
 press = df['Pressure (hPa)'].values #in hectpascal or millibars
 O3 = df['Ozone (VMR)'].values
-pressure_values = press[7:44]
-VMR_O3 = O3[7:44]
+minInd = 7
+maxInd = 44
+pressure_values = press[minInd:maxInd]
+VMR_O3 = O3[minInd:maxInd]
 scalingConstkm = 1e-3
-height_values = 145366.45 * (1 - ( press[7:44] /1013.25)**0.190284 ) * 0.3048 * scalingConstkm
+# https://en.wikipedia.org/wiki/Pressure_altitude
+# https://www.weather.gov/epz/wxcalc_pressurealtitude
+heights = 145366.45 * (1 - ( press /1013.25)**0.190284 ) * 0.3048 * scalingConstkm
 
+height_values = heights[minInd:maxInd]
 
 """ analayse forward map without any real data values"""
 
@@ -116,8 +121,9 @@ N_A = constants.Avogadro # in mol^-1
 k_b_cgs = constants.Boltzmann * 1e7#in J K^-1
 R_gas = N_A * k_b_cgs # in ..cm^3
 
-
-temp_values = get_temp_values(height_values)
+# https://www.grc.nasa.gov/www/k-12/airplane/atmosmet.html
+temperature = get_temp_values(heights)
+temp_values = temperature[minInd:maxInd]
 #x = VMR_O3 * N_A * pressure_values /(R_gas * temp_values)#* 1e-13
 #https://hitran.org/docs/definitions-and-units/
 #files = '/home/lennartgolks/Python/firstModelCheck/634f1dc4.par' #/home/lennartgolks/Python /Users/lennart/PycharmProjects
@@ -154,6 +160,7 @@ c_cgs = constants.c * 1e2# in m/s
 k_b_cgs = constants.Boltzmann #* 1e7#in J K^-1
 #T = temp_values[0:-1] #in K
 N_A = constants.Avogadro # in mol^-1
+R = constants.gas_constant
 
 
 mol_M = 48 #g/mol for Ozone
@@ -211,20 +218,37 @@ theta = num_mole* w_cross.reshape((SpecNumLayers,1)) * scalingConst
 # scalingConst_old = 1e16
 # theta =(num_mole * w_cross.reshape((SpecNumLayers,1)) * Source * scalingConst_old )
 #
-#
+#num_mole * S[ind,0]  * f_broad * 1e-4 * scalingConst
 
 """ plot forward model values """
+numDensO3 =  N_A * press * 1e2 * O3 / (R * temp_values[0,:]) * 1e-6
+
 
 fig, axs = plt.subplots(tight_layout=True)
-#plt.plot(pressure_values/max(pressure_values),height_values, label = 'pressure in hPa/' + str(np.around(max(pressure_values),3)) )
-plt.plot(VMR_O3* 1e6,height_values, label = 'weighted cross section in ppmv/' + str(np.around(max(VMR_O3),5)) )
-#plt.plot(Source/max(Source),height_values, label = r'Source in $\frac{W}{m^2 sr}\frac{1}{\frac{1}{cm}}$/' + str(np.around(max(Source[0]),5)) )
-#plt.plot(temp_values/max(temp_values),height_values, label = r'Source in K/' + str(np.around(max(temp_values[0]),3)) )
-axs.legend()
-#axs.set_title()
+plt.plot(numDensO3,heights,color = [0, 205/255, 127/255])
+axs.set_ylabel('Height in km')
+axs.set_xlabel('Number density of Ozone in cm$^{-3}$')
 plt.savefig('theta.png')
 plt.show()
 
+
+
+fig, axs = plt.subplots(tight_layout=True)
+#plt.plot(press/1013.25,heights, label = 'pressure in hPa/' + str(np.around(max(press),3)) )
+#plt.plot(Source/max(Source),height_values, label = r'Source in $\frac{W}{m^2 sr}\frac{1}{\frac{1}{cm}}$/' + str(np.around(max(Source[0]),5)) )
+plt.plot(temperature,heights, color = 'darkred')# label = r'Source in K/' + str(np.around(max(temperature[0]),3)) )
+#axs.legend()
+axs.tick_params(axis = 'x', labelcolor="darkred")
+ax2 = axs.twiny() # ax1 and ax2 share y-axis
+line3 = ax2.plot(press,heights, color = 'blue') #, label = 'pressure in hPa/' + str(np.around(max(press),3)) )
+ax2.spines['top'].set_color('blue')
+ax2.tick_params(labelcolor="blue")
+ax2.set_xlabel('Pressure in hPa')
+axs.set_ylabel('Height in km')
+axs.set_xlabel('Temperature in K')
+#axs.set_title()
+plt.savefig('theta.png')
+plt.show()
 
 
 A = A_lin * A_scal.T
@@ -561,25 +585,34 @@ for p in range(paraSamp):
     xTLxRes[p] = np.sqrt(np.matmul(np.matmul(Results[p, :].T, L), Results[p, :]))
 
 
-scalConst = scalingConst #* scalingConstkm
+#scalConst = scalingConst #* scalingConstkm
 fig3, ax1 = plt.subplots(tight_layout=True)
+x = np.mean(Results,0 ).reshape((SpecNumLayers,1)) / (num_mole * S[ind,0]  * f_broad * 1e-4 * scalingConst)
+xerr = np.sqrt(np.var(Results / (num_mole * S[ind, 0] * f_broad * 1e-4 * scalingConst), 0)) / 2
 #plt.plot(theta,layers[0:-1] + d_height/2, color = 'red')
-line1 = plt.plot(theta/ (scalConst),height_values, color = [0,0.5,0.5], linewidth = 5, label = 'true parameter value', zorder=0)
+line1 = ax1.plot(VMR_O3,height_values, color = [0, 205/255, 127/255], linewidth = 5, label = 'true parameter value', zorder=0)
 #line1, = plt.plot(theta* max(np.mean(Results,0))/max(theta),layers[0:-1] + d_height/2, color = [0,0.5,0.5], linewidth = 5, label = 'true parameter value')
 #line2, = plt.plot(np.mean(Results,0),layers[0:-1] + d_height/2,color = 'green', label = 'MC estimate')
 # for i in range(paraSamp):
 #     line2, = plt.plot(Results[i,:],layers[0:-1] + d_height/2,color = 'green', label = 'MC estimate')
-line2 = plt.errorbar(np.mean(Results,0 )/ (scalConst),height_values,capsize=4,yerr = np.zeros(len(height_values)),color = 'red', label = 'MC estimate')#, label = 'MC estimate')
-line4 = plt.errorbar(np.mean(Results / (scalConst),0),height_values,capsize=4, xerr = np.sqrt(np.var(Results /(scalConst),0))/2 ,color = 'red', label = 'MC estimate')#, label = 'MC estimate')
+#line2 = plt.errorbar(np.mean(Results,0 )/ (scalConst),height_values,capsize=4,yerr = np.zeros(len(height_values)),color = 'red', label = 'MC estimate')#, label = 'MC estimate')
+line2 = ax1.errorbar(x,height_values,capsize=4, yerr = np.zeros(len(height_values)) ,color = 'red', label = 'MC estimate')#, label = 'MC estimate')
+line4 = ax1.errorbar(x, height_values,capsize=4, xerr = xerr,color = 'red', label = 'MC estimate')#, label = 'MC estimate')
 ax2 = ax1.twiny() # ax1 and ax2 share y-axis
-line3 = ax2.plot(y,tang_heights_lin, color = 'gold', label = r'data in \frac{W}{m^2 sr}\frac{1}{\frac{1}{cm}}')
-ax2.spines['top'].set_color('gold')
-ax2.set_xlabel('Data')
-ax2.tick_params(labelcolor="gold")
-ax1.set_xlabel(r'Spectral Ozone radiance ')
-multicolor_ylabel(ax1,('(Tangent)','Height in km'),('k', 'gold'),axis='y')
-ax1.legend(['true parameter value', 'MC estimate'])
-plt.ylabel('Height in km')
+line3 = ax2.plot(y, tang_heights_lin, color = [200/255, 100/255, 0], label = r'data in \frac{W}{m^2 sr}\frac{1}{\frac{1}{cm}}')
+ax2.spines['top'].set_color([200/255, 100/255, 0])
+ax2.set_xlabel(r'Spectral Ozone radiance in $\frac{W}{m^2 sr}\frac{1}{\frac{1}{cm}}$')
+ax2.tick_params(labelcolor = [200/255, 100/255, 0])
+ax1.set_xlabel(r'Ozone volume mixing ratio ')
+multicolor_ylabel(ax1,('(Tangent)','Height in km'),('k', [200/255, 100/255, 0]),axis='y')
+handles, labels = ax1.get_legend_handles_labels()
+legend = ax1.legend(handles = [handles[0], handles[1]],loc='upper right')
+#legend.get_frame().set_edgecolor()
+#legend.get_frame().set_facecolor((1, 1, 1, 0))
+#plt.ylabel('Height in km')
+ax1.set_ylim([heights[minInd-1], heights[maxInd+1]])
+ax2.set_xlim([min(y),max(y)])
+ax1.set_xlim([min(x)-max(xerr)/2,max(x)+max(xerr)/2])
 fig3.savefig('FirstRecRes.png')
 plt.show()
 
