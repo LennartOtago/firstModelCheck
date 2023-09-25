@@ -208,8 +208,8 @@ how many measurements we want to do in between the max angle and min angle
 #take linear
 num_mole = 1 / (scy.constants.Boltzmann )#* temp_values)
 
-AscalConstKmToCm = 1e5
-A_scal = pressure_values.reshape((SpecNumLayers,1)) * Source * AscalConstKmToCm/ ( temp_values)
+AscalConstKmToCm = 1e3
+A_scal = pressure_values.reshape((SpecNumLayers,1)) * 1e2 * Source * AscalConstKmToCm/ ( temp_values)
 scalingConst = 1e11
 #theta =(num_mole * w_cross.reshape((SpecNumLayers,1)) * Source * scalingConst )
 theta = num_mole* w_cross.reshape((SpecNumLayers,1)) * scalingConst
@@ -222,8 +222,6 @@ theta = num_mole* w_cross.reshape((SpecNumLayers,1)) * scalingConst
 
 """ plot forward model values """
 numDensO3 =  N_A * press * 1e2 * O3 / (R * temp_values[0,:]) * 1e-6
-
-
 fig, axs = plt.subplots(tight_layout=True)
 plt.plot(numDensO3,heights,color = [0, 205/255, 127/255])
 axs.set_ylabel('Height in km')
@@ -554,7 +552,7 @@ plt.savefig('HistoResults.png')
 
 
 #draw paramter samples
-paraSamp = 10
+paraSamp = 100
 Results = np.zeros((paraSamp,len(theta)))
 NormRes = np.zeros(paraSamp)
 xTLxRes = np.zeros(paraSamp)
@@ -601,7 +599,7 @@ line4 = ax1.errorbar(x, height_values,capsize=4, xerr = xerr,color = 'red', labe
 ax2 = ax1.twiny() # ax1 and ax2 share y-axis
 line3 = ax2.plot(y, tang_heights_lin, color = [200/255, 100/255, 0], label = r'data in \frac{W}{m^2 sr}\frac{1}{\frac{1}{cm}}')
 ax2.spines['top'].set_color([200/255, 100/255, 0])
-ax2.set_xlabel(r'Spectral Ozone radiance in $\frac{W}{m^2 sr}\frac{1}{\frac{1}{cm}}$')
+ax2.set_xlabel(r'Spectral Ozone radiance in $\frac{W}{m^2 sr} \times \frac{1}{\frac{1}{cm}}$')
 ax2.tick_params(labelcolor = [200/255, 100/255, 0])
 ax1.set_xlabel(r'Ozone volume mixing ratio ')
 multicolor_ylabel(ax1,('(Tangent)','Height in km'),('k', [200/255, 100/255, 0]),axis='y')
@@ -878,7 +876,7 @@ print('bla')
 '''L-curve refularoization
 '''
 
-lamLCurve = np.logspace(-20,20,200)
+lamLCurve = np.logspace(-30,30,200)
 #lamLCurve = np.linspace(1e-1,1e4,300)
 
 NormLCurve = np.zeros(len(lamLCurve))
