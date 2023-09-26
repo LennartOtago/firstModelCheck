@@ -1,4 +1,5 @@
 import numpy as np
+import matplotlib
 from importetFunctions import *
 import time
 import pickle as pl
@@ -221,14 +222,14 @@ theta = num_mole* w_cross.reshape((SpecNumLayers,1)) * scalingConst
 #num_mole * S[ind,0]  * f_broad * 1e-4 * scalingConst
 
 """ plot forward model values """
-numDensO3 =  N_A * press * 1e2 * O3 / (R * temp_values[0,:]) * 1e-6
-fig, axs = plt.subplots(tight_layout=True)
-plt.plot(numDensO3,heights,color = [0, 205/255, 127/255])
-axs.set_ylabel('Height in km')
-axs.set_xlabel('Number density of Ozone in cm$^{-3}$')
-plt.savefig('theta.png')
-plt.show()
-
+# numDensO3 =  N_A * press * 1e2 * O3 / (R * temp_values[0,:]) * 1e-6
+# fig, axs = plt.subplots(tight_layout=True)
+# plt.plot(numDensO3,heights,color = [0, 205/255, 127/255])
+# axs.set_ylabel('Height in km')
+# axs.set_xlabel('Number density of Ozone in cm$^{-3}$')
+# plt.savefig('theta.png')
+# plt.show()
+#
 
 
 fig, axs = plt.subplots(tight_layout=True)
@@ -267,6 +268,8 @@ y = add_noise(Ax, 0.01)
 ATy = np.matmul(A.T, y)
 
 np.savetxt('dataY.txt', y, header = 'Data y including noise', fmt = '%.15f')
+np.savetxt('ForWardMatrix.txt', A, header = 'Forward Matrix A', fmt = '%.15f', delimiter= '\t')
+
 
 
 
@@ -583,36 +586,6 @@ for p in range(paraSamp):
     xTLxRes[p] = np.sqrt(np.matmul(np.matmul(Results[p, :].T, L), Results[p, :]))
 
 
-#scalConst = scalingConst #* scalingConstkm
-fig3, ax1 = plt.subplots(tight_layout=True)
-x = np.mean(Results,0 ).reshape((SpecNumLayers,1)) / (num_mole * S[ind,0]  * f_broad * 1e-4 * scalingConst)
-xerr = np.sqrt(np.var(Results / (num_mole * S[ind, 0] * f_broad * 1e-4 * scalingConst), 0)) / 2
-#plt.plot(theta,layers[0:-1] + d_height/2, color = 'red')
-line1 = ax1.plot(VMR_O3,height_values, color = [0, 205/255, 127/255], linewidth = 5, label = 'true parameter value', zorder=0)
-#line1, = plt.plot(theta* max(np.mean(Results,0))/max(theta),layers[0:-1] + d_height/2, color = [0,0.5,0.5], linewidth = 5, label = 'true parameter value')
-#line2, = plt.plot(np.mean(Results,0),layers[0:-1] + d_height/2,color = 'green', label = 'MC estimate')
-# for i in range(paraSamp):
-#     line2, = plt.plot(Results[i,:],layers[0:-1] + d_height/2,color = 'green', label = 'MC estimate')
-#line2 = plt.errorbar(np.mean(Results,0 )/ (scalConst),height_values,capsize=4,yerr = np.zeros(len(height_values)),color = 'red', label = 'MC estimate')#, label = 'MC estimate')
-line2 = ax1.errorbar(x,height_values,capsize=4, yerr = np.zeros(len(height_values)) ,color = 'red', label = 'MC estimate')#, label = 'MC estimate')
-line4 = ax1.errorbar(x, height_values,capsize=4, xerr = xerr,color = 'red', label = 'MC estimate')#, label = 'MC estimate')
-ax2 = ax1.twiny() # ax1 and ax2 share y-axis
-line3 = ax2.plot(y, tang_heights_lin, color = [200/255, 100/255, 0], label = r'data in \frac{W}{m^2 sr}\frac{1}{\frac{1}{cm}}')
-ax2.spines['top'].set_color([200/255, 100/255, 0])
-ax2.set_xlabel(r'Spectral Ozone radiance in $\frac{W}{m^2 sr} \times \frac{1}{\frac{1}{cm}}$')
-ax2.tick_params(labelcolor = [200/255, 100/255, 0])
-ax1.set_xlabel(r'Ozone volume mixing ratio ')
-multicolor_ylabel(ax1,('(Tangent)','Height in km'),('k', [200/255, 100/255, 0]),axis='y')
-handles, labels = ax1.get_legend_handles_labels()
-legend = ax1.legend(handles = [handles[0], handles[1]],loc='upper right')
-#legend.get_frame().set_edgecolor()
-#legend.get_frame().set_facecolor((1, 1, 1, 0))
-#plt.ylabel('Height in km')
-ax1.set_ylim([heights[minInd-1], heights[maxInd+1]])
-ax2.set_xlim([min(y),max(y)])
-ax1.set_xlim([min(x)-max(xerr)/2,max(x)+max(xerr)/2])
-fig3.savefig('FirstRecRes.png')
-plt.show()
 
 
 # fig4, ax1 = plt.subplots()
@@ -636,12 +609,6 @@ plt.show()
 # ax1.set_ylabel('Height in km')
 # plt.show()
 #fig3.savefig('TrueProfile.png')
-
-fig5, ax1 = plt.subplots()
-plt.errorbar(np.mean(Results,0 ).reshape((SpecNumLayers,1)) / (num_mole * S[ind,0] * f_broad * 1e-4 * Source * scalingConst),height_values,capsize=4,yerr = np.zeros(len(height_values)),color = 'red', label = 'MC estimate')
-ax1.set_xlabel('Ozone Source Value')
-ax1.set_ylabel('Height in km')
-plt.show()
 
 
 
@@ -693,7 +660,7 @@ def MargPostSupp(Params):
 
 MargPost = pytwalk.pytwalk( n=2, U=MargPostU, Supp=MargPostSupp)
 startTime = time.time()
-tWalkSampNum= 100000
+tWalkSampNum= 10000
 MargPost.Run( T=tWalkSampNum, x0=MargPostInit(minimum), xp0=np.array([normal(minimum[0], minimum[0]/4), normal(minimum[1],minimum[1]/4)]) )
 elapsedtWalkTime = time.time() - startTime
 print('Elapsed Time for t-walk: ' + str(elapsedtWalkTime))
@@ -876,7 +843,26 @@ print('bla')
 '''L-curve refularoization
 '''
 
-lamLCurve = np.logspace(-30,30,200)
+eng = matlab.engine.start_matlab()
+eng.run_l_corner(nargout=0)
+eng.quit()
+
+l_corner_output = np.loadtxt("l_curve_output.txt", skiprows=4, dtype='float')
+#IntAutoLam, IntAutoGam , IntAutoDelt = np.loadtxt("auto_corr_dat.txt",userow = 1, skiprows=1, dtype='float'
+
+with open("l_curve_output.txt") as fID:
+    for n, line in enumerate(fID):
+       if n == 2:
+            lam_opt = float(line)
+            break
+
+
+B = (ATA + lam_opt * L)
+x_opt, exitCode = gmres(B, ATy[0::, 0], tol=tol, restart=25)
+LNormOpt = np.linalg.norm( np.matmul(A,x_opt) - y[0::,0])
+xTLxOpt = np.sqrt(np.matmul(np.matmul(x_opt.T, L), x_opt))
+
+lamLCurve = np.logspace(-10,10,200)
 #lamLCurve = np.linspace(1e-1,1e4,300)
 
 NormLCurve = np.zeros(len(lamLCurve))
@@ -896,16 +882,16 @@ for i in range(len(lamLCurve)):
         xTLxCurve[i] = np.sqrt(np.matmul(np.matmul(x.T, L), x))
         #xTLxCurve[i] = np.linalg.norm(np.matmul(L,x))
 
-#reg_c = l_cuve(A_linu, A_lins, y[0::,0], plotit=True)
-#reg_c = l_corner(NormLCurve,xTLxCurve,lamLCurve,A_linu,A_lins,y[0::,0])
-#B = (ATA_lin + reg_c * L)
+np.savetxt('samples.txt', np.vstack((NormLCurve, xTLxCurve, lamLCurve)).T, header = 'Norm ||Ax - y|| sqrt(x.T L x) lambdas', fmt = '%.15f \t %.15f \t %.15f')
+
+
 B = (ATA + minimum[1]/minimum[0] * L)
 
 x, exitCode = gmres(B, ATy[0::, 0], tol=tol, restart=25)
 if exitCode != 0:
     print(exitCode)
 
-lamLCurveZoom = np.logspace(4,10,200)
+lamLCurveZoom = np.logspace(-5,5,200)
 NormLCurveZoom = np.zeros(len(lamLCurve))
 xTLxCurveZoom = np.zeros(len(lamLCurve))
 for i in range(len(lamLCurveZoom)):
@@ -918,11 +904,11 @@ for i in range(len(lamLCurveZoom)):
     NormLCurveZoom[i] = np.linalg.norm( np.matmul(A_lin,x) - y[0::,0])
     xTLxCurveZoom[i] = np.sqrt(np.matmul(np.matmul(x.T, L), x))
 
-Acu, Acs, Acvh = csvd(A)
-B = (ATA + minimum[1]/minimum[0] * L)
-x, exitCode = gmres(B, ATy[0::, 0], tol=tol, restart=25)
-if exitCode != 0:
-    print(exitCode)
+
+# B = (ATA + minimum[1]/minimum[0] * L)
+# x, exitCode = gmres(B, ATy[0::, 0], tol=tol, restart=25)
+# if exitCode != 0:
+#     print(exitCode)
 
 fig, axs = plt.subplots( 1,1, tight_layout=True)
 axs.scatter(NormLCurve,xTLxCurve, zorder = 0, color = 'black')
@@ -930,19 +916,22 @@ axs.scatter(np.linalg.norm(np.matmul(A, x) - y[0::, 0]),np.sqrt(np.matmul(np.mat
 #axs.annotate('$\lambda_0$ = ' + str(math.ceil(minimum[1]/minimum[0])), (np.linalg.norm(np.matmul(A_lin, x) - y[0::, 0]),np.sqrt(np.matmul(np.matmul(x.T, L), x))))
 #axs.annotate('$\lambda$ = 1e' + str(orderOfMagnitude(lamLCurve[0])), (NormLCurve[0],xTLxCurve[0]))
 #axs.annotate('$\lambda$ = 1e' + str(orderOfMagnitude(lamLCurve[-1])), (NormLCurve[-1],xTLxCurve[-1]))
+axs.scatter(LNormOpt, xTLxOpt, color = 'aqua')
 axs.scatter(NormRes, xTLxRes, color = 'red')#, marker = "." ,mfc = 'black' , markeredgecolor='r',markersize=10,linestyle = 'None')
 #zoom in
 # x1, x2, y1, y2 = NormLCurveZoom[0], NormLCurveZoom[-1], xTLxCurveZoom[0], xTLxCurveZoom[-1] # specify the limits
 # #axins = mplT.axes_grid1.inset_locator.inset_axes( parent_axes = axs,  bbox_transform=axs.transAxes, bbox_to_anchor =(0.05,0.05,0.75,0.75) , width = '100%' , height = '100%')#,  loc= 'lower left')
-# axins = axs.inset_axes([0.01,0.05,0.75,0.75])
+# #[x0, y0, width, height]
+# axins = axs.inset_axes([0.01,0.05,0.3,0.3])
+# #axins = axs.inset_axes([x1,y1,x2-x1,y1-y2], transform=axs.transAxes,xlim=(x1, x2), ylim=(y1, y2))
 # axins.scatter(NormRes, xTLxRes, color = 'red')
 # axins.scatter(NormLCurveZoom,xTLxCurveZoom, color = 'black')
 # #axins.scatter(NormRes, xTLxRes)
 # #,'o', color='black')
 # axins.set_xscale('log')
 # axins.set_yscale('log')
-# axins.set_xlim(x1, x2) # apply the x-limits
-# axins.set_ylim(y2, 1.1*max(xTLxRes) ) # apply the y-limits (negative gradient)
+# #axins.set_xlim(x1, x2) # apply the x-limits
+# #axins.set_ylim(y2, 1.1 * max(xTLxRes)) # apply the y-limits (negative gradient)
 # axins.set_xticklabels([])
 # axins.set_yticklabels([])
 # axs.indicate_inset_zoom(axins, edgecolor="black")
@@ -957,3 +946,100 @@ plt.show()
 
 print('bla')
 
+x = np.mean(Results,0 )/ (num_mole * S[ind,0]  * f_broad * 1e-4 * scalingConst)
+xerr = np.sqrt(np.var(Results / (num_mole * S[ind, 0] * f_broad * 1e-4 * scalingConst), 0)) / 2
+
+def LegendVertical(Ax, Handles, Labels, Rotation=90, XPad=0, YPad=0, **LegendArgs):
+    if Rotation not in (90,270):
+        raise NotImplementedError('Rotation must be 90 or 270.')
+
+    # Extra spacing between labels is needed to fit the rotated labels;
+    # and since the frame will not adjust to the rotated labels, it is
+    # disabled by default
+    DefaultLoc = 'center left' if Rotation==90 else 'center right'
+    ArgsDefaults = dict(loc=DefaultLoc, labelspacing=4, frameon=False)
+    Args = {**ArgsDefaults, **LegendArgs}
+
+    #Handles, Labels = Ax.get_legend_handles_labels()
+    if Rotation==90:
+        # Reverse entries
+        Handles, Labels = (reversed(_) for _ in (Handles, Labels))
+    AxLeg = Ax.legend(Handles, Labels, **Args)
+
+    LegTexts = AxLeg.get_texts()
+    LegHandles = AxLeg.legend_handles
+
+    for L,Leg in enumerate(LegHandles):
+        if type(Leg) == matplotlib.patches.Rectangle:
+            BBounds = np.ravel(Leg.get_bbox())
+            BBounds[2:] = BBounds[2:][::-1]
+            Leg.set_bounds(BBounds)
+
+            LegPos = (
+                # Ideally,
+                #    `(BBounds[0]+(BBounds[2]/2)) - AxLeg.handletextpad`
+                # should be at the horizontal center of the legend patch,
+                # but for some reason it is not. Therefore the user will
+                # need to specify some padding.
+                (BBounds[0]+(BBounds[2]/2)) - AxLeg.handletextpad + XPad,
+
+                # Similarly, `(BBounds[1]+BBounds[3])` should be at the vertical
+                # top of the legend patch, but it is not.
+                (BBounds[1]+BBounds[3])+YPad
+            )
+
+        elif type(Leg) == matplotlib.lines.Line2D:
+            LegXY = Leg.get_xydata()[:,::-1]
+            Leg.set_data(*(LegXY[:,_] for _ in (0,1)))
+
+            LegPos = (
+                LegXY[0,0] - AxLeg.handletextpad + XPad,
+                max(LegXY[:,1]) + YPad
+            )
+
+        elif type(Leg) == matplotlib.collections.PathCollection:
+            LegPos = (
+                Leg.get_offsets()[0][0] + XPad,
+                Leg.get_offsets()[0][1] + YPad,
+            )
+        else:
+            raise NotImplementedError('Legends should contain Rectangle, Line2D or PathCollection.')
+
+        PText = LegTexts[L]
+        PText.set_verticalalignment('bottom')
+        PText.set_rotation(Rotation)
+        PText.set_x(LegPos[0])
+        PText.set_y(LegPos[1])
+
+    return(None)
+
+
+fig3, ax1 = plt.subplots(tight_layout=True)
+line1 = ax1.plot(VMR_O3,height_values, color = [0, 205/255, 127/255], linewidth = 5, label = 'true parameter value', zorder=1)
+line2 = ax1.errorbar(x,height_values,capsize=4, yerr = np.zeros(len(height_values)) ,color = 'red', label = 'MC estimate')#, label = 'MC estimate')
+line4 = ax1.errorbar(x, height_values,capsize=4, xerr = xerr,color = 'red')#, label = 'MC estimate')
+line5 = ax1.plot(x_opt/(num_mole * S[ind,0]  * f_broad * 1e-4 * scalingConst),height_values, color = 'black', linewidth = 8, label = 'regularized solution', zorder=0)
+ax2 = ax1.twiny() # ax1 and ax2 share y-axis
+line3 = ax2.plot(y, tang_heights_lin, color = [200/255, 100/255, 0], label = r'data in \frac{W}{m^2 sr}\frac{1}{\frac{1}{cm}}')
+ax2.spines['top'].set_color([200/255, 100/255, 0])
+ax2.set_xlabel(r'Spectral Ozone radiance in $\frac{W}{m^2 sr} \times \frac{1}{\frac{1}{cm}}$')
+ax2.tick_params(labelcolor = [200/255, 100/255, 0])
+ax1.set_xlabel(r'Ozone volume mixing ratio ')
+multicolor_ylabel(ax1,('(Tangent)','Height in km'),('k', [200/255, 100/255, 0]),axis='y')
+handles, labels = ax1.get_legend_handles_labels()
+# Handles = [handles[0], handles[1], handles[2]]
+# Labels =  [labels[0], labels[1], labels[2]]
+# LegendVertical(ax1, Handles, Labels, 90, XPad=-45, YPad=12)
+legend = ax1.legend(handles = [handles[0], handles[1], handles[2]], loc='lower right')#bbox_to_anchor=(1.3, 1)
+
+#plt.ylabel('Height in km')
+ax1.set_ylim([heights[minInd-1], heights[maxInd+1]])
+ax2.set_xlim([min(y),max(y)])
+ax1.set_xlim([min(x)-max(xerr)/2,max(x)+max(xerr)/2])
+fig3.savefig('FirstRecRes.png')
+plt.show()
+
+
+
+
+print('bla')

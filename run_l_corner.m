@@ -7,7 +7,7 @@ res_norm = data.data(:,1);
 sol_norm = data.data(:,2);
 reg_param = data.data(:,3);
 
-A = importdata('A_lin.txt', '\t' ,1).data;
+A = importdata('ForWardMatrix.txt', '\t' ,1).data;
 L = importdata('GraphLaplacian.txt', '\t' ,1).data;
 y = importdata('dataY.txt', '\t' ,1).data;
 
@@ -16,6 +16,19 @@ y = importdata('dataY.txt', '\t' ,1).data;
 [U,s,V] = csvd(A);
 
 
-[reg_corner,rho,eta,reg_param] = l_curve(U,s,y,'Tikh',L,V);
+%[reg_corner,rho,eta,reg_param] = l_curve(U,s,y,'Tikh',L,V);
+
+[reg_c,rho_c,eta_c] = l_corner(res_norm,sol_norm ,reg_param);%,U,s,y,'Tikh')
+
+%%
+
+headers = ['l_curve output data of Hansens regtoolbox\nThe optimal parameter is: \n' + string(reg_c) + '\n'];
+fileID = fopen('l_curve_output.txt','w');
+fprintf(fileID,headers);
+fprintf(fileID,'%1s %2s %3s\n', 'rho', 'eta', 'reg_param');
+fprintf(fileID,'%1.5f %2.5f %3.5f\n', [res_norm'; sol_norm'; reg_param']);
+fclose(fileID);
+
+close all
 
 %[reg_c,rho_c,eta_c] = l_corner(res_norm,sol_norm,reg_param,U,s,y,'Tikh',1e10);
