@@ -1,5 +1,5 @@
 import numpy as np
-import matplotlib
+import matplotlib as mpl
 from importetFunctions import *
 import time
 import pickle as pl
@@ -247,7 +247,7 @@ axs.set_ylabel('Height in km')
 axs.set_xlabel('Temperature in K')
 #axs.set_title()
 plt.savefig('theta.png')
-plt.show()
+#plt.show()
 
 
 A = A_lin * A_scal.T
@@ -317,7 +317,7 @@ print(minimum[1]/minimum[0])
 """ finaly calc f and g with a linear solver adn certain lambdas
  using the gmres"""
 
-lam= np.logspace(-4,14,100)
+lam= np.logspace(-4,14,500)
 f_func = np.zeros(len(lam))
 g_func = np.zeros(len(lam))
 
@@ -769,6 +769,7 @@ if exitCode != 0:
 f_MTC = f(ATy, y, B_MTC_inv_A_trans_y)
 
 lamPyT = np.mean(lambasPyT[burnIn::math.ceil(IntAutoLamPyT)])
+varPyT = np.var(lambasPyT[burnIn::math.ceil(IntAutoLamPyT)])
 B_tW = ATA + lamPyT * L
 B_tW_inv_A_trans_y, exitCode = gmres(B_tW, ATy[0::, 0], tol=tol, restart=25)
 if exitCode != 0:
@@ -809,7 +810,7 @@ axs[1].plot(lam,g_func)
 axs[1].scatter(lam0,g_try_func[50], color = 'green', s=70, zorder=4)
 axs[1].annotate('mode $\lambda_0$ of marginal posterior',(lam0+3e5,g_try_func[50]), color = 'green')
 #axs[1].scatter(np.mean(lambdas),g_func[239], color = 'red', zorder=5)
-axs[1].errorbar(np.mean(lambdas),g(A, L, np.mean(lambdas) ), color = 'red', zorder=5, xerr=np.sqrt(np.var(lambdas)), fmt='o')
+axs[1].errorbar(np.mean(lambdas),g(A, L, np.mean(lambdas) ), color = 'red', zorder=5, xerr=np.sqrt(np.var(lambdas))/2, fmt='o')
 axs[1].annotate('MTC $\lambda$ sample mean',(np.mean(lambdas)+1e4,g(A, L, np.mean(lambdas) )-45), color = 'red')
 axs[1].scatter(lamPyT,g(A, L, lamPyT) , color = 'k', s=35, zorder=5)
 axs[1].annotate('T-Walk $\lambda$ sample mean',(lamPyT+1e6,g(A_lin, L, lamPyT) +50), color = 'k')
@@ -835,6 +836,112 @@ with open('f_and_g.pickle', 'wb') as filID: # should be 'wb' rather than 'w'
 plt.savefig('f_and_g.png')
 plt.show()
 
+"""f und g for  paper"""
+
+fig,axs = plt.subplots()#tight_layout =  True)
+axs.plot(lam,f_func, color = 'blue')
+axs.scatter(lam0,f_try_func[50], color = 'green', s= 70, zorder=4)
+axs.annotate('mode $\lambda_0$ of marginal posterior',(lam0+2e4,f_try_func[50]), color = 'green', fontsize = 14.7)
+#axs.scatter(np.mean(lambdas),f_MTC, color = 'red', zorder=5)
+axs.errorbar(np.mean(lambdas),f_MTC, color = 'red', zorder=5,xerr=np.sqrt(np.var(lambdas))/2, fmt='o')
+axs.annotate('MTC $\lambda$ sample mean',(np.mean(lambdas)+1e4,f_MTC), color = 'red')
+axs.scatter(lamPyT,f_tW, color = 'k', s = 35, zorder=5)
+axs.annotate('T-Walk $\lambda$ sample mean',(lamPyT+1e5,f_tW+2e6), color = 'k')
+axs.set_yscale('log')
+axs.set_ylabel('f($\lambda$)')
+ax2 = axs.twinx() # ax1 and ax2 share y-axis
+ax2.plot(lam,g_func, color = 'darkred')
+ax2.scatter(lam0,g_try_func[50], color = 'green', s=70, zorder=4)
+ax2.annotate('mode $\lambda_0$ of marginal posterior',(lam0+3e5,g_try_func[50]), color = 'green')
+ax2.scatter(np.mean(lambdas),g(A, L, np.mean(lambdas) ), color = 'red', zorder=5)
+#ax2.errorbar(np.mean(lambdas),g(A, L, np.mean(lambdas) ), color = 'red', zorder=5, xerr=np.sqrt(np.var(lambdas))/2, fmt='o')
+ax2.annotate('MTC $\lambda$ sample mean',(np.mean(lambdas)+1e4,g(A, L, np.mean(lambdas) )-45), color = 'red')
+ax2.errorbar(lamPyT,g(A, L, lamPyT) , xerr=np.sqrt(varPyT)/2, color = 'k', zorder=5, fmt='o')
+ax2.annotate('T-Walk $\lambda$ sample mean',(lamPyT+1e6,g(A_lin, L, lamPyT) +50), color = 'k')
+ax2.set_ylabel('g($\lambda$)')
+B_MTC_min = ATA + (np.mean(lambdas) - np.sqrt(np.var(lambdas))/2) * L
+B_MTC_min_inv_A_trans_y, exitCode = gmres(B_MTC_min, ATy[0::, 0], tol=tol, restart=25)
+if exitCode != 0:
+    print(exitCode)
+f_MTC_min = f(ATy, y, B_MTC_min_inv_A_trans_y)
+
+B_MTC_max = ATA + (np.mean(lambdas) + np.sqrt(np.var(lambdas))/2) * L
+B_MTC_max_inv_A_trans_y, exitCode = gmres(B_MTC_max, ATy[0::, 0], tol=tol, restart=25)
+if exitCode != 0:
+    print(exitCode)
+f_MTC_max = f(ATy, y, B_MTC_max_inv_A_trans_y)
+
+xMTC = np.mean(lambdas) - np.sqrt(np.var(lambdas))/2
+axs.add_patch(mpl.patches.Rectangle((xMTC, f_MTC_min), np.sqrt(np.var(lambdas)), f_MTC_max- f_MTC_min,color="red", alpha = 0.5))
+
+
+B_pyT_min = ATA + (lamPyT - np.sqrt(varPyT)/2) * L
+B_pyT_min_inv_A_trans_y, exitCode = gmres(B_pyT_min, ATy[0::, 0], tol=tol, restart=25)
+if exitCode != 0:
+    print(exitCode)
+f_pyT_min = f(ATy, y, B_pyT_min_inv_A_trans_y)
+
+B_pyT_max = ATA + (lamPyT + np.sqrt(varPyT)/2) * L
+B_pyT_max_inv_A_trans_y, exitCode = gmres(B_pyT_max, ATy[0::, 0], tol=tol, restart=25)
+if exitCode != 0:
+    print(exitCode)
+f_pyT_max = f(ATy, y, B_pyT_max_inv_A_trans_y)
+
+xpyT = lamPyT - np.sqrt(varPyT)/2
+
+axs.add_patch(mpl.patches.Rectangle( (xpyT, f_pyT_min), np.sqrt(varPyT), f_pyT_max- f_pyT_min,color="black", alpha = 0.5))
+axs.set_xscale('log')
+
+B_min = ATA + (np.mean(lambdas) - 1.5*np.sqrt(np.var(lambdas)) ) * L
+B_min_inv_A_trans_y, exitCode = gmres(B_min, ATy[0::, 0], tol=tol, restart=25)
+if exitCode != 0:
+    print(exitCode)
+f_min = f(ATy, y, B_min_inv_A_trans_y)
+
+B_max = ATA + (np.mean(lambdas) + np.sqrt(np.var(lambdas))) * L
+B_max_inv_A_trans_y, exitCode = gmres(B_max, ATy[0::, 0], tol=tol, restart=25)
+if exitCode != 0:
+    print(exitCode)
+f_max = f(ATy, y, B_max_inv_A_trans_y)
+
+axins = axs.inset_axes([0.05,0.5,0.4,0.45])
+axins.tick_params(labelleft=False, labelright=False, labelbottom=False)
+#axs.indicate_inset_zoom(axins, edgecolor="black")
+axins.plot(lam,f_func, color = 'blue')
+axins.set_ylim(f_min,f_max)
+axins.set_yscale('log')
+#axins.add_patch(mpl.patches.Rectangle( (xpyT, f_pyT_min), np.sqrt(varPyT), f_pyT_max- f_pyT_min,color="black", alpha = 0.5))
+axins.set_xlim(np.mean(lambdas) - np.sqrt(np.var(lambdas)), np.mean(lambdas) + np.sqrt(np.var(lambdas))/2 )# apply the x-limits
+axins.set_xscale('log')
+axin2 = axins.twinx()
+axin2.plot(lam,g_func, color = 'darkred')
+axin2.set_ylim(g(A, L, np.mean(lambdas) - np.sqrt(np.var(lambdas)) ), g(A, L, np.mean(lambdas) + np.sqrt(np.var(lambdas))/2 ))
+axin2.set_xscale('log')
+axin2.set_yticklabels([])
+plt.savefig('f_and_g_paper.png')
+plt.show()
+
+
+fig,axins = plt.subplots(sharex=True)#tight_layout =  True)
+axins.tick_params(labelleft=False, labelright=False, labelbottom=False)
+#axs.indicate_inset_zoom(axins, edgecolor="black")
+axins.plot(lam,f_func, color = 'blue')
+axins.set_ylim(f_min,f_max)
+axins.scatter(lam0,f_try_func[50], color = 'green', s= 70, zorder=4)
+axins.errorbar(np.mean(lambdas),f_MTC, color = 'red', zorder=5,xerr=np.sqrt(np.var(lambdas))/2, fmt='o')
+axins.scatter(lamPyT,f_tW, color = 'k', s = 35, zorder=5)
+axins.set_yscale('log')
+#axins.add_patch(mpl.patches.Rectangle( (xpyT, f_pyT_min), np.sqrt(varPyT), f_pyT_max- f_pyT_min,color="black", alpha = 0.5))
+axins.set_xlim(np.mean(lambdas) - np.sqrt(np.var(lambdas)), np.mean(lambdas) + np.sqrt(np.var(lambdas))/2 )# apply the x-limits
+axins.set_xscale('log')
+axin2 = axins.twinx()
+axin2.plot(lam,g_func, color = 'darkred')
+axin2.set_ylim(g(A, L, np.mean(lambdas) - np.sqrt(np.var(lambdas)) ), g(A, L, np.mean(lambdas) + np.sqrt(np.var(lambdas))/2 ))
+axin2.set_xscale('log')
+axin2.set_yticklabels([])
+#axins.tick_params(left=False, labelleft=False, top=False, labeltop=False,right=False, labelright=False, bottom=False, labelbottom=False)
+
+plt.show()
 
 
 print('bla')
@@ -891,7 +998,7 @@ x, exitCode = gmres(B, ATy[0::, 0], tol=tol, restart=25)
 if exitCode != 0:
     print(exitCode)
 
-lamLCurveZoom = np.logspace(-5,5,200)
+lamLCurveZoom = np.logspace(-2,6,200)
 NormLCurveZoom = np.zeros(len(lamLCurve))
 xTLxCurveZoom = np.zeros(len(lamLCurve))
 for i in range(len(lamLCurveZoom)):
@@ -901,7 +1008,7 @@ for i in range(len(lamLCurveZoom)):
     if exitCode != 0:
         print(exitCode)
 
-    NormLCurveZoom[i] = np.linalg.norm( np.matmul(A_lin,x) - y[0::,0])
+    NormLCurveZoom[i] = np.linalg.norm( np.matmul(A,x) - y[0::,0])
     xTLxCurveZoom[i] = np.sqrt(np.matmul(np.matmul(x.T, L), x))
 
 
@@ -915,26 +1022,29 @@ axs.scatter(NormLCurve,xTLxCurve, zorder = 0, color = 'black')
 axs.scatter(np.linalg.norm(np.matmul(A, x) - y[0::, 0]),np.sqrt(np.matmul(np.matmul(x.T, L), x)), color = 'black')
 #axs.annotate('$\lambda_0$ = ' + str(math.ceil(minimum[1]/minimum[0])), (np.linalg.norm(np.matmul(A_lin, x) - y[0::, 0]),np.sqrt(np.matmul(np.matmul(x.T, L), x))))
 #axs.annotate('$\lambda$ = 1e' + str(orderOfMagnitude(lamLCurve[0])), (NormLCurve[0],xTLxCurve[0]))
-#axs.annotate('$\lambda$ = 1e' + str(orderOfMagnitude(lamLCurve[-1])), (NormLCurve[-1],xTLxCurve[-1]))
+#axs.annotate('$\lambda_{opt}$ = ' + str(lam_opt), (LNormOpt - 0.07,xTLxOpt - 0.0106))
 axs.scatter(LNormOpt, xTLxOpt, color = 'aqua')
 axs.scatter(NormRes, xTLxRes, color = 'red')#, marker = "." ,mfc = 'black' , markeredgecolor='r',markersize=10,linestyle = 'None')
 #zoom in
-# x1, x2, y1, y2 = NormLCurveZoom[0], NormLCurveZoom[-1], xTLxCurveZoom[0], xTLxCurveZoom[-1] # specify the limits
-# #axins = mplT.axes_grid1.inset_locator.inset_axes( parent_axes = axs,  bbox_transform=axs.transAxes, bbox_to_anchor =(0.05,0.05,0.75,0.75) , width = '100%' , height = '100%')#,  loc= 'lower left')
-# #[x0, y0, width, height]
-# axins = axs.inset_axes([0.01,0.05,0.3,0.3])
-# #axins = axs.inset_axes([x1,y1,x2-x1,y1-y2], transform=axs.transAxes,xlim=(x1, x2), ylim=(y1, y2))
-# axins.scatter(NormRes, xTLxRes, color = 'red')
-# axins.scatter(NormLCurveZoom,xTLxCurveZoom, color = 'black')
-# #axins.scatter(NormRes, xTLxRes)
-# #,'o', color='black')
-# axins.set_xscale('log')
-# axins.set_yscale('log')
-# #axins.set_xlim(x1, x2) # apply the x-limits
-# #axins.set_ylim(y2, 1.1 * max(xTLxRes)) # apply the y-limits (negative gradient)
-# axins.set_xticklabels([])
-# axins.set_yticklabels([])
-# axs.indicate_inset_zoom(axins, edgecolor="black")
+x1, x2, y1, y2 = NormLCurveZoom[0], NormLCurveZoom[-1], xTLxCurveZoom[0], xTLxCurveZoom[-1] # specify the limits
+#axins = mplT.axes_grid1.inset_locator.inset_axes( parent_axes = axs,  bbox_transform=axs.transAxes, bbox_to_anchor =(0.05,0.05,0.75,0.75) , width = '100%' , height = '100%')#,  loc= 'lower left')
+#[x0, y0, width, height]
+axins = axs.inset_axes([0.1,0.05,0.4,0.45])
+#axins = axs.inset_axes([x1,y1,x2-x1,y1-y2], transform=axs.transAxes,xlim=(x1, x2), ylim=(y1, y2))
+axins.scatter(NormRes, xTLxRes, color = 'red')
+axins.scatter(NormLCurveZoom,xTLxCurveZoom, color = 'black')
+axins.scatter(LNormOpt, xTLxOpt, color = 'aqua')
+axins.annotate('$\lambda_{reg}$ = ' + str(lam_opt), (LNormOpt+0.5,xTLxOpt))
+
+#axins.scatter(NormRes, xTLxRes)
+#,'o', color='black')
+axins.set_xscale('log')
+axins.set_yscale('log')
+axins.set_xlim(x1-0.05, x2) # apply the x-limits
+axins.set_ylim(y2, y1) # apply the y-limits (negative gradient)
+axins.set_xticklabels([])
+axins.set_yticklabels([])
+axs.indicate_inset_zoom(axins, edgecolor="black")
 
 axs.set_xscale('log')
 axs.set_yscale('log')
@@ -949,76 +1059,11 @@ print('bla')
 x = np.mean(Results,0 )/ (num_mole * S[ind,0]  * f_broad * 1e-4 * scalingConst)
 xerr = np.sqrt(np.var(Results / (num_mole * S[ind, 0] * f_broad * 1e-4 * scalingConst), 0)) / 2
 
-def LegendVertical(Ax, Handles, Labels, Rotation=90, XPad=0, YPad=0, **LegendArgs):
-    if Rotation not in (90,270):
-        raise NotImplementedError('Rotation must be 90 or 270.')
-
-    # Extra spacing between labels is needed to fit the rotated labels;
-    # and since the frame will not adjust to the rotated labels, it is
-    # disabled by default
-    DefaultLoc = 'center left' if Rotation==90 else 'center right'
-    ArgsDefaults = dict(loc=DefaultLoc, labelspacing=4, frameon=False)
-    Args = {**ArgsDefaults, **LegendArgs}
-
-    #Handles, Labels = Ax.get_legend_handles_labels()
-    if Rotation==90:
-        # Reverse entries
-        Handles, Labels = (reversed(_) for _ in (Handles, Labels))
-    AxLeg = Ax.legend(Handles, Labels, **Args)
-
-    LegTexts = AxLeg.get_texts()
-    LegHandles = AxLeg.legend_handles
-
-    for L,Leg in enumerate(LegHandles):
-        if type(Leg) == matplotlib.patches.Rectangle:
-            BBounds = np.ravel(Leg.get_bbox())
-            BBounds[2:] = BBounds[2:][::-1]
-            Leg.set_bounds(BBounds)
-
-            LegPos = (
-                # Ideally,
-                #    `(BBounds[0]+(BBounds[2]/2)) - AxLeg.handletextpad`
-                # should be at the horizontal center of the legend patch,
-                # but for some reason it is not. Therefore the user will
-                # need to specify some padding.
-                (BBounds[0]+(BBounds[2]/2)) - AxLeg.handletextpad + XPad,
-
-                # Similarly, `(BBounds[1]+BBounds[3])` should be at the vertical
-                # top of the legend patch, but it is not.
-                (BBounds[1]+BBounds[3])+YPad
-            )
-
-        elif type(Leg) == matplotlib.lines.Line2D:
-            LegXY = Leg.get_xydata()[:,::-1]
-            Leg.set_data(*(LegXY[:,_] for _ in (0,1)))
-
-            LegPos = (
-                LegXY[0,0] - AxLeg.handletextpad + XPad,
-                max(LegXY[:,1]) + YPad
-            )
-
-        elif type(Leg) == matplotlib.collections.PathCollection:
-            LegPos = (
-                Leg.get_offsets()[0][0] + XPad,
-                Leg.get_offsets()[0][1] + YPad,
-            )
-        else:
-            raise NotImplementedError('Legends should contain Rectangle, Line2D or PathCollection.')
-
-        PText = LegTexts[L]
-        PText.set_verticalalignment('bottom')
-        PText.set_rotation(Rotation)
-        PText.set_x(LegPos[0])
-        PText.set_y(LegPos[1])
-
-    return(None)
-
-
 fig3, ax1 = plt.subplots(tight_layout=True)
-line1 = ax1.plot(VMR_O3,height_values, color = [0, 205/255, 127/255], linewidth = 5, label = 'true parameter value', zorder=1)
-line2 = ax1.errorbar(x,height_values,capsize=4, yerr = np.zeros(len(height_values)) ,color = 'red', label = 'MC estimate')#, label = 'MC estimate')
+line1 = ax1.plot(VMR_O3,height_values, color = [0, 205/255, 127/255], linewidth = 5, label = 'VMR O$_3$', zorder=1)
+line2 = ax1.errorbar(x,height_values,capsize=4, yerr = np.zeros(len(height_values)) ,color = 'red', label = 'MTC est')#, label = 'MC estimate')
 line4 = ax1.errorbar(x, height_values,capsize=4, xerr = xerr,color = 'red')#, label = 'MC estimate')
-line5 = ax1.plot(x_opt/(num_mole * S[ind,0]  * f_broad * 1e-4 * scalingConst),height_values, color = 'black', linewidth = 8, label = 'regularized solution', zorder=0)
+line5 = ax1.plot(x_opt/(num_mole * S[ind,0]  * f_broad * 1e-4 * scalingConst),height_values, color = 'black', linewidth = 8, label = 'reg. sol.', zorder=0)
 ax2 = ax1.twiny() # ax1 and ax2 share y-axis
 line3 = ax2.plot(y, tang_heights_lin, color = [200/255, 100/255, 0], label = r'data in \frac{W}{m^2 sr}\frac{1}{\frac{1}{cm}}')
 ax2.spines['top'].set_color([200/255, 100/255, 0])
@@ -1030,7 +1075,7 @@ handles, labels = ax1.get_legend_handles_labels()
 # Handles = [handles[0], handles[1], handles[2]]
 # Labels =  [labels[0], labels[1], labels[2]]
 # LegendVertical(ax1, Handles, Labels, 90, XPad=-45, YPad=12)
-legend = ax1.legend(handles = [handles[0], handles[1], handles[2]], loc='lower right')#bbox_to_anchor=(1.3, 1)
+legend = ax1.legend(handles = [handles[0], handles[1], handles[2]], loc='upper right', bbox_to_anchor=(1.01, 1.01))
 
 #plt.ylabel('Height in km')
 ax1.set_ylim([heights[minInd-1], heights[maxInd+1]])
