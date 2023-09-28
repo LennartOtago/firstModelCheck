@@ -877,7 +877,10 @@ if exitCode != 0:
     print(exitCode)
 f_max = f(ATy, y, B_max_inv_A_trans_y)
 
-fig,axs = plt.subplots()#tight_layout =  True)
+
+
+
+fig,axs = plt.subplots(figsize=(10, 8))#tight_layout =  True)
 axs.plot(lam,f_func, color = 'blue')
 axs.scatter(lam0,f_try_func[50], color = 'green', s= 70, zorder=4)
 axs.annotate('mode $\lambda_0$ of marginal posterior',(lam0-1e2,f_try_func[50]-0.2), color = 'green', fontsize = 14.7)
@@ -887,7 +890,9 @@ axs.annotate('MTC $\lambda$ sample mean',(np.mean(lambdas)+1e4,f_MTC-0.05), colo
 axs.scatter(lamPyT,f_tW, color = 'k', s = 35, zorder=5)
 axs.annotate('T-Walk $\lambda$ sample mean',(lamPyT+5e4,f_tW+0.2), color = 'k')
 axs.set_yscale('log')
-axs.set_ylabel('f($\lambda$)')
+axs.set_xlabel('$\lambda$')
+axs.set_ylabel('f($\lambda$)', color = 'blue')
+axs.tick_params(axis = 'y', labelcolor="blue")
 ax2 = axs.twinx() # ax1 and ax2 share y-axis
 ax2.plot(lam,g_func, color = 'darkred')
 ax2.scatter(lam0,g_try_func[50], color = 'green', s=70, zorder=4)
@@ -897,9 +902,10 @@ ax2.scatter(np.mean(lambdas),g(A, L, np.mean(lambdas) ), color = 'red', zorder=5
 #ax2.annotate('MTC $\lambda$ sample mean',(np.mean(lambdas)+1e4,g(A, L, np.mean(lambdas) )-45), color = 'red')
 ax2.errorbar(lamPyT,g(A, L, lamPyT) , xerr=np.sqrt(varPyT)/2, color = 'k', zorder=5, fmt='o')
 #ax2.annotate('T-Walk $\lambda$ sample mean',(lamPyT+1e6,g(A_lin, L, lamPyT) +50), color = 'k')
-ax2.set_ylabel('g($\lambda$)')
-axs.add_patch(mpl.patches.Rectangle((xMTC, f_MTC_min), np.sqrt(np.var(lambdas)), f_MTC_max- f_MTC_min,color="red", alpha = 0.5))
-axs.add_patch(mpl.patches.Rectangle( (xpyT, f_pyT_min), np.sqrt(varPyT), f_pyT_max- f_pyT_min,color="black", alpha = 0.5))
+ax2.set_ylabel('g($\lambda$)',color = 'darkred')
+ax2.tick_params(axis = 'y', labelcolor="darkred")
+#axs.add_patch(mpl.patches.Rectangle((xMTC, f_MTC_min), np.sqrt(np.var(lambdas)), f_MTC_max- f_MTC_min,color="red", alpha = 0.5))
+#axs.add_patch(mpl.patches.Rectangle( (xpyT, f_pyT_min), np.sqrt(varPyT), f_pyT_max- f_pyT_min,color="black", alpha = 0.5))
 axs.set_xscale('log')
 axins = axs.inset_axes([0.05,0.5,0.4,0.45])
 # axins.tick_params(labelleft=False, labelright=False, labelbottom=False)
