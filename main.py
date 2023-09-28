@@ -317,7 +317,7 @@ print(minimum[1]/minimum[0])
 """ finaly calc f and g with a linear solver adn certain lambdas
  using the gmres"""
 
-lam= np.logspace(-4,14,500)
+lam= np.logspace(-4,14,1000)
 f_func = np.zeros(len(lam))
 g_func = np.zeros(len(lam))
 
@@ -837,28 +837,6 @@ plt.savefig('f_and_g.png')
 plt.show()
 
 """f und g for  paper"""
-
-fig,axs = plt.subplots()#tight_layout =  True)
-axs.plot(lam,f_func, color = 'blue')
-axs.scatter(lam0,f_try_func[50], color = 'green', s= 70, zorder=4)
-axs.annotate('mode $\lambda_0$ of marginal posterior',(lam0+2e4,f_try_func[50]), color = 'green', fontsize = 14.7)
-#axs.scatter(np.mean(lambdas),f_MTC, color = 'red', zorder=5)
-axs.errorbar(np.mean(lambdas),f_MTC, color = 'red', zorder=5,xerr=np.sqrt(np.var(lambdas))/2, fmt='o')
-axs.annotate('MTC $\lambda$ sample mean',(np.mean(lambdas)+1e4,f_MTC), color = 'red')
-axs.scatter(lamPyT,f_tW, color = 'k', s = 35, zorder=5)
-axs.annotate('T-Walk $\lambda$ sample mean',(lamPyT+1e5,f_tW+2e6), color = 'k')
-axs.set_yscale('log')
-axs.set_ylabel('f($\lambda$)')
-ax2 = axs.twinx() # ax1 and ax2 share y-axis
-ax2.plot(lam,g_func, color = 'darkred')
-ax2.scatter(lam0,g_try_func[50], color = 'green', s=70, zorder=4)
-ax2.annotate('mode $\lambda_0$ of marginal posterior',(lam0+3e5,g_try_func[50]), color = 'green')
-ax2.scatter(np.mean(lambdas),g(A, L, np.mean(lambdas) ), color = 'red', zorder=5)
-#ax2.errorbar(np.mean(lambdas),g(A, L, np.mean(lambdas) ), color = 'red', zorder=5, xerr=np.sqrt(np.var(lambdas))/2, fmt='o')
-ax2.annotate('MTC $\lambda$ sample mean',(np.mean(lambdas)+1e4,g(A, L, np.mean(lambdas) )-45), color = 'red')
-ax2.errorbar(lamPyT,g(A, L, lamPyT) , xerr=np.sqrt(varPyT)/2, color = 'k', zorder=5, fmt='o')
-ax2.annotate('T-Walk $\lambda$ sample mean',(lamPyT+1e6,g(A_lin, L, lamPyT) +50), color = 'k')
-ax2.set_ylabel('g($\lambda$)')
 B_MTC_min = ATA + (np.mean(lambdas) - np.sqrt(np.var(lambdas))/2) * L
 B_MTC_min_inv_A_trans_y, exitCode = gmres(B_MTC_min, ATy[0::, 0], tol=tol, restart=25)
 if exitCode != 0:
@@ -872,8 +850,6 @@ if exitCode != 0:
 f_MTC_max = f(ATy, y, B_MTC_max_inv_A_trans_y)
 
 xMTC = np.mean(lambdas) - np.sqrt(np.var(lambdas))/2
-axs.add_patch(mpl.patches.Rectangle((xMTC, f_MTC_min), np.sqrt(np.var(lambdas)), f_MTC_max- f_MTC_min,color="red", alpha = 0.5))
-
 
 B_pyT_min = ATA + (lamPyT - np.sqrt(varPyT)/2) * L
 B_pyT_min_inv_A_trans_y, exitCode = gmres(B_pyT_min, ATy[0::, 0], tol=tol, restart=25)
@@ -889,10 +865,7 @@ f_pyT_max = f(ATy, y, B_pyT_max_inv_A_trans_y)
 
 xpyT = lamPyT - np.sqrt(varPyT)/2
 
-axs.add_patch(mpl.patches.Rectangle( (xpyT, f_pyT_min), np.sqrt(varPyT), f_pyT_max- f_pyT_min,color="black", alpha = 0.5))
-axs.set_xscale('log')
-
-B_min = ATA + (np.mean(lambdas) - 1.5*np.sqrt(np.var(lambdas)) ) * L
+B_min = ATA + (np.mean(lambdas) - np.sqrt(np.var(lambdas)) ) * L
 B_min_inv_A_trans_y, exitCode = gmres(B_min, ATy[0::, 0], tol=tol, restart=25)
 if exitCode != 0:
     print(exitCode)
@@ -904,19 +877,55 @@ if exitCode != 0:
     print(exitCode)
 f_max = f(ATy, y, B_max_inv_A_trans_y)
 
+fig,axs = plt.subplots()#tight_layout =  True)
+axs.plot(lam,f_func, color = 'blue')
+axs.scatter(lam0,f_try_func[50], color = 'green', s= 70, zorder=4)
+axs.annotate('mode $\lambda_0$ of marginal posterior',(lam0-1e2,f_try_func[50]-0.2), color = 'green', fontsize = 14.7)
+#axs.scatter(np.mean(lambdas),f_MTC, color = 'red', zorder=5)
+axs.errorbar(np.mean(lambdas),f_MTC, color = 'red', zorder=5,xerr=np.sqrt(np.var(lambdas))/2, fmt='o')
+axs.annotate('MTC $\lambda$ sample mean',(np.mean(lambdas)+1e4,f_MTC-0.05), color = 'red')
+axs.scatter(lamPyT,f_tW, color = 'k', s = 35, zorder=5)
+axs.annotate('T-Walk $\lambda$ sample mean',(lamPyT+5e4,f_tW+0.2), color = 'k')
+axs.set_yscale('log')
+axs.set_ylabel('f($\lambda$)')
+ax2 = axs.twinx() # ax1 and ax2 share y-axis
+ax2.plot(lam,g_func, color = 'darkred')
+ax2.scatter(lam0,g_try_func[50], color = 'green', s=70, zorder=4)
+#ax2.annotate('mode $\lambda_0$ of marginal posterior',(lam0+3e5,g_try_func[50]), color = 'green')
+ax2.scatter(np.mean(lambdas),g(A, L, np.mean(lambdas) ), color = 'red', zorder=5)
+#ax2.errorbar(np.mean(lambdas),g(A, L, np.mean(lambdas) ), color = 'red', zorder=5, xerr=np.sqrt(np.var(lambdas))/2, fmt='o')
+#ax2.annotate('MTC $\lambda$ sample mean',(np.mean(lambdas)+1e4,g(A, L, np.mean(lambdas) )-45), color = 'red')
+ax2.errorbar(lamPyT,g(A, L, lamPyT) , xerr=np.sqrt(varPyT)/2, color = 'k', zorder=5, fmt='o')
+#ax2.annotate('T-Walk $\lambda$ sample mean',(lamPyT+1e6,g(A_lin, L, lamPyT) +50), color = 'k')
+ax2.set_ylabel('g($\lambda$)')
+axs.add_patch(mpl.patches.Rectangle((xMTC, f_MTC_min), np.sqrt(np.var(lambdas)), f_MTC_max- f_MTC_min,color="red", alpha = 0.5))
+axs.add_patch(mpl.patches.Rectangle( (xpyT, f_pyT_min), np.sqrt(varPyT), f_pyT_max- f_pyT_min,color="black", alpha = 0.5))
+axs.set_xscale('log')
 axins = axs.inset_axes([0.05,0.5,0.4,0.45])
+# axins.tick_params(labelleft=False, labelright=False, labelbottom=False)
+# #axs.indicate_inset_zoom(axins, edgecolor="black")
 axins.tick_params(labelleft=False, labelright=False, labelbottom=False)
 #axs.indicate_inset_zoom(axins, edgecolor="black")
 axins.plot(lam,f_func, color = 'blue')
 axins.set_ylim(f_min,f_max)
+axins.set_xlim(np.mean(lambdas) - np.sqrt(np.var(lambdas)), np.mean(lambdas) + np.sqrt(np.var(lambdas)) )# apply the x-limits
+axins.scatter(lam0,f_try_func[50], color = 'green', s= 70, zorder=4)
+axins.errorbar(np.mean(lambdas),f_MTC, color = 'red', zorder=5,xerr=np.sqrt(np.var(lambdas))/2, fmt='o')
+axins.errorbar(lamPyT,f_tW, xerr=np.sqrt(varPyT)/2, color = 'k', zorder=5,fmt='o')
+axins.add_patch(mpl.patches.Rectangle( (xpyT, f_pyT_min), np.sqrt(varPyT), f_pyT_max- f_pyT_min,color="black", alpha = 0.5))
+axins.add_patch(mpl.patches.Rectangle((xMTC, f_MTC_min), np.sqrt(np.var(lambdas)), f_MTC_max- f_MTC_min,color="red", alpha = 0.5))
 axins.set_yscale('log')
 #axins.add_patch(mpl.patches.Rectangle( (xpyT, f_pyT_min), np.sqrt(varPyT), f_pyT_max- f_pyT_min,color="black", alpha = 0.5))
-axins.set_xlim(np.mean(lambdas) - np.sqrt(np.var(lambdas)), np.mean(lambdas) + np.sqrt(np.var(lambdas))/2 )# apply the x-limits
+axins.set_xlim(np.mean(lambdas) - np.sqrt(np.var(lambdas)), np.mean(lambdas) + np.sqrt(np.var(lambdas)) )# apply the x-limits
 axins.set_xscale('log')
 axin2 = axins.twinx()
 axin2.plot(lam,g_func, color = 'darkred')
-axin2.set_ylim(g(A, L, np.mean(lambdas) - np.sqrt(np.var(lambdas)) ), g(A, L, np.mean(lambdas) + np.sqrt(np.var(lambdas))/2 ))
+axin2.set_ylim(g(A, L, np.mean(lambdas) - np.sqrt(np.var(lambdas)) ), g(A, L, np.mean(lambdas) + np.sqrt(np.var(lambdas)) ))
+axin2.scatter(lam0,g_try_func[50], color = 'green', s=70, zorder=4)
+axin2.errorbar(lamPyT,g(A, L, lamPyT) , xerr=np.sqrt(varPyT)/2, color = 'k', zorder=5, fmt='o')
+axin2.errorbar(np.mean(lambdas),g(A, L, np.mean(lambdas) ), xerr=np.sqrt(np.var(lambdas))/2, color = 'red', zorder=5, fmt='o')
 axin2.set_xscale('log')
+axin2.set_xlim(np.mean(lambdas) - np.sqrt(np.var(lambdas)), np.mean(lambdas) + np.sqrt(np.var(lambdas)) )# apply the x-limits
 axin2.set_yticklabels([])
 plt.savefig('f_and_g_paper.png')
 plt.show()
@@ -927,18 +936,28 @@ axins.tick_params(labelleft=False, labelright=False, labelbottom=False)
 #axs.indicate_inset_zoom(axins, edgecolor="black")
 axins.plot(lam,f_func, color = 'blue')
 axins.set_ylim(f_min,f_max)
+axins.set_xlim(np.mean(lambdas) - np.sqrt(np.var(lambdas)), np.mean(lambdas) + np.sqrt(np.var(lambdas)) )# apply the x-limits
+
 axins.scatter(lam0,f_try_func[50], color = 'green', s= 70, zorder=4)
 axins.errorbar(np.mean(lambdas),f_MTC, color = 'red', zorder=5,xerr=np.sqrt(np.var(lambdas))/2, fmt='o')
-axins.scatter(lamPyT,f_tW, color = 'k', s = 35, zorder=5)
+axins.errorbar(lamPyT,f_tW, xerr=np.sqrt(varPyT)/2, color = 'k', zorder=5,fmt='o')
+axins.add_patch(mpl.patches.Rectangle( (xpyT, f_pyT_min), np.sqrt(varPyT), f_pyT_max- f_pyT_min,color="black", alpha = 0.5))
+axins.add_patch(mpl.patches.Rectangle((xMTC, f_MTC_min), np.sqrt(np.var(lambdas)), f_MTC_max- f_MTC_min,color="red", alpha = 0.5))
 axins.set_yscale('log')
+axins.tick_params(labelbottom='off')
 #axins.add_patch(mpl.patches.Rectangle( (xpyT, f_pyT_min), np.sqrt(varPyT), f_pyT_max- f_pyT_min,color="black", alpha = 0.5))
-axins.set_xlim(np.mean(lambdas) - np.sqrt(np.var(lambdas)), np.mean(lambdas) + np.sqrt(np.var(lambdas))/2 )# apply the x-limits
+axins.set_xlim(np.mean(lambdas) - np.sqrt(np.var(lambdas)), np.mean(lambdas) + np.sqrt(np.var(lambdas)) )# apply the x-limits
 axins.set_xscale('log')
-axin2 = axins.twinx()
+axin2 = axins.twiny()
 axin2.plot(lam,g_func, color = 'darkred')
-axin2.set_ylim(g(A, L, np.mean(lambdas) - np.sqrt(np.var(lambdas)) ), g(A, L, np.mean(lambdas) + np.sqrt(np.var(lambdas))/2 ))
+axin2.set_ylim(g(A, L, np.mean(lambdas) - np.sqrt(np.var(lambdas)) ), g(A, L, np.mean(lambdas) + np.sqrt(np.var(lambdas)) ))
+axin2.scatter(lam0,g_try_func[50], color = 'green', s=70, zorder=4)
+axin2.errorbar(lamPyT,g(A, L, lamPyT) , xerr=np.sqrt(varPyT)/2, color = 'k', zorder=5, fmt='o')
+axin2.errorbar(np.mean(lambdas),g(A, L, np.mean(lambdas) ), xerr=np.sqrt(np.var(lambdas))/2, color = 'red', zorder=5, fmt='o')
 axin2.set_xscale('log')
+axin2.set_xlim(np.mean(lambdas) - np.sqrt(np.var(lambdas)), np.mean(lambdas) + np.sqrt(np.var(lambdas)) )# apply the x-limits
 axin2.set_yticklabels([])
+axin2.tick_params(labelbottom='off')
 #axins.tick_params(left=False, labelleft=False, top=False, labeltop=False,right=False, labelright=False, bottom=False, labelbottom=False)
 
 plt.show()
