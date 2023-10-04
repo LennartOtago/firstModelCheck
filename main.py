@@ -14,6 +14,7 @@ import pandas as pd
 from numpy.random import uniform, normal, gamma
 import scipy as scy
 from matplotlib.ticker import FuncFormatter
+from mpl_toolkits.axes_grid1.inset_locator import inset_axes, mark_inset
 def scientific(x, pos):
     # x:  tick value
     # pos: tick position
@@ -314,7 +315,7 @@ print(minimum)
 print(minimum[1]/minimum[0])
 
 
-""" finaly calc f and g with a linear solver adn certain lambdas
+""" finally calc f and g with a linear solver adn certain lambdas
  using the gmres"""
 
 lam= np.logspace(-4,14,1000)
@@ -339,6 +340,9 @@ for j in range(len(lam)):
     g_func[j] = g(A, L, lam[j])
 
 
+np.savetxt('f_func.txt', f_func, fmt = '%.15f')
+np.savetxt('g_func.txt', g_func, fmt = '%.15f')
+np.savetxt('lam.txt', lam, fmt = '%.15f')
 
 
 '''check error in g(lambda)'''
@@ -542,15 +546,17 @@ fig, axs = plt.subplots(3, 1,tight_layout=True)
 n_bins = 20
 
 # We can set the number of bins with the *bins* keyword argument.
-axs[0].hist(new_gam,bins=n_bins)#int(n_bins/math.ceil(IntAutoGam)))
-axs[0].set_title(str(len(new_gam)) + ' effective $\gamma$ samples')
-axs[1].hist(new_delt,bins=n_bins)#int(n_bins/math.ceil(IntAutoDelt)))
-axs[1].set_title(str(len(new_delt)) + ' effective $\delta$ samples')
-axs[2].hist(new_lamb,bins=n_bins)#10)
+axs[0].hist(new_gam,bins=n_bins, color = 'k')#int(n_bins/math.ceil(IntAutoGam)))
+#axs[0].set_title(str(len(new_gam)) + ' effective $\gamma$ samples')
+axs[0].set_title(str(len(new_gam)) + r' $\gamma$ samples, the noise precision')
+axs[1].hist(new_delt,bins=n_bins, color = 'k')#int(n_bins/math.ceil(IntAutoDelt)))
+axs[1].set_title(str(len(new_delt)) + ' $\delta$ samples, the prior precision')
+axs[2].hist(new_lamb,bins=n_bins, color = 'k')#10)
 axs[2].xaxis.set_major_formatter(scientific_formatter)
-axs[2].set_title(str(len(new_lamb)) + ' effective $\lambda =\delta / \gamma$ samples')
+#axs[2].set_title(str(len(new_lamb)) + ' effective $\lambda =\delta / \gamma$ samples')
+axs[2].set_title(str(len(new_lamb)) + ' $\lambda$ samples, the regularization parameter')
 plt.savefig('HistoResults.png')
-#plt.show()
+plt.show()
 
 
 
@@ -882,63 +888,66 @@ f_max = f(ATy, y, B_max_inv_A_trans_y)
 
 fig,axs = plt.subplots(figsize=(10, 8))#tight_layout =  True)
 axs.plot(lam,f_func, color = 'blue')
-axs.scatter(lam0,f_try_func[50], color = 'green', s= 70, zorder=4)
-axs.annotate('mode $\lambda_0$ of marginal posterior',(lam0-1e2,f_try_func[50]-0.2), color = 'green', fontsize = 14.7)
-#axs.scatter(np.mean(lambdas),f_MTC, color = 'red', zorder=5)
-axs.errorbar(np.mean(lambdas),f_MTC, color = 'red', zorder=5,xerr=np.sqrt(np.var(lambdas))/2, fmt='o')
-axs.annotate('MTC $\lambda$ sample mean',(np.mean(lambdas)+1e4,f_MTC-0.05), color = 'red')
+axs.scatter(lam0,f_try_func[50], color = 'cyan', s= 70, zorder=4)
+#axs.annotate('$\lambda_0$ mode of marginal posterior',(5.05e4,0.25), color = 'green', fontsize = 14.7)
+axs.scatter(np.mean(lambdas),f_MTC, color = 'red', zorder=5)
+#axs.annotate('MTC $\lambda$ sample mean',(5.05e4,0.375), color = 'red')
 axs.scatter(lamPyT,f_tW, color = 'k', s = 35, zorder=5)
-axs.annotate('T-Walk $\lambda$ sample mean',(lamPyT+5e4,f_tW+0.2), color = 'k')
+#axs.annotate('T-Walk $\lambda$ sample mean',(5.05e4,0.6), color = 'k')
 axs.set_yscale('log')
 axs.set_xlabel('$\lambda$')
 axs.set_ylabel('f($\lambda$)', color = 'blue')
 axs.tick_params(axis = 'y', labelcolor="blue")
 ax2 = axs.twinx() # ax1 and ax2 share y-axis
 ax2.plot(lam,g_func, color = 'darkred')
-ax2.scatter(lam0,g_try_func[50], color = 'green', s=70, zorder=4)
-#ax2.annotate('mode $\lambda_0$ of marginal posterior',(lam0+3e5,g_try_func[50]), color = 'green')
+ax2.scatter(lam0,g_try_func[50], color = 'cyan', s=70, zorder=4)
 ax2.scatter(np.mean(lambdas),g(A, L, np.mean(lambdas) ), color = 'red', zorder=5)
-#ax2.errorbar(np.mean(lambdas),g(A, L, np.mean(lambdas) ), color = 'red', zorder=5, xerr=np.sqrt(np.var(lambdas))/2, fmt='o')
-#ax2.annotate('MTC $\lambda$ sample mean',(np.mean(lambdas)+1e4,g(A, L, np.mean(lambdas) )-45), color = 'red')
-ax2.errorbar(lamPyT,g(A, L, lamPyT) , xerr=np.sqrt(varPyT)/2, color = 'k', zorder=5, fmt='o')
+ax2.scatter(lamPyT,g(A, L, lamPyT) , color = 'k', zorder=5)
 #ax2.annotate('T-Walk $\lambda$ sample mean',(lamPyT+1e6,g(A_lin, L, lamPyT) +50), color = 'k')
 ax2.set_ylabel('g($\lambda$)',color = 'darkred')
 ax2.tick_params(axis = 'y', labelcolor="darkred")
-#axs.add_patch(mpl.patches.Rectangle((xMTC, f_MTC_min), np.sqrt(np.var(lambdas)), f_MTC_max- f_MTC_min,color="red", alpha = 0.5))
-#axs.add_patch(mpl.patches.Rectangle( (xpyT, f_pyT_min), np.sqrt(varPyT), f_pyT_max- f_pyT_min,color="black", alpha = 0.5))
 axs.set_xscale('log')
 axins = axs.inset_axes([0.05,0.5,0.4,0.45])
-# axins.tick_params(labelleft=False, labelright=False, labelbottom=False)
-# #axs.indicate_inset_zoom(axins, edgecolor="black")
-axins.tick_params(labelleft=False, labelright=False, labelbottom=False)
-#axs.indicate_inset_zoom(axins, edgecolor="black")
+#axins.tick_params(axis = 'x', which = 'minor', labelbottom=False)
 axins.plot(lam,f_func, color = 'blue')
-axins.set_ylim(f_min,f_max)
-axins.set_xlim(np.mean(lambdas) - np.sqrt(np.var(lambdas)), np.mean(lambdas) + np.sqrt(np.var(lambdas)) )# apply the x-limits
-axins.scatter(lam0,f_try_func[50], color = 'green', s= 70, zorder=4)
-axins.errorbar(np.mean(lambdas),f_MTC, color = 'red', zorder=5,xerr=np.sqrt(np.var(lambdas))/2, fmt='o')
-axins.errorbar(lamPyT,f_tW, xerr=np.sqrt(varPyT)/2, color = 'k', zorder=5,fmt='o')
-axins.add_patch(mpl.patches.Rectangle( (xpyT, f_pyT_min), np.sqrt(varPyT), f_pyT_max- f_pyT_min,color="black", alpha = 0.5))
-axins.add_patch(mpl.patches.Rectangle((xMTC, f_MTC_min), np.sqrt(np.var(lambdas)), f_MTC_max- f_MTC_min,color="red", alpha = 0.5))
+#axins.set_ylim(f_min,f_max)
+axins.set_ylim(0.36,0.5)
+axins.set_xlabel('$\gamma$')
+#axins.set_xlim(np.mean(lambdas) - np.sqrt(np.var(lambdas)), np.mean(lambdas) + np.sqrt(np.var(lambdas)) )# apply the x-limits
+axins.scatter(lam0,f_try_func[50], color = 'cyan', s= 70, zorder=4)
+axins.errorbar(np.mean(lambdas),f_MTC, color = 'red', zorder=5,xerr=np.sqrt(np.var(lambdas))/2, fmt='o',markersize = 10)
+axins.errorbar(lamPyT,f_tW, xerr=np.sqrt(varPyT)/2, color = 'k', zorder=5,fmt='o',markersize = 10)
+axins.add_patch(mpl.patches.Rectangle( (xpyT, f_pyT_min), np.sqrt(varPyT), f_pyT_max - f_pyT_min,color="black", alpha = 0.5))
+axins.add_patch(mpl.patches.Rectangle((xMTC, f_MTC_min), np.sqrt(np.var(lambdas)), f_MTC_max - f_MTC_min,color="red", alpha = 0.5))
 axins.set_yscale('log')
-#axins.add_patch(mpl.patches.Rectangle( (xpyT, f_pyT_min), np.sqrt(varPyT), f_pyT_max- f_pyT_min,color="black", alpha = 0.5))
-axins.set_xlim(np.mean(lambdas) - np.sqrt(np.var(lambdas)), np.mean(lambdas) + np.sqrt(np.var(lambdas)) )# apply the x-limits
 axins.set_xscale('log')
+axins.tick_params(axis = 'y', which = 'both', labelright=False, right=False, labelleft=False, left=False)
+#axins.set_xticks(lam[::70])
+axins.set_xlim([np.mean(lambdas) -np.sqrt(np.var(lambdas)), np.mean(lambdas) + np.sqrt(np.var(lambdas))])# apply the x-limits
+
 axin2 = axins.twinx()
+#axin2.set_xticks([np.mean(lambdas) -np.sqrt(np.var(lambdas)) , np.mean(lambdas), np.mean(lambdas) + np.sqrt(np.var(lambdas)) ] )
 axin2.plot(lam,g_func, color = 'darkred')
-axin2.set_ylim(g(A, L, np.mean(lambdas) - np.sqrt(np.var(lambdas)) ), g(A, L, np.mean(lambdas) + np.sqrt(np.var(lambdas)) ))
-axin2.scatter(lam0,g_try_func[50], color = 'green', s=70, zorder=4)
-axin2.errorbar(lamPyT,g(A, L, lamPyT) , xerr=np.sqrt(varPyT)/2, color = 'k', zorder=5, fmt='o')
-axin2.errorbar(np.mean(lambdas),g(A, L, np.mean(lambdas) ), xerr=np.sqrt(np.var(lambdas))/2, color = 'red', zorder=5, fmt='o')
+axin2.set_ylim(325,355 )
+axin2.scatter(lam0,g_try_func[50], color = 'cyan', s=80, zorder=4)
+axin2.errorbar(lamPyT,g(A, L, lamPyT) , xerr=np.sqrt(varPyT)/2, color = 'k', zorder=5, fmt='o', markersize='10')
+axin2.errorbar(np.mean(lambdas),g(A, L, np.mean(lambdas) ), xerr=np.sqrt(np.var(lambdas))/2, color = 'red', zorder=5, fmt='o',markersize='10')
 axin2.set_xscale('log')
 axin2.set_xlim(np.mean(lambdas) - np.sqrt(np.var(lambdas)), np.mean(lambdas) + np.sqrt(np.var(lambdas)) )# apply the x-limits
-axin2.set_yticklabels([])
+axin2.set_xscale('log')
+axin2.tick_params(axis = 'y', which = 'both', labelright=False, right=False, labelleft=False, left=False)
+#axins.tick_params(axis = 'x', labelbottom=False)
+#axin2.set_xticks(lam[::70])
+axin2.set_xlim([np.mean(lambdas) - np.sqrt(np.var(lambdas)), np.mean(lambdas) + np.sqrt(np.var(lambdas))] )# apply the x-limits
+axs.indicate_inset_zoom(axins, edgecolor="none")
+mark_inset(axs, axins, loc1=3, loc2=4, fc="none", ec="0.5")
 plt.savefig('f_and_g_paper.png')
 plt.show()
 
 
+
 fig,axins = plt.subplots(sharex=True)#tight_layout =  True)
-axins.tick_params(labelleft=False, labelright=False, labelbottom=False)
+axins.tick_params(labelleft=False, labelright=False, labelbottom=False, bottom = False)
 #axs.indicate_inset_zoom(axins, edgecolor="black")
 axins.plot(lam,f_func, color = 'blue')
 axins.set_ylim(f_min,f_max)
@@ -954,7 +963,8 @@ axins.tick_params(labelbottom='off')
 #axins.add_patch(mpl.patches.Rectangle( (xpyT, f_pyT_min), np.sqrt(varPyT), f_pyT_max- f_pyT_min,color="black", alpha = 0.5))
 axins.set_xlim(np.mean(lambdas) - np.sqrt(np.var(lambdas)), np.mean(lambdas) + np.sqrt(np.var(lambdas)) )# apply the x-limits
 axins.set_xscale('log')
-axin2 = axins.twiny()
+axin2 = axins.twinx()
+axin2.tick_params(labelleft=False, labelright=False, labelbottom=False, bottom = False)
 axin2.plot(lam,g_func, color = 'darkred')
 axin2.set_ylim(g(A, L, np.mean(lambdas) - np.sqrt(np.var(lambdas)) ), g(A, L, np.mean(lambdas) + np.sqrt(np.var(lambdas)) ))
 axin2.scatter(lam0,g_try_func[50], color = 'green', s=70, zorder=4)
@@ -963,7 +973,7 @@ axin2.errorbar(np.mean(lambdas),g(A, L, np.mean(lambdas) ), xerr=np.sqrt(np.var(
 axin2.set_xscale('log')
 axin2.set_xlim(np.mean(lambdas) - np.sqrt(np.var(lambdas)), np.mean(lambdas) + np.sqrt(np.var(lambdas)) )# apply the x-limits
 axin2.set_yticklabels([])
-axin2.tick_params(labelbottom='off')
+#axin2.tick_params(labelbottom='off')
 #axins.tick_params(left=False, labelleft=False, top=False, labeltop=False,right=False, labelright=False, bottom=False, labelbottom=False)
 
 plt.show()
@@ -1042,40 +1052,31 @@ for i in range(len(lamLCurveZoom)):
 # if exitCode != 0:
 #     print(exitCode)
 
-fig, axs = plt.subplots( 1,1, tight_layout=True)
+fig, axs = plt.subplots( tight_layout=True)
 axs.scatter(NormLCurve,xTLxCurve, zorder = 0, color = 'black')
 axs.scatter(np.linalg.norm(np.matmul(A, x) - y[0::, 0]),np.sqrt(np.matmul(np.matmul(x.T, L), x)), color = 'black')
-#axs.annotate('$\lambda_0$ = ' + str(math.ceil(minimum[1]/minimum[0])), (np.linalg.norm(np.matmul(A_lin, x) - y[0::, 0]),np.sqrt(np.matmul(np.matmul(x.T, L), x))))
-#axs.annotate('$\lambda$ = 1e' + str(orderOfMagnitude(lamLCurve[0])), (NormLCurve[0],xTLxCurve[0]))
-#axs.annotate('$\lambda_{opt}$ = ' + str(lam_opt), (LNormOpt - 0.07,xTLxOpt - 0.0106))
 axs.scatter(LNormOpt, xTLxOpt, color = 'aqua')
 axs.scatter(NormRes, xTLxRes, color = 'red')#, marker = "." ,mfc = 'black' , markeredgecolor='r',markersize=10,linestyle = 'None')
 #zoom in
 x1, x2, y1, y2 = NormLCurveZoom[0], NormLCurveZoom[-1], xTLxCurveZoom[0], xTLxCurveZoom[-1] # specify the limits
-#axins = mplT.axes_grid1.inset_locator.inset_axes( parent_axes = axs,  bbox_transform=axs.transAxes, bbox_to_anchor =(0.05,0.05,0.75,0.75) , width = '100%' , height = '100%')#,  loc= 'lower left')
-#[x0, y0, width, height]
 axins = axs.inset_axes([0.1,0.05,0.4,0.45])
-#axins = axs.inset_axes([x1,y1,x2-x1,y1-y2], transform=axs.transAxes,xlim=(x1, x2), ylim=(y1, y2))
 axins.scatter(NormRes, xTLxRes, color = 'red')
 axins.scatter(NormLCurveZoom,xTLxCurveZoom, color = 'black')
 axins.scatter(LNormOpt, xTLxOpt, color = 'aqua')
-axins.annotate('$\lambda_{reg}$ = ' + str(lam_opt), (LNormOpt+0.5,xTLxOpt))
-
-#axins.scatter(NormRes, xTLxRes)
-#,'o', color='black')
+axins.annotate('$\lambda_{opt}$ = ' + str(lam_opt), (LNormOpt+0.5,xTLxOpt))
 axins.set_xscale('log')
 axins.set_yscale('log')
 axins.set_xlim(x1-0.05, x2) # apply the x-limits
 axins.set_ylim(y2, y1) # apply the y-limits (negative gradient)
-axins.set_xticklabels([])
-axins.set_yticklabels([])
-axs.indicate_inset_zoom(axins, edgecolor="black")
-
+axins.set_xticks([])
+axins.tick_params(axis = 'y', which = 'both', labelleft=False, left = False)
+axs.indicate_inset_zoom(axins, edgecolor="none")
 axs.set_xscale('log')
 axs.set_yscale('log')
 axs.set_ylabel(r'$\sqrt{x^T L x}$')
 axs.set_xlabel(r'$|| Ax - y ||$')
 axs.set_title('L-curve for m=' + str(SpecNumMeas))
+mark_inset(axs, axins, loc1=3, loc2=4, fc="none", ec="0.5")
 plt.savefig('LCurve.png')
 plt.show()
 
@@ -1085,14 +1086,14 @@ x = np.mean(Results,0 )/ (num_mole * S[ind,0]  * f_broad * 1e-4 * scalingConst)
 xerr = np.sqrt(np.var(Results / (num_mole * S[ind, 0] * f_broad * 1e-4 * scalingConst), 0)) / 2
 
 fig3, ax1 = plt.subplots(tight_layout=True)
-line1 = ax1.plot(VMR_O3,height_values, color = [0, 205/255, 127/255], linewidth = 5, label = 'VMR O$_3$', zorder=1)
+line1 = ax1.plot(VMR_O3,height_values, color = [0, 205/255, 127/255], linewidth = 10, label = 'VMR O$_3$', zorder=0)
 line2 = ax1.errorbar(x,height_values,capsize=4, yerr = np.zeros(len(height_values)) ,color = 'red', label = 'MTC est')#, label = 'MC estimate')
 line4 = ax1.errorbar(x, height_values,capsize=4, xerr = xerr,color = 'red')#, label = 'MC estimate')
-line5 = ax1.plot(x_opt/(num_mole * S[ind,0]  * f_broad * 1e-4 * scalingConst),height_values, color = 'black', linewidth = 8, label = 'reg. sol.', zorder=0)
+line5 = ax1.plot(x_opt/(num_mole * S[ind,0]  * f_broad * 1e-4 * scalingConst),height_values, color = 'black', linewidth = 5, label = 'reg. sol.', zorder=1)
 ax2 = ax1.twiny() # ax1 and ax2 share y-axis
 line3 = ax2.plot(y, tang_heights_lin, color = [200/255, 100/255, 0], label = r'data in \frac{W}{m^2 sr}\frac{1}{\frac{1}{cm}}')
 ax2.spines['top'].set_color([200/255, 100/255, 0])
-ax2.set_xlabel(r'Spectral Ozone radiance in $\frac{W}{m^2 sr} \times \frac{1}{\frac{1}{cm}}$')
+ax2.set_xlabel(r'Spectral Ozone radiance in $\frac{W}{m^2 sr} \times \frac{1}{\frac{1}{cm}}$', color =[200/255, 100/255, 0] )
 ax2.tick_params(labelcolor = [200/255, 100/255, 0])
 ax1.set_xlabel(r'Ozone volume mixing ratio ')
 multicolor_ylabel(ax1,('(Tangent)','Height in km'),('k', [200/255, 100/255, 0]),axis='y')
