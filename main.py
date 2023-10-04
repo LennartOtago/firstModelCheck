@@ -765,6 +765,57 @@ plt.savefig('TracetWalkPara.png')
 
 print('t-walk Done')
 
+
+fig, axs = plt.subplots(3, 1,tight_layout=True)
+n_bins = 20
+
+hist0 = axs[0].hist(new_gam,bins=n_bins, color = 'k', zorder = 0, label = 'MTC')
+axs[0].set_ylim([0,400])
+axs0 = axs[0].twinx()
+hist00 = axs0.hist(SampParas[burnIn::math.ceil(IntAutoGamPyT),0],bins=n_bins,color = 'cyan', zorder = 1, label = 't-walk')
+axs0.set_ylim([0,100])
+axs[0].legend(labels = ['MTC'], labelcolor = ['k'] ,loc='upper right', bbox_to_anchor=(0.975, 1.11),frameon=False)
+axs0.legend(labels = ['t-walk'], labelcolor = [ 'k'] ,loc='upper right', bbox_to_anchor=(1.01, 0.7),frameon=False)
+
+#axs0.legend(labels = ['MTC','t-walk'], labelcolor = ['k', 'cyan'] ,loc='upper right', bbox_to_anchor=(1.01, 1.11),frameon=False)
+axs[1].hist(new_delt,bins=n_bins, color = 'k', zorder = 0)
+axs[1].set_ylim([0,250])
+axs1 = axs[1].twinx()
+axs1.hist(SampParas[burnIn::math.ceil(IntAutoDeltaPyT),1],bins=n_bins,color = 'cyan', zorder = 1)
+axs1.set_ylim([0,100])
+axs[2].hist(new_lamb,bins=n_bins, color = 'k', zorder = 0)#10)
+axs[2].set_ylim([0,150])
+axs2 = axs[2].twinx()
+axs2.hist(lambasPyT[burnIn::math.ceil(IntAutoLamPyT)],bins=10,color = 'cyan', zorder = 1)
+axs2.set_ylim([0,100])
+axs[0].set_title(r'$\gamma$, the noise precision')
+axs[1].set_title(r'$\delta$, the prior precision')
+axs[2].set_title(r'$\lambda =\delta / \gamma$, the regularization parameter')
+
+plt.savefig('AllHistoResults.png')
+plt.show()
+
+
+fig, axs = plt.subplots(3, 1,tight_layout=True)
+n_bins = 20
+
+axs[0].hist(new_gam,bins=n_bins, color = 'k', zorder = 0, label = 'MTC')
+axs[0].hist(SampParas[burnIn::math.ceil(IntAutoGamPyT),0],bins=n_bins,color = 'cyan', zorder = 1, label = 't-walk')
+axs[0].legend(labels = ['MTC','t-walk'],loc='upper right', bbox_to_anchor=(1.01, 1.11),frameon=False)
+axs[1].hist(new_delt,bins=n_bins, color = 'k', zorder = 0)
+
+axs[1].hist(SampParas[burnIn::math.ceil(IntAutoDeltaPyT),1],bins=n_bins,color = 'cyan', zorder = 1)
+axs[2].hist(new_lamb,bins=n_bins, color = 'k', zorder = 0)#10)
+
+axs[2].hist(lambasPyT[burnIn::math.ceil(IntAutoLamPyT)],bins=10,color = 'cyan', zorder = 1)
+axs[0].set_title(r'$\gamma$, the noise precision')
+axs[1].set_title(r'$\delta$, the prior precision')
+axs[2].set_title(r'$\lambda =\delta / \gamma$, the regularization parameter')
+
+plt.savefig('AllHistoResults.png')
+plt.show()
+
+
 '''make figure for f and g including the best lambdas and taylor series'''
 
 B_MTC = ATA + np.mean(new_lamb) * L
