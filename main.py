@@ -21,6 +21,15 @@ def scientific(x, pos):
     return '%.e' % x
 scientific_formatter = FuncFormatter(scientific)
 
+mpl.use("pgf")
+mpl.rcParams.update({
+    "pgf.texsystem": "pdflatex",
+    #'font.family': 'serif',
+    #'font.size' : 11,
+    'text.usetex': True,
+    'pgf.rcfonts': False,
+})
+
 tol = 1e-6
 
 df = pd.read_excel('ExampleOzoneProfiles.xlsx')
@@ -142,6 +151,7 @@ g_air = np.zeros((size[0],1))
 g_self = np.zeros((size[0],1))
 E = np.zeros((size[0],1))
 n_air = np.zeros((size[0],1))
+g_doub_prime= np.zeros((size[0],1))
 
 
 for i, lines in enumerate(data_set):
@@ -152,8 +162,7 @@ for i, lines in enumerate(data_set):
     g_self[i] = float(lines[0][40:45])
     E[i] = float(lines[0][46:55])
     n_air[i] = float(lines[0][55:59])
-
-
+    g_doub_prime[i] = float(lines[0][155:160])
 
 
 #load constants in si annd convert to cgs units by multiplying
@@ -196,10 +205,21 @@ f_broad in (1/cm^-1) is the broadening due to pressure and doppler effect,
  I multiply with 1e-4 to go from cm^2 to m^2
  '''
 f_broad = 1
-w_cross = S[ind,0] * VMR_O3 * f_broad * 1e-4
+w_cross =  VMR_O3 * f_broad * 1e-4
 #w_cross[0], w_cross[-1] = 0, 0
 
+#from : https://hitran.org/docs/definitions-and-units/
+HitrConst2 = 1.4387769 # in cm K
 
+# internal partition sum
+Q = g_doub_prime[ind,0] * np.exp(- HitrConst2 * E[ind,0]/ temp_values)
+Q_ref = g_doub_prime[ind,0] * np.exp(- HitrConst2 * E[ind,0]/ 296)
+LineInt = S[ind,0] * Q_ref / Q * np.exp(- HitrConst2 * E[ind,0]/ temp_values)/ np.exp(- HitrConst2 * E[ind,0]/ 296) * (1 - np.exp(- HitrConst2 * wvnmbr[ind,0]/ temp_values))/ (1- np.exp(- HitrConst2 * wvnmbr[ind,0]/ 296))
+LineIntScal = Q_ref / Q * np.exp(- HitrConst2 * E[ind,0]/ temp_values)/ np.exp(- HitrConst2 * E[ind,0]/ 296) * (1 - np.exp(- HitrConst2 * wvnmbr[ind,0]/ temp_values))/ (1- np.exp(- HitrConst2 * wvnmbr[ind,0]/ 296))
+
+fig, axs = plt.subplots(tight_layout=True)
+plt.plot(LineInt,height_values)
+plt.show()
 
 ''' calculate model depending on where the Satellite is and 
 how many measurements we want to do in between the max angle and min angle
@@ -211,10 +231,11 @@ how many measurements we want to do in between the max angle and min angle
 num_mole = 1 / (scy.constants.Boltzmann )#* temp_values)
 
 AscalConstKmToCm = 1e3
-A_scal = pressure_values.reshape((SpecNumLayers,1)) * 1e2 * Source * AscalConstKmToCm/ ( temp_values)
+#1e2 for pressure values from hPa to Pa
+A_scal = pressure_values.reshape((SpecNumLayers,1)) * 1e2 * LineIntScal * Source * AscalConstKmToCm/ ( temp_values)
 scalingConst = 1e11
 #theta =(num_mole * w_cross.reshape((SpecNumLayers,1)) * Source * scalingConst )
-theta = num_mole* w_cross.reshape((SpecNumLayers,1)) * scalingConst
+theta = num_mole* w_cross.reshape((SpecNumLayers,1)) * scalingConst * S[ind,0]
 
 # A_scal = pressure_values.reshape((SpecNumLayers,1)) / ( temp_values)
 # scalingConst_old = 1e16
@@ -248,7 +269,7 @@ axs.set_ylabel('Height in km')
 axs.set_xlabel('Temperature in K')
 #axs.set_title()
 plt.savefig('theta.png')
-#plt.show()
+plt.show()
 
 
 A = A_lin * A_scal.T
@@ -443,7 +464,7 @@ cond_B =  np.max(Bs)/np.min(Bs)
 print("Condition number B: " + str(orderOfMagnitude(cond_B)))
 
 k = 0
-wLam = 4.5e2
+wLam = 5.5e2
 #wgam = 1e-5
 #wdelt = 1e-1
 betaG = 1e-4
@@ -766,7 +787,7 @@ plt.savefig('TracetWalkPara.png')
 print('t-walk Done')
 
 
-fig, axs = plt.subplots(3, 1,tight_layout=True)
+fig, axs = plt.subplots(3, 1,tight_layout=True,figsize=set_size(245, fraction=2.5), dpi = 3*96)
 n_bins = 20
 
 hist0 = axs[0].hist(new_gam,bins=n_bins, color = 'k', zorder = 0, label = 'MTC')
@@ -942,7 +963,7 @@ f_max = f(ATy, y, B_max_inv_A_trans_y)
 
 
 
-fig,axs = plt.subplots(figsize=(10, 8))#tight_layout =  True)
+fig,axs = plt.subplots(figsize=set_size(245, fraction=2.5), dpi = 96)
 axs.plot(lam,f_func, color = 'blue')
 axs.scatter(lam0,f_try_func[50], color = 'yellow', s= 70, zorder=4)
 #axs.annotate('$\lambda_0$ mode of marginal posterior',(5.05e4,0.25), color = 'green', fontsize = 14.7)
@@ -1081,7 +1102,7 @@ for i in range(len(lamLCurveZoom)):
 # if exitCode != 0:
 #     print(exitCode)
 
-fig, axs = plt.subplots( tight_layout=True)
+fig, axs = plt.subplots( tight_layout=True,figsize=set_size(245, fraction=2.5), dpi = 96)
 axs.scatter(NormLCurve,xTLxCurve, zorder = 0, color = 'slateblue')
 axs.scatter(LNormOpt, xTLxOpt, color = 'crimson')
 axs.scatter(NormRes, xTLxRes, color = 'black')#, marker = "." ,mfc = 'black' , markeredgecolor='r',markersize=10,linestyle = 'None')
@@ -1090,12 +1111,12 @@ x1, x2, y1, y2 = NormLCurveZoom[0], NormLCurveZoom[-1], xTLxCurveZoom[0], xTLxCu
 axins = axs.inset_axes([0.1,0.05,0.6,0.5])
 axins.scatter(NormRes, xTLxRes, color = 'black', s = 5)
 axins.scatter(NormLCurveZoom,xTLxCurveZoom, color = 'slateblue')
-axins.scatter(LNormOpt, xTLxOpt, color = 'crimson')
+axins.scatter(LNormOpt, xTLxOpt, color = 'crimson', marker = "s", s =80)
 axins.annotate('$\lambda_{opt}$ = ' + str(lam_opt), (LNormOpt+0.5,xTLxOpt))
 axins.set_xscale('log')
 axins.set_yscale('log')
 axins.set_xlim(x1-0.05, x2-5.5) # apply the x-limits
-axins.set_ylim(y2+0.005, y1-0.1) # apply the y-limits (negative gradient)
+#axins.set_ylim(y2+0.005, y1-0.1) # apply the y-limits (negative gradient)
 axins.tick_params(axis = 'x', which = 'both', labelbottom=False, bottom = False)
 axins.tick_params(axis = 'y', which = 'both', labelleft=False, left = False)
 axs.indicate_inset_zoom(axins, edgecolor="none")
@@ -1112,13 +1133,13 @@ print('bla')
 
 x = np.mean(Results,0 )/ (num_mole * S[ind,0]  * f_broad * 1e-4 * scalingConst)
 #xerr = np.sqrt(np.var(Results / (num_mole * S[ind, 0] * f_broad * 1e-4 * scalingConst), 0)) / 2
-xerr = np.sqrt(np.var(Results,0)/(num_mole * S[ind, 0] * f_broad * 1e-4 * scalingConst)**2)/2
+xerr = np.sqrt(np.var(Results,0)/(num_mole *S[ind,0]  * f_broad * 1e-4 * scalingConst)**2)/2
 
-fig3, ax1 = plt.subplots(tight_layout=True)
+fig3, ax1 = plt.subplots(tight_layout=True,figsize=set_size(245, fraction=1.5))
 line1 = ax1.plot(VMR_O3,height_values, color = [0, 205/255, 127/255], linewidth = 11, label = 'VMR O$_3$', zorder=0)
 line2 = ax1.errorbar(x,height_values,capsize=4, yerr = np.zeros(len(height_values)) ,color = 'black', label = 'MTC est')#, label = 'MC estimate')
 line4 = ax1.errorbar(x, height_values,capsize=4, xerr = xerr,color = 'black')#, label = 'MC estimate')
-line5 = ax1.plot(x_opt/(num_mole * S[ind,0]  * f_broad * 1e-4 * scalingConst),height_values, color = 'crimson', linewidth = 7, label = 'reg. sol.', zorder=1)
+line5 = ax1.plot(x_opt/(num_mole * S[ind,0] * f_broad * 1e-4 * scalingConst),height_values, color = 'crimson', linewidth = 7, label = 'reg. sol.', zorder=1)
 ax2 = ax1.twiny() # ax1 and ax2 share y-axis
 line3 = ax2.plot(y, tang_heights_lin, color = [200/255, 100/255, 0], label = r'data in \frac{W}{m^2 sr}\frac{1}{\frac{1}{cm}}')
 ax2.spines['top'].set_color([200/255, 100/255, 0])
@@ -1136,8 +1157,9 @@ legend = ax1.legend(handles = [handles[0], handles[1], handles[2]], loc='upper r
 ax1.set_ylim([heights[minInd-1], heights[maxInd+1]])
 ax2.set_xlim([min(y),max(y)])
 ax1.set_xlim([min(x)-max(xerr)/2,max(x)+max(xerr)/2])
-fig3.savefig('FirstRecRes.png')
 plt.show()
+fig3.savefig('FirstRecRes.pgf', bbox_inches='tight')
+
 
 
 
