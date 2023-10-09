@@ -327,7 +327,7 @@ def set_size(width, fraction=1):
 
     # Golden ratio to set aesthetic figure height
     # https://disq.us/p/2940ij3
-    golden_ratio = (5**.5 - 1) / 2
+    golden_ratio = 1#(5**.5 - 1) / 2
 
     # Figure width in inches
     fig_width_in = fig_width_pt * inches_per_pt

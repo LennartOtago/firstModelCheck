@@ -15,20 +15,23 @@ from numpy.random import uniform, normal, gamma
 import scipy as scy
 from matplotlib.ticker import FuncFormatter
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes, mark_inset
+
+""" for plotting figures,
+PgWidth in points, either collumn width page with of Latex"""
 def scientific(x, pos):
     # x:  tick value
     # pos: tick position
     return '%.e' % x
 scientific_formatter = FuncFormatter(scientific)
-
-mpl.use("pgf")
-mpl.rcParams.update({
-    "pgf.texsystem": "pdflatex",
-    #'font.family': 'serif',
-    #'font.size' : 11,
+pgf_params = { "pgf.texsystem": "pdflatex",
+    'font.family': 'serif',
+    'font.size' : 11,
     'text.usetex': True,
-    'pgf.rcfonts': False,
-})
+    'pgf.rcfonts': False}
+
+dpi = 300
+fraction = 1.5
+PgWidthPt = 245
 
 tol = 1e-6
 
@@ -219,7 +222,7 @@ LineIntScal = Q_ref / Q * np.exp(- HitrConst2 * E[ind,0]/ temp_values)/ np.exp(-
 
 fig, axs = plt.subplots(tight_layout=True)
 plt.plot(LineInt,height_values)
-plt.show()
+#plt.show()
 
 ''' calculate model depending on where the Satellite is and 
 how many measurements we want to do in between the max angle and min angle
@@ -268,8 +271,8 @@ ax2.set_xlabel('Pressure in hPa')
 axs.set_ylabel('Height in km')
 axs.set_xlabel('Temperature in K')
 #axs.set_title()
-plt.savefig('theta.png')
-plt.show()
+#plt.savefig('theta.png')
+#plt.show()
 
 
 A = A_lin * A_scal.T
@@ -576,8 +579,8 @@ axs[2].hist(new_lamb,bins=n_bins, color = 'k')#10)
 axs[2].xaxis.set_major_formatter(scientific_formatter)
 #axs[2].set_title(str(len(new_lamb)) + ' effective $\lambda =\delta / \gamma$ samples')
 axs[2].set_title(str(len(new_lamb)) + ' $\lambda$ samples, the regularization parameter')
-plt.savefig('HistoResults.png')
-plt.show()
+#plt.savefig('HistoResults.png')
+#plt.show()
 
 
 
@@ -730,7 +733,7 @@ axs[1].set_title(str(len(SampParas[burnIn::math.ceil(IntAutoDeltaPyT),1])) + ' e
 axs[2].hist(lambasPyT[burnIn::math.ceil(IntAutoLamPyT)],bins=n_bins)
 axs[2].xaxis.set_major_formatter(scientific_formatter)
 axs[2].set_title(str(len(lambasPyT[burnIn::math.ceil(IntAutoLamPyT)])) + ' effective $\lambda =\delta / \gamma samples $')
-plt.savefig('PyTWalkHistoResults.png')
+#plt.savefig('PyTWalkHistoResults.png')
 #plt.show()
 
 
@@ -744,7 +747,7 @@ axs[1].set_xlabel('t-walk samples')
 axs[1].set_ylabel('-log $\pi(y |  x ,\gamma)$')
 with open('TraceMC.pickle', 'wb') as filID: # should be 'wb' rather than 'w'
     pl.dump(fig, filID)
-plt.savefig('TraceMC.png')
+#plt.savefig('TraceMC.png')
 #plt.show()
 
 #plot para traces for MTC
@@ -761,7 +764,7 @@ axs[2].set_xlabel(r'samples with $\tau_{int}$= ' + str(math.ceil(IntAutoLam)))
 axs[2].set_ylabel('$\lambda$')
 with open('TraceMTCPara.pickle', 'wb') as filID: # should be 'wb' rather than 'w'
     pl.dump(fig, filID)
-plt.savefig('TraceMTCPara.png')
+#plt.savefig('TraceMTCPara.png')
 #plt.show()
 
 # #to open figure
@@ -779,7 +782,7 @@ axs[1].set_xlabel(r'samples with $\tau_{int}$= ' + str(math.ceil(IntAutoDeltaPyT
 axs[1].set_ylabel('$\delta$')
 with open('TracetWalkPara.pickle', 'wb') as filID: # should be 'wb' rather than 'w'
     pl.dump(fig, filID)
-plt.savefig('TracetWalkPara.png')
+#plt.savefig('TracetWalkPara.png')
 #plt.show()
 
 
@@ -787,7 +790,7 @@ plt.savefig('TracetWalkPara.png')
 print('t-walk Done')
 
 
-fig, axs = plt.subplots(3, 1,tight_layout=True,figsize=set_size(245, fraction=2.5), dpi = 3*96)
+fig, axs = plt.subplots(3, 1,tight_layout=True,figsize=set_size(PgWidthPt, fraction=fraction), dpi = dpi)
 n_bins = 20
 
 hist0 = axs[0].hist(new_gam,bins=n_bins, color = 'k', zorder = 0, label = 'MTC')
@@ -818,28 +821,11 @@ axs2.spines['right'].set_color('cyan')
 axs[0].set_title(r'$\gamma$, the noise precision')
 axs[1].set_title(r'$\delta$, the prior precision')
 axs[2].set_title(r'$\lambda =\delta / \gamma$, the regularization parameter')
-plt.savefig('AllHistoResults.png')
-plt.show()
-
-
-fig, axs = plt.subplots(3, 1,tight_layout=True)
-n_bins = 20
-
-axs[0].hist(new_gam,bins=n_bins, color = 'k', zorder = 0, label = 'MTC')
-axs[0].hist(SampParas[burnIn::math.ceil(IntAutoGamPyT),0],bins=n_bins,color = 'cyan', zorder = 1, label = 't-walk')
-axs[0].legend(labels = ['MTC','t-walk'],loc='upper right', bbox_to_anchor=(1.01, 1.11),frameon=False)
-axs[1].hist(new_delt,bins=n_bins, color = 'k', zorder = 0)
-
-axs[1].hist(SampParas[burnIn::math.ceil(IntAutoDeltaPyT),1],bins=n_bins,color = 'cyan', zorder = 1)
-axs[2].hist(new_lamb,bins=n_bins, color = 'k', zorder = 0)#10)
-
-axs[2].hist(lambasPyT[burnIn::math.ceil(IntAutoLamPyT)],bins=10,color = 'cyan', zorder = 1)
-axs[0].set_title(r'$\gamma$, the noise precision')
-axs[1].set_title(r'$\delta$, the prior precision')
-axs[2].set_title(r'$\lambda =\delta / \gamma$, the regularization parameter')
-
+#fig.savefig('AllHistoResults.pgf', bbox_inches='tight')
 #plt.savefig('AllHistoResults.png')
-plt.show()
+#plt.show()
+
+
 
 
 '''make figure for f and g including the best lambdas and taylor series'''
@@ -916,8 +902,8 @@ inset_ax.tick_params(
     labelleft=False)
 with open('f_and_g.pickle', 'wb') as filID: # should be 'wb' rather than 'w'
     pl.dump(fig, filID)
-plt.savefig('f_and_g.png')
-plt.show()
+#plt.savefig('f_and_g.png')
+#plt.show()
 
 """f und g for  paper"""
 B_MTC_min = ATA + (np.mean(lambdas) - np.sqrt(np.var(lambdas))/2) * L
@@ -963,7 +949,7 @@ f_max = f(ATy, y, B_max_inv_A_trans_y)
 
 
 
-fig,axs = plt.subplots(figsize=set_size(245, fraction=2.5), dpi = 96)
+fig,axs = plt.subplots(figsize=set_size(245, fraction=fraction), dpi = dpi)
 axs.plot(lam,f_func, color = 'blue')
 axs.scatter(lam0,f_try_func[50], color = 'yellow', s= 70, zorder=4)
 #axs.annotate('$\lambda_0$ mode of marginal posterior',(5.05e4,0.25), color = 'green', fontsize = 14.7)
@@ -1024,7 +1010,8 @@ axin2.tick_params(axis = 'y', which = 'both', labelright=False, right=False, lab
 axin2.set_xlim([np.mean(lambdas) - np.sqrt(np.var(lambdas)), np.mean(lambdas) + np.sqrt(np.var(lambdas))] )# apply the x-limits
 axs.indicate_inset_zoom(axins, edgecolor="none")
 mark_inset(axs, axins, loc1=3, loc2=4, fc="none", ec="0.5")
-plt.savefig('f_and_g_paper.png')
+#fig.savefig('f_and_g_paper.pgf', bbox_inches='tight')
+#plt.savefig('f_and_g_paper.png')
 plt.show()
 
 
@@ -1034,26 +1021,7 @@ print('bla')
 
 '''L-curve refularoization
 '''
-
-eng = matlab.engine.start_matlab()
-eng.run_l_corner(nargout=0)
-eng.quit()
-
-l_corner_output = np.loadtxt("l_curve_output.txt", skiprows=4, dtype='float')
-#IntAutoLam, IntAutoGam , IntAutoDelt = np.loadtxt("auto_corr_dat.txt",userow = 1, skiprows=1, dtype='float'
-
-with open("l_curve_output.txt") as fID:
-    for n, line in enumerate(fID):
-       if n == 2:
-            lam_opt = float(line)
-            break
-
-
-B = (ATA + lam_opt * L)
-x_opt, exitCode = gmres(B, ATy[0::, 0], tol=tol, restart=25)
-LNormOpt = np.linalg.norm( np.matmul(A,x_opt) - y[0::,0])
-xTLxOpt = np.sqrt(np.matmul(np.matmul(x_opt.T, L), x_opt))
-
+##
 lamLCurve = np.logspace(-10,10,200)
 #lamLCurve = np.linspace(1e-1,1e4,300)
 
@@ -1067,6 +1035,7 @@ for i in range(len(lamLCurve)):
         print(exitCode)
         NormLCurve[i] = np.nan
         xTLxCurve[i] = np.nan
+
     else:
         NormLCurve[i] = np.linalg.norm( np.matmul(A,x) - y[0::,0])
         #NormLCurve[i] =np.linalg.norm( np.matmul(A_lin,x))
@@ -1074,9 +1043,43 @@ for i in range(len(lamLCurve)):
         xTLxCurve[i] = np.sqrt(np.matmul(np.matmul(x.T, L), x))
         #xTLxCurve[i] = np.linalg.norm(np.matmul(L,x))
 
-np.savetxt('samples.txt', np.vstack((NormLCurve, xTLxCurve, lamLCurve)).T, header = 'Norm ||Ax - y|| sqrt(x.T L x) lambdas', fmt = '%.15f \t %.15f \t %.15f')
+
+np.savetxt('LCurve.txt', np.vstack((NormLCurve, xTLxCurve, lamLCurve)).T, header = 'Norm ||Ax - y|| sqrt(x.T L x) lambdas', fmt = '%.15f \t %.15f \t %.15f')
 
 
+eng = matlab.engine.start_matlab()
+
+
+eng.run_l_corner(nargout=0)
+eng.quit()
+
+
+l_corner_output = np.loadtxt("l_curve_output.txt", skiprows=4, dtype='float')
+#IntAutoLam, IntAutoGam , IntAutoDelt = np.loadtxt("auto_corr_dat.txt",userow = 1, skiprows=1, dtype='float'
+
+with open("l_curve_output.txt") as fID:
+    for n, line in enumerate(fID):
+       if n == 2:
+            opt_ind = float(line)
+
+
+            break
+
+lam_opt = opt_ind#lamLCurve[int(opt_ind - 1)]
+
+B = (ATA + lam_opt * L)
+x_opt, exitCode = gmres(B, ATy[0::, 0], tol=tol, restart=25)
+LNormOpt = np.linalg.norm( np.matmul(A,x_opt) - y[0::,0])
+xTLxOpt = np.sqrt(np.matmul(np.matmul(x_opt.T, L), x_opt))
+
+
+
+fig, axs = plt.subplots( tight_layout=True,figsize=set_size(245, fraction=fraction))
+axs.scatter(NormLCurve,xTLxCurve, zorder = 0, color = 'slateblue')
+axs.scatter(LNormOpt,xTLxOpt , zorder = 0, color = 'red')
+plt.show()
+
+##
 B = (ATA + minimum[1]/minimum[0] * L)
 
 x, exitCode = gmres(B, ATy[0::, 0], tol=tol, restart=25)
@@ -1102,7 +1105,13 @@ for i in range(len(lamLCurveZoom)):
 # if exitCode != 0:
 #     print(exitCode)
 
-fig, axs = plt.subplots( tight_layout=True,figsize=set_size(245, fraction=2.5), dpi = 96)
+
+
+mpl.use('QT5Agg')
+#mpl.use("png") bbox_inches='tight'
+mpl.rcParams.update(mpl.rcParamsDefault)
+
+fig, axs = plt.subplots( tight_layout=True,figsize=set_size(245, fraction=fraction))
 axs.scatter(NormLCurve,xTLxCurve, zorder = 0, color = 'slateblue')
 axs.scatter(LNormOpt, xTLxOpt, color = 'crimson')
 axs.scatter(NormRes, xTLxRes, color = 'black')#, marker = "." ,mfc = 'black' , markeredgecolor='r',markersize=10,linestyle = 'None')
@@ -1112,11 +1121,11 @@ axins = axs.inset_axes([0.1,0.05,0.6,0.5])
 axins.scatter(NormRes, xTLxRes, color = 'black', s = 5)
 axins.scatter(NormLCurveZoom,xTLxCurveZoom, color = 'slateblue')
 axins.scatter(LNormOpt, xTLxOpt, color = 'crimson', marker = "s", s =80)
-axins.annotate('$\lambda_{opt}$ = ' + str(lam_opt), (LNormOpt+0.5,xTLxOpt))
+axins.annotate('$\lambda_{opt}$ = ' + str(lam_opt), (LNormOpt+0.4,xTLxOpt))
 axins.set_xscale('log')
 axins.set_yscale('log')
 axins.set_xlim(x1-0.05, x2-5.5) # apply the x-limits
-#axins.set_ylim(y2+0.005, y1-0.1) # apply the y-limits (negative gradient)
+axins.set_ylim(y2+0.005, y1-0.1) # apply the y-limits (negative gradient)
 axins.tick_params(axis = 'x', which = 'both', labelbottom=False, bottom = False)
 axins.tick_params(axis = 'y', which = 'both', labelleft=False, left = False)
 axs.indicate_inset_zoom(axins, edgecolor="none")
@@ -1126,16 +1135,27 @@ axs.set_ylabel(r'$\sqrt{x^T L x}$')
 axs.set_xlabel(r'$|| Ax - y ||$')
 #axs.set_title('L-curve for m=' + str(SpecNumMeas))
 mark_inset(axs, axins, loc1=1, loc2=3, fc="none", ec="0.5")
-plt.savefig('LCurve.png')
+#plt.savefig('LCurve.png')
 plt.show()
+##
+mpl.use('pgf')
+mpl.rcParams.update(pgf_params)
+fig.savefig('LCurve.pgf', bbox_inches='tight')
 
 print('bla')
+
+##
 
 x = np.mean(Results,0 )/ (num_mole * S[ind,0]  * f_broad * 1e-4 * scalingConst)
 #xerr = np.sqrt(np.var(Results / (num_mole * S[ind, 0] * f_broad * 1e-4 * scalingConst), 0)) / 2
 xerr = np.sqrt(np.var(Results,0)/(num_mole *S[ind,0]  * f_broad * 1e-4 * scalingConst)**2)/2
 
-fig3, ax1 = plt.subplots(tight_layout=True,figsize=set_size(245, fraction=1.5))
+
+mpl.use('QT5Agg')
+#mpl.use("png") bbox_inches='tight'
+mpl.rcParams.update(mpl.rcParamsDefault)
+
+fig3, ax1 = plt.subplots(tight_layout=True,figsize=set_size(245, fraction=fraction))
 line1 = ax1.plot(VMR_O3,height_values, color = [0, 205/255, 127/255], linewidth = 11, label = 'VMR O$_3$', zorder=0)
 line2 = ax1.errorbar(x,height_values,capsize=4, yerr = np.zeros(len(height_values)) ,color = 'black', label = 'MTC est')#, label = 'MC estimate')
 line4 = ax1.errorbar(x, height_values,capsize=4, xerr = xerr,color = 'black')#, label = 'MC estimate')
@@ -1157,9 +1177,56 @@ legend = ax1.legend(handles = [handles[0], handles[1], handles[2]], loc='upper r
 ax1.set_ylim([heights[minInd-1], heights[maxInd+1]])
 ax2.set_xlim([min(y),max(y)])
 ax1.set_xlim([min(x)-max(xerr)/2,max(x)+max(xerr)/2])
-plt.show()
-fig3.savefig('FirstRecRes.pgf', bbox_inches='tight')
 
+
+
+
+plt.show()
+##
+mpl.use('pgf')
+mpl.rcParams.update({
+    "pgf.texsystem": "pdflatex",
+    'font.family': 'serif',
+    'font.size' : 11,
+    'text.usetex': True,
+    'pgf.rcfonts': False,
+})
+fig3.savefig('FirstRecRes.pgf',bbox_inches='tight', backend = 'pgf')#, dpi = dpi)
+#mpl.use('TkAgg')
+
+#plt.close()
+
+##
+
+import matplotlib as mpl
+
+mpl.use("pgf")
+import matplotlib.pyplot as plt
+
+plt.rcParams.update({
+    "font.family": "serif",  # use serif/main font for text elements
+    "text.usetex": True,     # use inline math for ticks
+    "pgf.rcfonts": False,    # don't setup fonts from rc parameters
+    "pgf.preamble": "\n".join([
+         r"\usepackage{url}",            # load additional packages
+         r"\usepackage{unicode-math}",   # unicode math setup
+         r"\setmainfont{DejaVu Serif}",  # serif font via preamble
+    ])
+})
+
+fig, ax = plt.subplots(figsize=(4.5, 2.5))
+
+ax.plot(range(5))
+
+ax.set_xlabel("unicode text: я, ψ, €, ü")
+ax.set_ylabel(r"\url{https://matplotlib.org}")
+ax.legend(["unicode math: $λ=∑_i^∞ μ_i^2$"])
+
+fig.tight_layout(pad=.5)
+
+fig.savefig("pgf_preamble.pdf")
+fig.savefig("pgf_preamble.png")
+fig.savefig("pgf_preamble.pdf_tex")
 
 
 
