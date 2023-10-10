@@ -23,9 +23,13 @@ def scientific(x, pos):
     # pos: tick position
     return '%.e' % x
 scientific_formatter = FuncFormatter(scientific)
+# pgf_params = { "pgf.texsystem": "pdflatex",
+#     'font.family': 'serif',
+#     'font.size' : 11,
+#     'text.usetex': True,
+#     'pgf.rcfonts': False}
+
 pgf_params = { "pgf.texsystem": "pdflatex",
-    'font.family': 'serif',
-    'font.size' : 11,
     'text.usetex': True,
     'pgf.rcfonts': False}
 
@@ -1022,11 +1026,12 @@ print('bla')
 '''L-curve refularoization
 '''
 ##
-lamLCurve = np.logspace(-10,10,200)
-#lamLCurve = np.linspace(1e-1,1e4,300)
+lamLCurve = np.logspace(0,10,200)
+#lamLCurve = np.linspace(1e-15,1e3,200)
 
 NormLCurve = np.zeros(len(lamLCurve))
 xTLxCurve = np.zeros(len(lamLCurve))
+xTLxCurve2 = np.zeros(len(lamLCurve))
 for i in range(len(lamLCurve)):
     B = (ATA + lamLCurve[i] * L)
 
@@ -1037,11 +1042,15 @@ for i in range(len(lamLCurve)):
         xTLxCurve[i] = np.nan
 
     else:
-        NormLCurve[i] = np.linalg.norm( np.matmul(A,x) - y[0::,0])
+        NormLCurve[i] = np.linalg.norm( np.matmul(A,x) - y[0::,0], ord = 2)
+        #NormLCurve[i] = np.sqrt( (np.matmul(A, x) - y[0::, 0]).T @ (np.matmul(A, x) - y[0::, 0]) )
         #NormLCurve[i] =np.linalg.norm( np.matmul(A_lin,x))
         #NormLCurve[i] = np.sqrt(np.sum((np.matmul(A_lin, x) - y)**2))
         xTLxCurve[i] = np.sqrt(np.matmul(np.matmul(x.T, L), x))
-        #xTLxCurve[i] = np.linalg.norm(np.matmul(L,x))
+        #xTLxCurve[i] = np.linalg.norm(np.matmul(L,x) , ord = 2)
+        #xTLxCurve[i] = np.linalg.norm(np.matmul(scy.linalg.sqrtm(L),x) , ord = 2)
+        #xTLxCurve[i] = np.linalg.norm(x)#, ord = 2)
+        #xTLxCurve[i] = np.sqrt(x.T @ x)
 
 
 np.savetxt('LCurve.txt', np.vstack((NormLCurve, xTLxCurve, lamLCurve)).T, header = 'Norm ||Ax - y|| sqrt(x.T L x) lambdas', fmt = '%.15f \t %.15f \t %.15f')
@@ -1069,24 +1078,32 @@ lam_opt = opt_ind#lamLCurve[int(opt_ind - 1)]
 
 B = (ATA + lam_opt * L)
 x_opt, exitCode = gmres(B, ATy[0::, 0], tol=tol, restart=25)
-LNormOpt = np.linalg.norm( np.matmul(A,x_opt) - y[0::,0])
+LNormOpt = np.linalg.norm( np.matmul(A,x_opt) - y[0::,0], ord = 2)
 xTLxOpt = np.sqrt(np.matmul(np.matmul(x_opt.T, L), x_opt))
+#xTLxOpt = np.linalg.norm(x_opt,ord =2)
+#xTLxOpt = np.linalg.norm(np.matmul(L,x_opt), ord = 2)
+
+# mpl.use('QT5Agg')
+# #mpl.use("png") bbox_inches='tight'
+# mpl.rcParams.update(mpl.rcParamsDefault)
+#
+# fig, axs = plt.subplots( tight_layout=True,figsize=set_size(245, fraction=fraction))
+# axs.scatter(NormLCurve,xTLxCurve, zorder = 0, color = 'green')
+# #axs.scatter(NormLCurve,xTLxCurve2, zorder = 0, color = 'k')
+# axs.scatter(l_corner_output[0],l_corner_output[1], zorder = 0, color = 'blue')
+# axs.scatter(LNormOpt,xTLxOpt , zorder = 0, color = 'red')
+# axs.set_xscale('log')
+# axs.set_yscale('log')
+# plt.show()
 
 
-
-fig, axs = plt.subplots( tight_layout=True,figsize=set_size(245, fraction=fraction))
-axs.scatter(NormLCurve,xTLxCurve, zorder = 0, color = 'slateblue')
-axs.scatter(LNormOpt,xTLxOpt , zorder = 0, color = 'red')
-plt.show()
-
-##
 B = (ATA + minimum[1]/minimum[0] * L)
 
 x, exitCode = gmres(B, ATy[0::, 0], tol=tol, restart=25)
 if exitCode != 0:
     print(exitCode)
 
-lamLCurveZoom = np.logspace(-2,6,200)
+lamLCurveZoom = np.logspace(0.5,7,200)
 NormLCurveZoom = np.zeros(len(lamLCurve))
 xTLxCurveZoom = np.zeros(len(lamLCurve))
 for i in range(len(lamLCurveZoom)):
@@ -1124,8 +1141,8 @@ axins.scatter(LNormOpt, xTLxOpt, color = 'crimson', marker = "s", s =80)
 axins.annotate('$\lambda_{opt}$ = ' + str(lam_opt), (LNormOpt+0.4,xTLxOpt))
 axins.set_xscale('log')
 axins.set_yscale('log')
-axins.set_xlim(x1-0.05, x2-5.5) # apply the x-limits
-axins.set_ylim(y2+0.005, y1-0.1) # apply the y-limits (negative gradient)
+#axins.set_xlim(max(NormRes), x2-5.5) # apply the x-limits
+axins.set_ylim(xTLxCurveZoom[-1],xTLxCurveZoom[0]) # apply the y-limits (negative gradient)
 axins.tick_params(axis = 'x', which = 'both', labelbottom=False, bottom = False)
 axins.tick_params(axis = 'y', which = 'both', labelleft=False, left = False)
 axs.indicate_inset_zoom(axins, edgecolor="none")
@@ -1134,7 +1151,7 @@ axs.set_yscale('log')
 axs.set_ylabel(r'$\sqrt{x^T L x}$')
 axs.set_xlabel(r'$|| Ax - y ||$')
 #axs.set_title('L-curve for m=' + str(SpecNumMeas))
-mark_inset(axs, axins, loc1=1, loc2=3, fc="none", ec="0.5")
+mark_inset(axs, axins, loc1=3, loc2=4, fc="none", ec="0.5")
 #plt.savefig('LCurve.png')
 plt.show()
 ##
