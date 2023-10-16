@@ -850,11 +850,11 @@ BinSetDelt = np.arange(min(new_delt),max(new_delt),(max(new_delt)-min(new_delt))
 
 
 axs[0].hist(new_gam,bins=BinSetGam, color = MTCCol, zorder = 0, label = 'MTC')
-axs[0].set_ylim([0,400])
+#axs[0].set_ylim([0,400])
 axs0 = axs[0].twinx()
 axs0.hist(SampParas[burnIn::math.ceil(IntAutoGamPyT),0],bins=BinSetGam,color = pyTCol, zorder = 1, label = 't-walk')
 axs0.set_ylim([0,100])
-axs0.tick_params(axis = 'y', labelcolor=pyTCol)
+axs0.tick_params(axis = 'y', colors=pyTCol, which = 'both')
 axs0.spines['right'].set_color(pyTCol)
 hist0, lab0 = axs[0].get_legend_handles_labels()
 hist00, lab00 = axs0.get_legend_handles_labels()
@@ -869,7 +869,7 @@ axs[1].set_ylim([0,250])
 axs1 = axs[1].twinx()
 axs1.hist(SampParas[burnIn::math.ceil(IntAutoDeltaPyT),1],bins=BinSetDelt,color = pyTCol, zorder = 1)
 axs1.set_ylim([0,100])
-axs1.tick_params(axis = 'y', labelcolor=pyTCol)
+axs1.tick_params(axis = 'y', colors=pyTCol, which = 'both')
 axs1.spines['right'].set_color(pyTCol)
 axs[2].hist(new_lamb,bins=BinSetLamb, color = MTCCol, zorder = 0)#10)
 #axs[2].set_ylim([0,200])
@@ -877,7 +877,7 @@ axs2 = axs[2].twinx()
 LPYT = lambasPyT[burnIn::math.ceil(IntAutoLamPyT)]
 axs2.hist(LPYT ,bins=BinSetLamb,color = pyTCol, zorder = 1)
 axs2.set_ylim([0,100])
-axs2.tick_params(axis = 'y', labelcolor=pyTCol)
+axs2.tick_params(axis = 'y', colors=pyTCol, which = 'both')
 axs2.spines['right'].set_color(pyTCol)
 axs[0].set_title(r'$\gamma$, the noise precision')
 axs[1].set_title(r'$\delta$, the prior precision')
@@ -1021,16 +1021,19 @@ gCol = [213/255, 94/255, 0]
 gmresCol = [204/255, 121/255, 167/255]
 fig,axs = plt.subplots(figsize=set_size(245, fraction=1.5))#, dpi = dpi)
 axs.plot(lam,f_func, color = fCol)
+
 axs.scatter(lam0,f_try_func[50], color = gmresCol, s= 70, zorder=4, marker = 's')
 #axs.annotate('$\lambda_0$ mode of marginal posterior',(5.05e4,0.25), color = 'green', fontsize = 14.7)
 axs.scatter(np.mean(lambdas),f_MTC, color = MTCCol, zorder=5)
 #axs.annotate('MTC $\lambda$ sample mean',(5.05e4,0.375), color = 'red')
 axs.scatter(lamPyT,f_tW, color = pyTCol, s = 35, zorder=5, marker = 'D')
 #axs.annotate('T-Walk $\lambda$ sample mean',(5.05e4,0.6), color = 'k')
+
 axs.set_yscale('log')
 axs.set_xlabel('$\lambda$')
 axs.set_ylabel('f($\lambda$)', color = fCol)
-axs.tick_params(axis = 'y', labelcolor=fCol)
+axs.tick_params(axis = 'y',  colors=fCol, which = 'both')
+axs.spines['left'].set_color(fCol)
 ax2 = axs.twinx() # ax1 and ax2 share y-axis
 ax2.plot(lam,g_func, color = gCol)
 ax2.scatter(lam0,g_try_func[50], color = gmresCol, s=70, zorder=4, marker = 's')
@@ -1038,7 +1041,7 @@ ax2.scatter(np.mean(lambdas),g(A, L, np.mean(lambdas) ), color = MTCCol, zorder=
 ax2.scatter(lamPyT,g(A, L, lamPyT) , color = pyTCol, zorder=5, marker = 'D')
 #ax2.annotate('T-Walk $\lambda$ sample mean',(lamPyT+1e6,g(A_lin, L, lamPyT) +50), color = 'k')
 ax2.set_ylabel('g($\lambda$)',color = gCol)
-ax2.tick_params(axis = 'y', labelcolor= gCol)
+ax2.tick_params(axis = 'y', colors= gCol)
 axs.set_xscale('log')
 axins = axs.inset_axes([0.05,0.5,0.4,0.45])
 #axins.tick_params(axis = 'x', which = 'minor', labelbottom=False)
@@ -1048,40 +1051,40 @@ axins.set_ylim(f_min,f_max)
 axins.set_xlabel('$\lambda$')
 #axins.set_xlim(np.mean(lambdas) - np.sqrt(np.var(lambdas)), np.mean(lambdas) + np.sqrt(np.var(lambdas)) )# apply the x-limits
 
-axins.errorbar(np.mean(lambdas),f_MTC, color = MTCCol, zorder=2,xerr=np.sqrt(np.var(lambdas))/2, fmt='o',markersize = 10, label = 'MTC')
-axins.errorbar(lamPyT,f_tW, xerr=np.sqrt(varPyT)/2, color = pyTCol, zorder=3,fmt='D',markersize = 10, label = 't-walk')
-axins.add_patch(mpl.patches.Rectangle( (xpyT, f_pyT_min), np.sqrt(varPyT), f_pyT_max - f_pyT_min,edgecolor=pyTCol,facecolor=pyTCol, alpha = 0.99, zorder = 0))
-axins.add_patch(mpl.patches.Rectangle((xMTC, f_MTC_min), np.sqrt(np.var(lambdas)), f_MTC_max - f_MTC_min,color=MTCCol, alpha = 0.4))
+axins.errorbar(np.mean(lambdas),f_MTC, color = MTCCol, zorder=0,xerr=np.sqrt(np.var(lambdas))/2, fmt='o',markersize = 10, label = 'MTC')
+axins.errorbar(lamPyT,f_tW, xerr=np.sqrt(varPyT)/2, color = pyTCol, zorder=5,fmt='D',markersize = 10, label = 't-walk')
+axins.add_patch(mpl.patches.Rectangle( (xpyT, f_pyT_min), np.sqrt(varPyT), f_pyT_max - f_pyT_min,edgecolor=pyTCol,facecolor=pyTCol, alpha = 1, zorder = 1))
+axins.add_patch(mpl.patches.Rectangle((xMTC, f_MTC_min), np.sqrt(np.var(lambdas)), f_MTC_max - f_MTC_min,color=MTCCol, alpha =0.2,zorder = 0))
 axins.scatter(lam0,f_try_func[50], color = gmresCol, s= 95, zorder=12, marker = 's', label = 'gmres')
 axins.set_yscale('log')
-axins.set_xscale('log')
-axins.tick_params(axis = 'y', which = 'both', labelright=False, right=False, labelleft=False, left=False)
-#axins.set_xticks(lam[::70])
-axins.set_xlim([np.mean(lambdas) -np.sqrt(np.var(lambdas)), np.mean(lambdas) + np.sqrt(np.var(lambdas))])# apply the x-limits
-
+axins.set_xlim([np.mean(lambdas) -np.sqrt(np.var(lambdas)), 1.5*np.mean(lambdas) + np.sqrt(np.var(lambdas))])# apply the x-limits
+# for label in axins.xaxis.get_ticklabels()[::2]:
+#     label.set_visible(False)
 axin2 = axins.twinx()
+
 #axin2.set_xticks([np.mean(lambdas) -np.sqrt(np.var(lambdas)) , np.mean(lambdas), np.mean(lambdas) + np.sqrt(np.var(lambdas)) ] )
 axin2.plot(lam,g_func, color = gCol)
 #axin2.add_patch(mpl.patches.Rectangle( (xpyT,g(A, L, lamPyT - np.sqrt(varPyT)/2)), np.sqrt(varPyT), g(A, L, lamPyT + np.sqrt(varPyT)/2) - g(A, L, lamPyT - np.sqrt(varPyT)/2),color="black", alpha = 0.5,  zorder = 0))
 axin2.set_ylim(310,390 )
-
 axin2.errorbar(lamPyT,g(A, L, lamPyT) , xerr=np.sqrt(varPyT)/2, color = pyTCol, zorder=2, fmt='D', markersize='10')
-axin2.errorbar(np.mean(lambdas),g(A, L, np.mean(lambdas) ), xerr=np.sqrt(np.var(lambdas))/2, color = MTCCol, zorder=3, fmt='o',markersize='10')
+axin2.errorbar(np.mean(lambdas),g(A, L, np.mean(lambdas) ), xerr=np.sqrt(np.var(lambdas))/2, color = MTCCol, zorder=0, fmt='o',markersize='10')
 axin2.scatter(lam0,g_try_func[50], color = gmresCol, s=95, zorder=14, marker = 's')
-
-
-
 axin2.set_xscale('log')
-axin2.set_xlim(np.mean(lambdas) - np.sqrt(np.var(lambdas)), np.mean(lambdas) + np.sqrt(np.var(lambdas)) )# apply the x-limits
-axin2.set_xscale('log')
-axin2.tick_params(axis = 'y', which = 'both', labelright=False, right=False, labelleft=False, left=False)
+axin2.set_xlim(np.mean(lambdas) - np.sqrt(np.var(lambdas)), 1.5*np.mean(lambdas) + np.sqrt(np.var(lambdas)) )# apply the x-limits
 #axins.tick_params(axis = 'x', labelbottom=False)
 #axin2.set_xticks(lam[::70])
-axin2.set_xlim([np.mean(lambdas) - np.sqrt(np.var(lambdas)), np.mean(lambdas) + np.sqrt(np.var(lambdas))] )# apply the x-limits
+#axin2.set_xlim([np.mean(lambdas) - np.sqrt(np.var(lambdas)), np.mean(lambdas) + np.sqrt(np.var(lambdas))] )# apply the x-limits
+axins.tick_params(axis = 'y', which = 'both', labelright=False, right=False, labelleft=False, left=False)
+axin2.tick_params(axis = 'y', which = 'both', labelright=False, right=False, labelleft=False, left=False)
+# axins.tick_params(axis = 'x', which = 'both', bottom=False)
+# axin2.tick_params(axis = 'x', which = 'both', bottom=False)
+# for label in axin2.xaxis.get_ticklabels()[::3]:
+#     label.set_visible(False)
 axs.indicate_inset_zoom(axins, edgecolor="none")
 mark_inset(axs, axins, loc1=3, loc2=4, fc="none", ec="0.5")
 lines, lab0 = axins.get_legend_handles_labels()
-
+ax2.spines['right'].set_color(gCol)
+ax2.spines['left'].set_color(fCol)
 axs.legend(lines, lab0)
 #fig.savefig('f_and_g_paper.pgf', bbox_inches='tight')
 #plt.savefig('f_and_g_paper.png',bbox_inches='tight')
@@ -1259,7 +1262,7 @@ ax2 = ax1.twiny() # ax1 and ax2 share y-axis
 line3 = ax2.plot(y, tang_heights_lin, color = dataCol, label = r'data in \frac{W}{m^2 sr}\frac{1}{\frac{1}{cm}}',linewidth = 5)
 ax2.spines['top'].set_color(dataCol)
 ax2.set_xlabel(r'Spectral Ozone radiance in $\frac{W}{m^2 sr} \times \frac{1}{\frac{1}{cm}}$', color =dataCol )
-ax2.tick_params(labelcolor = dataCol)
+ax2.tick_params(colors = dataCol)
 ax1.set_xlabel(r'Ozone volume mixing ratio ')
 multicolor_ylabel(ax1,('(Tangent)','Height in km'),('k', dataCol),axis='y')
 handles, labels = ax1.get_legend_handles_labels()
