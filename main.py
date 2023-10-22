@@ -674,7 +674,7 @@ MargVarResults = np.zeros((BinHist,len(theta)))
 
 
 for p in range(BinHist):
-    SetLambda = lambBinEdges[p]+ ( lambBinEdges[p+1] - lambBinEdges[p])
+    SetLambda = lambBinEdges[p]+ ( lambBinEdges[p+1] - lambBinEdges[p])/2
     SetB = ATA + SetLambda * L
 
     SetB_inv = np.zeros(np.shape(SetB))
