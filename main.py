@@ -1040,7 +1040,7 @@ gCol = [213/255, 94/255, 0]
 gCol = [240/255, 228/255, 66/255]
 #gCol = [86/255, 180/255, 233/255]
 gmresCol = [204/255, 121/255, 167/255]
-fig,axs = plt.subplots(figsize=set_size(245, fraction=1.5))#, dpi = dpi)
+fig,axs = plt.subplots(figsize=set_size(PgWidthPt, fraction=fraction))#, dpi = dpi)
 axs.plot(lam,f_func, color = fCol)
 
 axs.scatter(lam0,f_try_func[50], color = gmresCol, s= 70, zorder=4, marker = 's')
@@ -1052,7 +1052,7 @@ axs.scatter(lamPyT,f_tW, color = pyTCol, s = 35, zorder=5, marker = 'D')
 
 axs.set_yscale('log')
 axs.set_xlabel('$\lambda$')
-axs.set_ylabel('$f(\lambda)$', color = fCol)
+axs.set_ylabel('$f(\lambda)$')#, color = fCol)
 axs.tick_params(axis = 'y',  colors=fCol, which = 'both')
 axs.spines['left'].set_color(fCol)
 ax2 = axs.twinx() # ax1 and ax2 share y-axis
@@ -1061,7 +1061,7 @@ ax2.scatter(lam0,g_try_func[50], color = gmresCol, s=70, zorder=4, marker = 's')
 ax2.scatter(np.mean(lambdas),g(A, L, np.mean(lambdas) ), color = MTCCol, zorder=6)
 ax2.scatter(lamPyT,g(A, L, lamPyT) , color = pyTCol, zorder=5, marker = 'D')
 #ax2.annotate('T-Walk $\lambda$ sample mean',(lamPyT+1e6,g(A_lin, L, lamPyT) +50), color = 'k')
-ax2.set_ylabel('$g(\lambda)$',color = gCol)
+ax2.set_ylabel('$g(\lambda)$')#,color = gCol)
 ax2.tick_params(axis = 'y', colors= gCol)
 axs.set_xscale('log')
 axins = axs.inset_axes([0.05,0.5,0.4,0.45])
@@ -1228,10 +1228,10 @@ mpl.rcParams.update({'font.size': 12})#,
 # mpl.rcParams['mathtext.it'] = 'STIXGeneral:italic'
 # mpl.rcParams['mathtext.bf'] = 'STIXGeneral:italic:bold'
 fig, axs = plt.subplots( tight_layout=True,figsize=set_size(245, fraction=fraction))
-axs.scatter(NormLCurve,xTLxCurve, zorder = 0, color = [0, 114/255, 178/255], label = 'Tikh. regularization')
+axs.scatter(NormLCurve,xTLxCurve, zorder = 0, color = [0, 114/255, 178/255], label = 'Tikh. regularization ')
 #axs.scatter(LNormOpt,xTLxOpt, zorder = 10, color = 'red')
 axs.scatter(NormRes, xTLxRes, color = MTCCol, label = 'MTC RTO method')#, marker = "." ,mfc = 'black' , markeredgecolor='r',markersize=10,linestyle = 'None')
-axs.scatter(NormMargRes, xTLxMargRes, color = MTCCol, marker = 's', s= 50, label = 'MTC average over $\pi(\lambda|\mathbf{y})$')
+axs.scatter(NormMargRes, xTLxMargRes, color = MTCCol, marker = 's', s= 50, label = r'MTC E$_{\mathbf{x},\mathbf{\theta}| \mathbf{y}}[\mathbf{x}_{\lambda}]$')
 
 #zoom in
 x1, x2, y1, y2 = NormLCurveZoom[0], NormLCurveZoom[-1], xTLxCurveZoom[0], xTLxCurveZoom[-1] # specify the limits
@@ -1251,8 +1251,8 @@ axins.tick_params(axis = 'y', which = 'both', labelleft=False, left = False)
 axs.indicate_inset_zoom(axins, edgecolor="none")
 axs.set_xscale('log')
 axs.set_yscale('log')
-axs.set_ylabel(r'$ \sqrt{\mathbf{x}^T \mathbf{L}\mathbf{x}}$', style='italic')
-axs.set_xlabel(r'$|| \mathbf{Ax} - \mathbf{y}||$')
+axs.set_ylabel(r'$ \sqrt{\mathbf{x}_\lambda^T \mathbf{L}\mathbf{x}_\lambda}$', style='italic')
+axs.set_xlabel(r'$|| \mathbf{Ax}_\lambda - \mathbf{y}||$')
 #axs.set_title('L-curve for m=' + str(SpecNumMeas))
 mark_inset(axs, axins, loc1=1, loc2=2, fc="none", ec="0.5")
 axs.legend(loc = 'upper right',  frameon =True)
@@ -1290,9 +1290,9 @@ mpl.rcParams.update(mpl.rcParamsDefault)
 plt.rcParams.update({'font.size': 12})
 plt.rcParams["font.serif"] = "cmr"
 fig3, ax1 = plt.subplots(figsize=set_size(245, fraction=fraction))
-line1 = ax1.plot(VMR_O3,height_values, color = [0, 158/255, 115/255], linewidth = 7, label = 'True VMR O$_3$', zorder=0)
-line2 = ax1.errorbar(x,height_values,capsize=4, yerr = np.zeros(len(height_values)) ,color = MTCCol, fmt = '-o',label = 'MTC RTO method')#, label = 'MC estimate')
-line3 = ax1.errorbar(MargX,height_values, color = 'red', capsize=4, yerr = np.zeros(len(height_values)), fmt = '-x', label = r'MTC average over $\pi(\lambda| \mathbf{y})$')
+line1 = ax1.plot(VMR_O3,height_values, color = [0, 158/255, 115/255], linewidth = 7, label = 'True VMR of O$_3$', zorder=0)
+line2 = ax1.errorbar(x,height_values,capsize=4, yerr = np.zeros(len(height_values)) ,color = MTCCol, fmt = '-o',label = 'MTC RTO method ')#, label = 'MC estimate')
+line3 = ax1.errorbar(MargX,height_values, color = 'red', capsize=4, yerr = np.zeros(len(height_values)), fmt = '-x', label = r'MTC E$_{\mathbf{x},\mathbf{\theta}| \mathbf{y}}[h(\mathbf{x})]$')
 line4 = ax1.errorbar(x, height_values,capsize=4, xerr = xerr,color = MTCCol, fmt = '-o')#, label = 'MC estimate')
 line5 = ax1.errorbar(MargX,height_values, color = 'red', capsize=4, xerr =MargXErr/2, zorder=5, fmt = '-x')
 
@@ -1300,10 +1300,11 @@ line5 = ax1.errorbar(MargX,height_values, color = 'red', capsize=4, xerr =MargXE
 ax2 = ax1.twiny() # ax1 and ax2 share y-axis
 line3 = ax2.plot(y, tang_heights_lin, color = dataCol, label = r'data in \frac{W}{m^2 sr}\frac{1}{\frac{1}{cm}}',linewidth = 5)
 ax2.spines['top'].set_color(dataCol)
-ax2.set_xlabel(r'Spectral Ozone radiance in $\frac{W}{m^2 sr} \times \frac{1}{\frac{1}{cm}}$', color =dataCol,labelpad=10 )
+ax2.set_xlabel(r'Spectral Ozone radiance in $\frac{W}{m^2 sr} \times \frac{1}{\frac{1}{cm}}$',labelpad=10 )# color =dataCol,
 ax2.tick_params(colors = dataCol)
 ax1.set_xlabel(r'Ozone volume mixing ratio ')
-multicolor_ylabel(ax1,('(Tangent)','Height in km'),('k', dataCol),axis='y')
+#multicolor_ylabel(ax1,('(Tangent)','Height in km'),('k', dataCol),axis='y')
+ax1.set_ylabel('(Tangent) Height in km')
 handles, labels = ax1.get_legend_handles_labels()
 handles2, labels2 = ax2.get_legend_handles_labels()
 # Handles = [handles[0], handles[1], handles[2]]
@@ -1321,6 +1322,16 @@ fig3.savefig('FirstRecRes.png')#, dpi = dpi)
 
 plt.show()
 ##
+
+pgf_params = { "pgf.texsystem": "pdflatex",
+    'text.usetex': True,
+    'pgf.rcfonts': False,
+'axes.labelsize': 12,  # -> axis labels
+'legend.fontsize': 12,
+"font.serif": "cmr"
+               }
+
+
 mpl.use('pgf')
 mpl.rcParams.update(pgf_params)
 fig3.savefig('FirstRecRes.pgf', backend = 'pgf')#, dpi = dpi)
