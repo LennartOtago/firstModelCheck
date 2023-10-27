@@ -5,9 +5,11 @@ close all
 
 %data = importdata('MargPostDat.txt');
 data = readmatrix('MargPostDat.txt');
-gammas = data(:,1); %str2num(cell2mat(data.textdata(2:end,1)));
-deltas = data(:,2); %str2num(cell2mat(data.textdata(2:end,2)));
-lambdas = deltas./gammas;
+% gammas = data(:,1); %str2num(cell2mat(data.textdata(2:end,1)));
+% deltas = data(:,2);
+gammas = data(:,1);
+lambdas = data(:,2);
+deltas = lambdas .* gammas;
 
 burn = 50;
 [value_lam,dvalue_lam,ddvalue_lam,tauint_lam,dtauint_lam,Qval_lam,rho_lam,drho_lam,tmax_lam] = UWerr(lambdas(burn:end));

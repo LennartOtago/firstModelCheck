@@ -336,27 +336,29 @@ for j in range(1,len(theta)-1):
 params[0] = gamma'''
 def MargPost(params):#, coeff):
 
+    # gamma = params[0]
+    # delta = params[1]
     gamma = params[0]
-    delta = params[1]
-    if delta < 0  or gamma < 0:
+    lamb = params[1]
+    if lamb < 0  or gamma < 0:
         return np.nan
 
     n = SpecNumLayers
 
-    Bp = ATA + delta/gamma * L
+    Bp = ATA + lamb * L
 
 
     B_inv_A_trans_y, exitCode = gmres(Bp, ATy[0::, 0], tol=tol, restart=25)
     if exitCode != 0:
         print(exitCode)
 
-    G = g(A, L,  delta/gamma)
+    G = g(A, L,  lamb)
     F = f(ATy, y,  B_inv_A_trans_y)
 
-    return -n/2 * np.log(delta) + 0.5 * G + 0.5 * gamma * F + 1e-4 * ( delta + gamma)
+    return -n/2 * np.log(lamb) - (n/2 + 1) * np.log(gamma) + 0.5 * G + 0.5 * gamma * F + 1e-4 * ( lamb * gamma + gamma)
 
 #minimum = optimize.fmin(MargPostU, [5e-5,0.5])
-minimum = optimize.fmin(MargPost, [1/np.var(y),1/(2*np.mean(vari))])
+minimum = optimize.fmin(MargPost, [1/np.var(y),(2*np.mean(vari))*np.var(y)])
 
 #minimum = optimize.minimize(MargPost, [1/np.var(y), 1/(2*np.mean(vari))], args = [ATA_lin, L])
 print(minimum)
@@ -396,7 +398,8 @@ np.savetxt('lam.txt', lam, fmt = '%.15f')
 '''check error in g(lambda)'''
 
 
-B = (ATA + minimum[1]/minimum[0] * L)
+# B = (ATA + minimum[1]/minimum[0] * L)
+B = (ATA + minimum[1] * L)
 
 B_inv = np.zeros(np.shape(B))
 for i in range(len(B)):
@@ -420,7 +423,7 @@ MCErrL2 = stdL2/ np.sqrt(num_sam)
 ''' check taylor series in f(lambda)
 around lam0 delta_lam = '''
 
-lam0 =minimum[1] / minimum[0]
+lam0 =minimum[1]# / minimum[0]
 lam_try = np.linspace(lam0-lam0/2,lam0+lam0/2,101)
 f_try_func = np.zeros(len(lam_try))
 g_try_func = np.zeros(len(lam_try))
@@ -476,9 +479,9 @@ lambdas = np.zeros(number_samples)
 
 #inintialize sample
 gammas[0] = minimum[0] #3.7e-5#1/np.var(y) * 1e1 #(0.01* np.max(Ax))1e-5#
-deltas[0] =  minimum[1] #0.275#1/(2*np.mean(vari))0.1#
-lambdas[0] = deltas[0]/gammas[0]
-
+#0.275#1/(2*np.mean(vari))0.1#
+lambdas[0] = minimum[1]#deltas[0]/gammas[0]
+deltas[0] =  minimum[1] * minimum[0]
 ATy = np.matmul(A.T, y)
 B = (ATA + lambdas[0] * L)
 
@@ -603,7 +606,7 @@ axs[2].hist(new_lamb,bins=n_bins, color = 'k')#10)
 #axs[2].xaxis.set_major_formatter(scientific_formatter)
 #axs[2].set_title(str(len(new_lamb)) + ' effective $\lambda =\delta / \gamma$ samples')
 axs[2].set_title(str(len(new_lamb)) + ' $\lambda$ samples, the regularization parameter')
-#plt.savefig('HistoResults.png')
+plt.savefig('HistoResults.png')
 plt.show()
 
 
@@ -730,24 +733,27 @@ def MargPostInit(minimum):
     Params = np.zeros(2)
 	# Params[0] = np.random.gamma( shape=1, scale=1e4) #gamma
 	# Params[1] = np.random.gamma( shape=1, scale=1e4) #delta
-    Params[0] = minimum[0] #gamma 8e-5
-    Params[1] = minimum[1] #delta
-
+    # Params[0] = minimum[0] #gamma 8e-5
+    # Params[1] = minimum[1] #delta
+    Params[0] = minimum[0] #gamma
+    Params[1] = minimum[1] #lambda
     return Params
 
 def MargPostU(Params):
     n = SpecNumLayers
 
-    Bp= ATA + Params[1]/Params[0] * L
+   # Bp= ATA + Params[1]/Params[0] * L
+    Bp= ATA + Params[1] * L
 
     B_inv_A_trans_y, exitCode = gmres(Bp, ATy[0::, 0], tol=tol, restart=25)
     if exitCode != 0:
         print(exitCode)
 
-    G = g(A, L,  Params[1]/Params[0])
+    #G = g(A, L,  Params[1]/Params[0])
+    G = g(A, L,  Params[1])
     F = f(np.matmul(A.T, y), y, B_inv_A_trans_y)
 
-    return -n/2 * np.log(Params[1]) + 0.5 * G + 0.5 * Params[0] * F + 1e-4 * (Params[0] + Params[1])
+    return -n/2 * np.log(Params[1]) - (n/2+1) * np.log(Params[0]) + 0.5 * G + 0.5 * Params[0] * F + 1e-4 * (Params[0]*Params[1] + Params[0])
 
 
 def MargPostSupp(Params):
@@ -782,9 +788,22 @@ with open("autoCorrPyTWalk.txt") as fID:
     for n, line in enumerate(fID):
        if n == 1:
             IntAutoDeltaPyT, IntAutoGamPyT, IntAutoLamPyT = [float(IAuto) for IAuto in line.split()]
+
             break
 
-lambasPyT = SampParas[:,1]/SampParas[:,0]
+#lambasPyT = SampParas[:,1]/SampParas[:,0]
+deltasPyT = SampParas[:,1]*SampParas[:,0]
+
+fig, axs = plt.subplots(3, 1, tight_layout=True)
+
+axs[0].hist(SampParas[:,0],bins=n_bins)
+
+axs[1].hist(deltasPyT,bins=n_bins)
+
+axs[2].hist(SampParas[:,1],bins=n_bins)
+
+plt.show()
+
 
 
 fig, axs = plt.subplots(3, 1, tight_layout=True)
@@ -792,11 +811,15 @@ fig, axs = plt.subplots(3, 1, tight_layout=True)
 # We can set the number of bins with the *bins* keyword argument.
 axs[0].hist(SampParas[burnIn::math.ceil(IntAutoGamPyT),0],bins=n_bins)
 axs[0].set_title( str(len(SampParas[burnIn::math.ceil(IntAutoGamPyT),0]))+ ' effective $\gamma$ sample' )
-axs[1].hist(SampParas[burnIn::math.ceil(IntAutoDeltaPyT),1],bins=n_bins)
-axs[1].set_title(str(len(SampParas[burnIn::math.ceil(IntAutoDeltaPyT),1])) + ' effective $\delta$ samples')
-axs[2].hist(lambasPyT[burnIn::math.ceil(IntAutoLamPyT)],bins=n_bins)
+#axs[1].hist(SampParas[burnIn::math.ceil(IntAutoDeltaPyT),1],bins=n_bins)
+axs[1].hist(deltasPyT[burnIn::math.ceil(IntAutoDeltaPyT)],bins=n_bins)
+axs[1].set_title(str(len(deltasPyT[burnIn::math.ceil(IntAutoDeltaPyT)])) + ' effective $\delta$ samples')
+#axs[1].set_title(str(len(SampParas[burnIn::math.ceil(IntAutoDeltaPyT),1])) + ' effective $\delta$ samples')
+#axs[2].hist(lambasPyT[burnIn::math.ceil(IntAutoLamPyT)],bins=n_bins)
+axs[2].hist(SampParas[burnIn::math.ceil(IntAutoLamPyT),1],bins=n_bins)
+axs[2].set_title(str(len(SampParas[burnIn::math.ceil(IntAutoLamPyT),1])) + ' effective $\delta$ samples')
 #axs[2].xaxis.set_major_formatter(scientific_formatter)
-axs[2].set_title(str(len(lambasPyT[burnIn::math.ceil(IntAutoLamPyT)])) + ' effective $\lambda =\delta / \gamma samples $')
+#axs[2].set_title(str(len(SampParas[burnIn::math.ceil(IntAutoDeltaPyT),1])) + ' effective $\lambda =\delta / \gamma samples $')
 #plt.savefig('PyTWalkHistoResults.png')
 #plt.show()
 
@@ -843,7 +866,8 @@ axs[0].set_xlabel(r'samples with $\tau_{int}=$ ' + str(math.ceil(IntAutoGamPyT))
 axs[0].set_ylabel('$\gamma$')
 axs[1].plot(range(len(SampParas[:,1])), SampParas[:,1])
 axs[1].set_xlabel(r'samples with $\tau_{int}$= ' + str(math.ceil(IntAutoDeltaPyT)))
-axs[1].set_ylabel('$\delta$')
+#axs[1].set_ylabel('$\delta$')
+axs[1].set_ylabel('$\lambda$')
 with open('TracetWalkPara.pickle', 'wb') as filID: # should be 'wb' rather than 'w'
     pl.dump(fig, filID)
 #plt.savefig('TracetWalkPara.png')
@@ -884,15 +908,15 @@ axs[1].xaxis.set_major_formatter(scientific_formatter)
 #     label.set_visible(False)
 axs[1].set_ylim([0,250])
 axs1 = axs[1].twinx()
-axs1.hist(SampParas[burnIn::math.ceil(IntAutoDeltaPyT),1],bins=BinSetDelt,color = pyTCol, zorder = 1)
+axs1.hist(deltasPyT[burnIn::math.ceil(IntAutoDeltaPyT)],bins=BinSetDelt,color = pyTCol, zorder = 1)
 axs1.set_ylim([0,100])
 axs1.tick_params(axis = 'y', colors=pyTCol, which = 'both')
 axs1.spines['right'].set_color(pyTCol)
 axs[2].hist(new_lamb,bins=BinSetLamb, color = MTCCol, zorder = 0)#10)
 #axs[2].set_ylim([0,200])
 axs2 = axs[2].twinx()
-LPYT = lambasPyT[burnIn::math.ceil(IntAutoLamPyT)]
-axs2.hist(LPYT ,bins=BinSetLamb,color = pyTCol, zorder = 1)
+LPYT = SampParas[burnIn::math.ceil(IntAutoLamPyT),1]
+axs2.hist(SampParas[burnIn::math.ceil(IntAutoLamPyT),1] ,bins=BinSetLamb,color = pyTCol, zorder = 1)
 axs2.set_ylim([0,100])
 axs2.tick_params(axis = 'y', colors=pyTCol, which = 'both')
 axs2.spines['right'].set_color(pyTCol)
@@ -921,8 +945,8 @@ if exitCode != 0:
 
 f_MTC = f(ATy, y, B_MTC_inv_A_trans_y)
 
-lamPyT = np.mean(lambasPyT[burnIn::math.ceil(IntAutoLamPyT)])
-varPyT = np.var(lambasPyT[burnIn::math.ceil(IntAutoLamPyT)])
+lamPyT = np.mean(SampParas[burnIn::math.ceil(IntAutoLamPyT),1])
+varPyT = np.var(SampParas[burnIn::math.ceil(IntAutoLamPyT),1])
 B_tW = ATA + lamPyT * L
 B_tW_inv_A_trans_y, exitCode = gmres(B_tW, ATy[0::, 0], tol=tol, restart=25)
 if exitCode != 0:
@@ -1193,7 +1217,8 @@ xTLxOpt = np.sqrt(np.matmul(np.matmul(x_opt.T, L), x_opt))
 # plt.show()
 
 
-B = (ATA + minimum[1]/minimum[0] * L)
+#B = (ATA + minimum[1]/minimum[0] * L)
+B = (ATA + minimum[1] * L)
 
 x, exitCode = gmres(B, ATy[0::, 0], tol=tol, restart=25)
 if exitCode != 0:
