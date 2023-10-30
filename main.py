@@ -9,7 +9,7 @@ from errors import *
 from scipy import constants, optimize
 from scipy.sparse.linalg import gmres
 import matplotlib.pyplot as plt
-import tikzplotlib
+#import tikzplotlib
 plt.rcParams.update({'font.size': 18})
 import pandas as pd
 from numpy.random import uniform, normal, gamma
@@ -334,7 +334,7 @@ for j in range(1,len(theta)-1):
 #find minimum for first guesses
 '''params[1] = delta
 params[0] = gamma'''
-def MargPost(params):#, coeff):
+def MinLogMargPost(params):#, coeff):
 
     # gamma = params[0]
     # delta = params[1]
@@ -344,6 +344,7 @@ def MargPost(params):#, coeff):
         return np.nan
 
     n = SpecNumLayers
+    m = SpecNumMeas
 
     Bp = ATA + lamb * L
 
@@ -355,20 +356,21 @@ def MargPost(params):#, coeff):
     G = g(A, L,  lamb)
     F = f(ATy, y,  B_inv_A_trans_y)
 
-    return -n/2 * np.log(lamb) - (n/2 + 1) * np.log(gamma) + 0.5 * G + 0.5 * gamma * F + 1e-4 * ( lamb * gamma + gamma)
+    return -n/2 * np.log(lamb) - (m/2 + 1) * np.log(gamma) + 0.5 * G + 0.5 * gamma * F + 1e-4 * ( lamb * gamma + gamma)
 
 #minimum = optimize.fmin(MargPostU, [5e-5,0.5])
-minimum = optimize.fmin(MargPost, [1/np.var(y),(2*np.mean(vari))*np.var(y)])
+minimum = optimize.fmin(MinLogMargPost, [1/(max(Ax) * 0.01)[0],(2*np.mean(vari))*1/(max(Ax) * 0.01)[0]])
 
-#minimum = optimize.minimize(MargPost, [1/np.var(y), 1/(2*np.mean(vari))], args = [ATA_lin, L])
+
 print(minimum)
-print(minimum[1]/minimum[0])
 
 
+
+##
 """ finally calc f and g with a linear solver adn certain lambdas
  using the gmres"""
 
-lam= np.logspace(-4,14,1000)
+lam= np.logspace(-7,15,500)
 f_func = np.zeros(len(lam))
 g_func = np.zeros(len(lam))
 
@@ -393,80 +395,80 @@ for j in range(len(lam)):
 np.savetxt('f_func.txt', f_func, fmt = '%.15f')
 np.savetxt('g_func.txt', g_func, fmt = '%.15f')
 np.savetxt('lam.txt', lam, fmt = '%.15f')
-
-
-'''check error in g(lambda)'''
-
-
-# B = (ATA + minimum[1]/minimum[0] * L)
-B = (ATA + minimum[1] * L)
-
-B_inv = np.zeros(np.shape(B))
-for i in range(len(B)):
-    e = np.zeros(len(B))
-    e[i] = 1
-    B_inv[:, i], exitCode = gmres(B, e, tol=tol, restart=25)
-    if exitCode!= 0 :
-        print('B_inv ' + str(exitCode))
-
-B_inv_L = np.matmul(B_inv, L)
-num_sam = 10
-trace_B_inv_L_1 = g_MC_log_det(B_inv_L, num_sam)
-trace_B_inv_L_2 = g_MC_log_det(np.matmul(B_inv_L, B_inv_L), num_sam)
-stdL1 = np.sqrt(np.var(trace_B_inv_L_1))
-stdL2 = np.sqrt(np.var(trace_B_inv_L_2))
-
-MCErrL1 = stdL1/ np.sqrt(num_sam)
-MCErrL2 = stdL2/ np.sqrt(num_sam)
-
+##
+#
+# '''check error in g(lambda)'''
+#
+#
+# # B = (ATA + minimum[1]/minimum[0] * L)
+# B = (ATA + minimum[1] * L)
+#
+# B_inv = np.zeros(np.shape(B))
+# for i in range(len(B)):
+#     e = np.zeros(len(B))
+#     e[i] = 1
+#     B_inv[:, i], exitCode = gmres(B, e, tol=tol, restart=25)
+#     if exitCode!= 0 :
+#         print('B_inv ' + str(exitCode))
+#
+# B_inv_L = np.matmul(B_inv, L)
+# num_sam = 10
+# trace_B_inv_L_1 = g_MC_log_det(B_inv_L, num_sam)
+# trace_B_inv_L_2 = g_MC_log_det(np.matmul(B_inv_L, B_inv_L), num_sam)
+# stdL1 = np.sqrt(np.var(trace_B_inv_L_1))
+# stdL2 = np.sqrt(np.var(trace_B_inv_L_2))
+#
+# MCErrL1 = stdL1/ np.sqrt(num_sam)
+# MCErrL2 = stdL2/ np.sqrt(num_sam)
+#
 
 ''' check taylor series in f(lambda)
 around lam0 delta_lam = '''
 
-lam0 =minimum[1]# / minimum[0]
-lam_try = np.linspace(lam0-lam0/2,lam0+lam0/2,101)
-f_try_func = np.zeros(len(lam_try))
-g_try_func = np.zeros(len(lam_try))
-
-g_func_tay = np.ones(len(lam_try)) * g(A, L, lam0)
-
-B = (ATA + lam0* L)
-B_inv_A_trans_y, exitCode = gmres(B, ATy[0::, 0], tol=tol, restart=25)
-f_func_tay = np.ones(len(lam_try)) * f(ATy, y, B_inv_A_trans_y)
-
-for j in range(len(lam_try)):
-
-    B = (ATA + lam_try[j] * L)
-
-    B_inv_A_trans_y, exitCode = gmres(B, ATy[0::, 0], tol=tol, restart=25)
-    #print(exitCode)
-
-    CheckB_inv_ATy = np.matmul(B, B_inv_A_trans_y)
-
-    if np.linalg.norm(ATy[0::, 0]- CheckB_inv_ATy)/np.linalg.norm(ATy[0::, 0])<=tol :
-        f_try_func[j] = f(ATy, y, B_inv_A_trans_y)
-    else:
-        f_try_func[j] = np.nan
-    delta_lam = lam_try[j] - lam0
-
-    g_try_func[j] = g(A, L, lam_try[j])
-
-    B_inv_L = np.zeros(np.shape(B))
-    for i in range(len(B)):
-        B_inv_L[:, i], exitCode = gmres(B, L[:, i], tol=tol, restart=25)
-        if exitCode != 0:
-            print('B_inv_L ' + str(exitCode))
-    relative_tol_L = tol
-    #CheckB_inv_L = np.matmul(B, B_inv_L)
-    #print(np.linalg.norm(L- CheckB_inv_L)/np.linalg.norm(L)<relative_tol_L)
-    B_inv_L_2 = np.matmul(B_inv_L, B_inv_L)
-    B_inv_L_3 = np.matmul(B_inv_L_2, B_inv_L)
-    B_inv_L_4 = np.matmul(B_inv_L_2, B_inv_L_2)
-    B_inv_L_5 = np.matmul(B_inv_L_4, B_inv_L)
-
-    f_func_tay[j] = f_func_tay[j] + f_tayl(delta_lam, B_inv_A_trans_y, ATy[0::, 0], B_inv_L, B_inv_L_2, B_inv_L_3, B_inv_L_4, B_inv_L_5)
-    g_func_tay[j] = g_func_tay[j] + g_tayl(delta_lam, B_inv_L, B_inv_L_2, B_inv_L_3, B_inv_L_4, B_inv_L_5)
-
+# lam0 =minimum[1]# / minimum[0]
+# lam_try = np.linspace(lam0-lam0/2,lam0+lam0/2,101)
+# f_try_func = np.zeros(len(lam_try))
+# g_try_func = np.zeros(len(lam_try))
+#
+# g_func_tay = np.ones(len(lam_try)) * g(A, L, lam0)
+#
+# B = (ATA + lam0* L)
+# B_inv_A_trans_y, exitCode = gmres(B, ATy[0::, 0], tol=tol, restart=25)
+# f_func_tay = np.ones(len(lam_try)) * f(ATy, y, B_inv_A_trans_y)
+#
+# for j in range(len(lam_try)):
+#
+#     B = (ATA + lam_try[j] * L)
+#
+#     B_inv_A_trans_y, exitCode = gmres(B, ATy[0::, 0], tol=tol, restart=25)
+#     #print(exitCode)
+#
+#     CheckB_inv_ATy = np.matmul(B, B_inv_A_trans_y)
+#
+#     if np.linalg.norm(ATy[0::, 0]- CheckB_inv_ATy)/np.linalg.norm(ATy[0::, 0])<=tol :
+#         f_try_func[j] = f(ATy, y, B_inv_A_trans_y)
+#     else:
+#         f_try_func[j] = np.nan
+#     delta_lam = lam_try[j] - lam0
+#
+#     g_try_func[j] = g(A, L, lam_try[j])
+#
+#     B_inv_L = np.zeros(np.shape(B))
+#     for i in range(len(B)):
+#         B_inv_L[:, i], exitCode = gmres(B, L[:, i], tol=tol, restart=25)
+#         if exitCode != 0:
+#             print('B_inv_L ' + str(exitCode))
+#     relative_tol_L = tol
+#     #CheckB_inv_L = np.matmul(B, B_inv_L)
+#     #print(np.linalg.norm(L- CheckB_inv_L)/np.linalg.norm(L)<relative_tol_L)
+#     B_inv_L_2 = np.matmul(B_inv_L, B_inv_L)
+#     B_inv_L_3 = np.matmul(B_inv_L_2, B_inv_L)
+#     B_inv_L_4 = np.matmul(B_inv_L_2, B_inv_L_2)
+#     B_inv_L_5 = np.matmul(B_inv_L_4, B_inv_L)
+#
+#     f_func_tay[j] = f_func_tay[j] + f_tayl(delta_lam, B_inv_A_trans_y, ATy[0::, 0], B_inv_L, B_inv_L_2, B_inv_L_3, B_inv_L_4, B_inv_L_5)
+#     g_func_tay[j] = g_func_tay[j] + g_tayl(delta_lam, B_inv_L, B_inv_L_2, B_inv_L_3, B_inv_L_4, B_inv_L_5)
+#
 
 
 ##
@@ -494,7 +496,7 @@ cond_B =  np.max(Bs)/np.min(Bs)
 print("Condition number B: " + str(orderOfMagnitude(cond_B)))
 
 k = 0
-wLam = 5.5e2
+wLam = 1e2#5.5e2
 #wgam = 1e-5
 #wdelt = 1e-1
 betaG = 1e-4
@@ -503,7 +505,7 @@ alphaG = 1
 alphaD = 1
 rate = f(ATy, y, B_inv_A_trans_y) / 2 + betaG + betaD * lambdas[0]
 # draw gamma with a gibs step
-shape = SpecNumLayers/2 + alphaD + alphaG
+shape = SpecNumMeas/2 + alphaD + alphaG
 
 f_old = f(ATy, y,  B_inv_A_trans_y)
 g_old = g(A, L,  lambdas[0])
@@ -583,8 +585,6 @@ with open("auto_corr_dat.txt") as fID:
 
 
 #refine according to autocorrelation time
-
-
 new_lamb = lambdas[burnIn::math.ceil(IntAutoLam)]
 #SetLambda = new_lamb[np.random.randint(low=0, high=len(new_lamb), size=1)]
 new_gam = gammas[burnIn::math.ceil(IntAutoGam)]
@@ -592,6 +592,10 @@ new_gam = gammas[burnIn::math.ceil(IntAutoGam)]
 new_delt = deltas[burnIn::math.ceil(IntAutoDelt)]
 #SetDelta = new_delt[np.random.randint(low = 0,high =len(new_delt),size =1)]
 
+MTCMargSamp = np.vstack((gammas, lambdas)).T
+TrMTC = np.zeros(number_samples)
+for i,sam in enumerate(MTCMargSamp):
+    TrMTC[i] = MinLogMargPost(sam)
 
 fig, axs = plt.subplots(3, 1,tight_layout=True)
 
@@ -727,7 +731,8 @@ plt.show()
 
 print('MTC Done')
 ##
-
+mpl.use(defBack)
+mpl.rcParams.update(mpl.rcParamsDefault)
 import pytwalk
 def MargPostInit(minimum):
     Params = np.zeros(2)
@@ -739,30 +744,30 @@ def MargPostInit(minimum):
     Params[1] = minimum[1] #lambda
     return Params
 
-def MargPostU(Params):
+def MargPost(Params):
     n = SpecNumLayers
-
-   # Bp= ATA + Params[1]/Params[0] * L
-    Bp= ATA + Params[1] * L
+    m = SpecNumMeas
+    Bp= ATA + Params[1]/Params[0] * L
+    #Bp= ATA + Params[1] * L
 
     B_inv_A_trans_y, exitCode = gmres(Bp, ATy[0::, 0], tol=tol, restart=25)
     if exitCode != 0:
         print(exitCode)
 
-    #G = g(A, L,  Params[1]/Params[0])
-    G = g(A, L,  Params[1])
+    G = g(A, L,  Params[1]/Params[0])
+    #G = g(A, L,  Params[1])
     F = f(np.matmul(A.T, y), y, B_inv_A_trans_y)
 
-    return -n/2 * np.log(Params[1]) - (n/2+1) * np.log(Params[0]) + 0.5 * G + 0.5 * Params[0] * F + 1e-4 * (Params[0]*Params[1] + Params[0])
+    return -n/2 * np.log(Params[1]) - (m/2) * np.log(Params[0]) + 0.5 * G + 0.5 * Params[0] * F + 1e-4 * (Params[1] + Params[0])
 
 
 def MargPostSupp(Params):
 	return all(0 < Params)
 
-MargPost = pytwalk.pytwalk( n=2, U=MargPostU, Supp=MargPostSupp)
+MargPost = pytwalk.pytwalk( n=2, U=MinLogMargPost, Supp=MargPostSupp)
 startTime = time.time()
 tWalkSampNum= 10000
-MargPost.Run( T=tWalkSampNum, x0=MargPostInit(minimum), xp0=np.array([normal(minimum[0], minimum[0]/4), normal(minimum[1],minimum[1]/4)]) )
+MargPost.Run( T=tWalkSampNum, x0=MargPostInit(minimum), xp0=np.array([normal(minimum[0], minimum[0]/4), normal((minimum[1]),(minimum[1])/4)]) )
 elapsedtWalkTime = time.time() - startTime
 print('Elapsed Time for t-walk: ' + str(elapsedtWalkTime))
 MargPost.Ana()
@@ -791,8 +796,12 @@ with open("autoCorrPyTWalk.txt") as fID:
 
             break
 
-#lambasPyT = SampParas[:,1]/SampParas[:,0]
+#for f and g image
+LPYT = SampParas[burnIn::math.ceil(IntAutoLamPyT),1]
+GPYT = SampParas[burnIn::math.ceil(IntAutoGamPyT),0]
 deltasPyT = SampParas[:,1]*SampParas[:,0]
+
+
 
 fig, axs = plt.subplots(3, 1, tight_layout=True)
 
@@ -835,7 +844,7 @@ axs[1].set_ylabel('-log $\pi(y |  x ,\gamma)$')
 with open('TraceMC.pickle', 'wb') as filID: # should be 'wb' rather than 'w'
     pl.dump(fig, filID)
 #plt.savefig('TraceMC.png')
-#plt.show()
+plt.show()
 
 #plot para traces for MTC
 fig, axs = plt.subplots( 3,1,  tight_layout=True, figsize=(7, 8))
@@ -877,8 +886,9 @@ with open('TracetWalkPara.pickle', 'wb') as filID: # should be 'wb' rather than 
 
 print('t-walk Done')
 
-
+plt.close('all')
 ##
+
 
 mpl.use(defBack)
 mpl.rcParams.update(mpl.rcParamsDefault)
@@ -936,84 +946,144 @@ fig.savefig('AllHistoResults.pgf', bbox_inches='tight')
 # mpl.use(defBack)
 # mpl.rcParams.update(mpl.rcParamsDefault)
 ##
+
+mpl.use(defBack)
+mpl.rcParams.update(mpl.rcParamsDefault)
+plt.rcParams.update({'font.size': 12})
+fig, axs = plt.subplots(3, 1,tight_layout=True,figsize=set_size(PgWidthPt, fraction=fraction))#, dpi = dpi)
+n_bins = n_bins
+BinSetLamb = np.arange(min(new_lamb),max(new_lamb),(max(new_lamb)-min(new_lamb))/n_bins)
+BinSetGam = np.arange(min(new_gam),max(new_gam),(max(new_gam)-min(new_gam))/n_bins)
+BinSetDelt = np.arange(min(new_delt),max(new_delt),(max(new_delt)-min(new_delt))/n_bins)
+
+
+axs[0].hist(new_gam,bins=BinSetGam, color = MTCCol, zorder = 0, label = 'MTC')
+#axs[0].set_ylim([0,400])
+axs0 = axs[0].twinx()
+axs0.hist(GPYT,bins=BinSetGam,color = pyTCol, zorder = 1, label = 't-walk')
+axs0.set_ylim([0,100])
+axs0.tick_params(axis = 'y', colors=pyTCol, which = 'both')
+axs0.spines['right'].set_color(pyTCol)
+hist0, lab0 = axs[0].get_legend_handles_labels()
+hist00, lab00 = axs0.get_legend_handles_labels()
+axs[0].legend(labels = lab0 + lab00, handles = hist0+hist00 , labelcolor = [MTCCol, pyTCol] ,loc='upper right',frameon=True, fontsize = 12)#,bbox_to_anchor=(1.05, 1.15))
+axs[1].hist(new_lamb,bins=BinSetLamb, color = MTCCol, zorder = 0)#10)
+#axs[2].set_ylim([0,200])
+axs1 = axs[1].twinx()
+axs1.hist(LPYT,bins=BinSetLamb,color = pyTCol, zorder = 1)
+axs1.set_ylim([0,100])
+axs1.tick_params(axis = 'y', colors=pyTCol, which = 'both')
+axs1.spines['right'].set_color(pyTCol)
+axs[0].set_title(r'$\gamma$, the noise precision', fontsize = 12)
+axs[1].set_title(r'$\lambda =\delta / \gamma$, the regularization parameter', fontsize = 12)
+axs[2].plot(range(len(SampParas[:,2])), TrMTC ,color = MTCCol, linewidth = 2)
+axs[2].set_xlim([0,number_samples])
+axs[2].set_title('trace of the marginal posterior $-\log \, \pi( \lambda, \gamma | \mathbf{y})$', fontsize = 12)
+#axs[2].set_ylabel(r'$-log \pi( \gamma, \lambda | \mathbf{y})$')
+axs[2].set_xlabel('iterations')
+axs[2].yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.f'))
+#axs[2].tick_params(axis = 'y', which = 'both', labelleft=False, left=False)
+axs2 = axs[2].twinx()
+axs2.plot(range(len(SampParas[:,2])), SampParas[:,2],color = pyTCol, linewidth = 0.6)
+axs2.tick_params(axis = 'y', which = 'both', labelright=False, right=False, labelleft=False, left=False)
+#axs2.spines['right'].set_color(pyTCol)
+plt.savefig('AllHistoResultsPlus.png')
+plt.show()
+
+##
+mpl.use('pgf')
+mpl.rcParams.update(pgf_params)
+fig.savefig('AllHistoResultsPlus.pgf', bbox_inches='tight')
+##
 '''make figure for f and g including the best lambdas and taylor series'''
+#
+#
+#
+# fig,axs = plt.subplots(1,2, figsize=(14, 5))
+# axs[0].plot(lam,f_func)
+# axs[0].scatter(lam0,f_try_func[50], color = 'green', s= 70, zorder=4)
+# axs[0].annotate('mode $\lambda_0$ of marginal posterior',(lam0+2e4,f_try_func[50]), color = 'green', fontsize = 14.7)
+# axs[0].scatter(np.mean(lambdas),f_MTC, color = 'red', zorder=5)
+# axs[0].annotate('MTC $\lambda$ sample mean',(np.mean(lambdas)+1e4,f_MTC), color = 'red')
+# axs[0].scatter(lamPyT,f_tW, color = 'k', s = 35, zorder=5)
+# axs[0].annotate('T-Walk $\lambda$ sample mean',(lamPyT+1e5,f_tW+2e6), color = 'k')
+# axs[0].set_xscale('log')
+# axs[0].set_yscale('log')
+# axs[0].set_ylabel('f($\lambda$)')
+# axs[0].set_xlabel('$\lambda$')
+# inset_ax = axs[0].inset_axes([0.05,0.41,0.55,0.55])
+# inset_ax.scatter(lam0,f_try_func[50], color = 'green', s=60, zorder=3)
+# inset_ax.annotate('$\lambda_0$',(lam0+1e3,f_try_func[50]-3e5), color = 'green', fontsize = 20 )
+# inset_ax.plot(lam_try,f_func_tay, color = 'red',linewidth = 5, label = '$5^{th}$ Taylor series')
+# inset_ax.plot(lam_try,f_try_func, label = 'f($\lambda$)')
+# inset_ax.set_xscale('log')
+# inset_ax.set_yscale('log')
+# inset_ax.legend(loc = 'upper left', facecolor = 'none')
+# inset_ax.tick_params(
+#     axis='y',          # changes apply to the x-axis
+#     which='both',      # both major and minor ticks are affected
+#     left=False,      # ticks along the bottom edge are off
+#     top=False,         # ticks along the top edge are off
+#     labelleft=False)
+#
+# #axs.set_yscale('log')
+# axs[1].plot(lam,g_func)
+# axs[1].scatter(lam0,g_try_func[50], color = 'green', s=70, zorder=4)
+# axs[1].annotate('mode $\lambda_0$ of marginal posterior',(lam0+3e5,g_try_func[50]), color = 'green')
+# #axs[1].scatter(np.mean(lambdas),g_func[239], color = 'red', zorder=5)
+# axs[1].errorbar(np.mean(lambdas),g(A, L, np.mean(lambdas) ), color = 'red', zorder=5, xerr=np.sqrt(np.var(lambdas))/2, fmt='o')
+# axs[1].annotate('MTC $\lambda$ sample mean',(np.mean(lambdas)+1e4,g(A, L, np.mean(lambdas) )-45), color = 'red')
+# axs[1].scatter(lamPyT,g(A, L, lamPyT) , color = 'k', s=35, zorder=5)
+# axs[1].annotate('T-Walk $\lambda$ sample mean',(lamPyT+1e6,g(A_lin, L, lamPyT) +50), color = 'k')
+# axs[1].set_xscale('log')
+# axs[1].set_xlabel('$\lambda$')
+# axs[1].set_ylabel('g($\lambda$)')
+# inset_ax = axs[1].inset_axes([0.05,0.41,0.55,0.55])
+# inset_ax.plot(lam_try,g_func_tay, color = 'red',linewidth = 5,label = '$5^{th}$ Taylor series')
+# inset_ax.plot(lam_try,g_try_func, label = 'g($\lambda$)')
+# inset_ax.scatter(lam0,g_try_func[50], color = 'green', s=60, zorder=3)
+# inset_ax.annotate('$\lambda_0$',(lam0+1e3,g_try_func[50]-2), color = 'green', fontsize = 20 )
+# inset_ax.set_xscale('log')
+# inset_ax.set_yscale('log')
+# inset_ax.legend(loc = 'upper left', facecolor = 'none')
+# inset_ax.tick_params(
+#     axis='y',          # changes apply to the x-axis
+#     which='both',      # both major and minor ticks are affected
+#     left=False,      # ticks along the bottom edge are off
+#     top=False,         # ticks along the top edge are off
+#     labelleft=False)
+# with open('f_and_g.pickle', 'wb') as filID: # should be 'wb' rather than 'w'
+#     pl.dump(fig, filID)
+# #plt.savefig('f_and_g.png')
+# #plt.show()
+##
+"""f und g for  paper"""
+B_mode = ATA + minimum[1] * L
+B_mode_inv_A_trans_y, exitCode = gmres(B_mode, ATy[0::, 0], tol=tol, restart=25)
+if exitCode != 0:
+    print(exitCode)
+f_mode = f(ATy, y, B_mode_inv_A_trans_y)
+
+
 
 B_MTC = ATA + np.mean(new_lamb) * L
 B_MTC_inv_A_trans_y, exitCode = gmres(B_MTC, ATy[0::, 0], tol=tol, restart=25)
 if exitCode != 0:
     print(exitCode)
-
 f_MTC = f(ATy, y, B_MTC_inv_A_trans_y)
 
-lamPyT = np.mean(SampParas[burnIn::math.ceil(IntAutoLamPyT),1])
-varPyT = np.var(SampParas[burnIn::math.ceil(IntAutoLamPyT),1])
+
+lamPyT = np.mean(LPYT)
+varPyT = np.var(LPYT)
 B_tW = ATA + lamPyT * L
 B_tW_inv_A_trans_y, exitCode = gmres(B_tW, ATy[0::, 0], tol=tol, restart=25)
 if exitCode != 0:
     print(exitCode)
-
-
 f_tW = f(ATy, y, B_tW_inv_A_trans_y)
 
-fig,axs = plt.subplots(1,2, figsize=(14, 5))
-axs[0].plot(lam,f_func)
-axs[0].scatter(lam0,f_try_func[50], color = 'green', s= 70, zorder=4)
-axs[0].annotate('mode $\lambda_0$ of marginal posterior',(lam0+2e4,f_try_func[50]), color = 'green', fontsize = 14.7)
-axs[0].scatter(np.mean(lambdas),f_MTC, color = 'red', zorder=5)
-axs[0].annotate('MTC $\lambda$ sample mean',(np.mean(lambdas)+1e4,f_MTC), color = 'red')
-axs[0].scatter(lamPyT,f_tW, color = 'k', s = 35, zorder=5)
-axs[0].annotate('T-Walk $\lambda$ sample mean',(lamPyT+1e5,f_tW+2e6), color = 'k')
-axs[0].set_xscale('log')
-axs[0].set_yscale('log')
-axs[0].set_ylabel('f($\lambda$)')
-axs[0].set_xlabel('$\lambda$')
-inset_ax = axs[0].inset_axes([0.05,0.41,0.55,0.55])
-inset_ax.scatter(lam0,f_try_func[50], color = 'green', s=60, zorder=3)
-inset_ax.annotate('$\lambda_0$',(lam0+1e3,f_try_func[50]-3e5), color = 'green', fontsize = 20 )
-inset_ax.plot(lam_try,f_func_tay, color = 'red',linewidth = 5, label = '$5^{th}$ Taylor series')
-inset_ax.plot(lam_try,f_try_func, label = 'f($\lambda$)')
-inset_ax.set_xscale('log')
-inset_ax.set_yscale('log')
-inset_ax.legend(loc = 'upper left', facecolor = 'none')
-inset_ax.tick_params(
-    axis='y',          # changes apply to the x-axis
-    which='both',      # both major and minor ticks are affected
-    left=False,      # ticks along the bottom edge are off
-    top=False,         # ticks along the top edge are off
-    labelleft=False)
 
-#axs.set_yscale('log')
-axs[1].plot(lam,g_func)
-axs[1].scatter(lam0,g_try_func[50], color = 'green', s=70, zorder=4)
-axs[1].annotate('mode $\lambda_0$ of marginal posterior',(lam0+3e5,g_try_func[50]), color = 'green')
-#axs[1].scatter(np.mean(lambdas),g_func[239], color = 'red', zorder=5)
-axs[1].errorbar(np.mean(lambdas),g(A, L, np.mean(lambdas) ), color = 'red', zorder=5, xerr=np.sqrt(np.var(lambdas))/2, fmt='o')
-axs[1].annotate('MTC $\lambda$ sample mean',(np.mean(lambdas)+1e4,g(A, L, np.mean(lambdas) )-45), color = 'red')
-axs[1].scatter(lamPyT,g(A, L, lamPyT) , color = 'k', s=35, zorder=5)
-axs[1].annotate('T-Walk $\lambda$ sample mean',(lamPyT+1e6,g(A_lin, L, lamPyT) +50), color = 'k')
-axs[1].set_xscale('log')
-axs[1].set_xlabel('$\lambda$')
-axs[1].set_ylabel('g($\lambda$)')
-inset_ax = axs[1].inset_axes([0.05,0.41,0.55,0.55])
-inset_ax.plot(lam_try,g_func_tay, color = 'red',linewidth = 5,label = '$5^{th}$ Taylor series')
-inset_ax.plot(lam_try,g_try_func, label = 'g($\lambda$)')
-inset_ax.scatter(lam0,g_try_func[50], color = 'green', s=60, zorder=3)
-inset_ax.annotate('$\lambda_0$',(lam0+1e3,g_try_func[50]-2), color = 'green', fontsize = 20 )
-inset_ax.set_xscale('log')
-inset_ax.set_yscale('log')
-inset_ax.legend(loc = 'upper left', facecolor = 'none')
-inset_ax.tick_params(
-    axis='y',          # changes apply to the x-axis
-    which='both',      # both major and minor ticks are affected
-    left=False,      # ticks along the bottom edge are off
-    top=False,         # ticks along the top edge are off
-    labelleft=False)
-with open('f_and_g.pickle', 'wb') as filID: # should be 'wb' rather than 'w'
-    pl.dump(fig, filID)
-#plt.savefig('f_and_g.png')
-#plt.show()
 
-"""f und g for  paper"""
+
 B_MTC_min = ATA + (np.mean(lambdas) - np.sqrt(np.var(lambdas))/2) * L
 B_MTC_min_inv_A_trans_y, exitCode = gmres(B_MTC_min, ATy[0::, 0], tol=tol, restart=25)
 if exitCode != 0:
@@ -1055,6 +1125,7 @@ if exitCode != 0:
 f_max = f(ATy, y, B_max_inv_A_trans_y)
 
 
+
 ##
 mpl.use(defBack)
 mpl.rcParams.update(mpl.rcParamsDefault)
@@ -1067,11 +1138,11 @@ gmresCol = [204/255, 121/255, 167/255]
 fig,axs = plt.subplots(figsize=set_size(PgWidthPt, fraction=fraction))#, dpi = dpi)
 axs.plot(lam,f_func, color = fCol)
 
-axs.scatter(lam0,f_try_func[50], color = gmresCol, s= 70, zorder=4, marker = 's')
+axs.scatter(minimum[1],f_mode, color = gmresCol, s= 70, zorder=4, marker = 's')#
 #axs.annotate('$\lambda_0$ mode of marginal posterior',(5.05e4,0.25), color = 'green', fontsize = 14.7)
-axs.scatter(np.mean(lambdas),f_MTC, color = MTCCol, zorder=6, s = 10)
+axs.scatter(np.mean(lambdas),f_MTC, color = MTCCol, zorder=6)#, s = 10)
 #axs.annotate('MTC $\lambda$ sample mean',(5.05e4,0.375), color = 'red')
-axs.scatter(lamPyT,f_tW, color = pyTCol, s = 35, zorder=5, marker = 'D')
+axs.scatter(lamPyT,f_tW, color = pyTCol, zorder=5, marker = 'D')#s = 35
 #axs.annotate('T-Walk $\lambda$ sample mean',(5.05e4,0.6), color = 'k')
 
 axs.set_yscale('log')
@@ -1081,63 +1152,73 @@ axs.tick_params(axis = 'y',  colors=fCol, which = 'both')
 axs.spines['left'].set_color(fCol)
 ax2 = axs.twinx() # ax1 and ax2 share y-axis
 ax2.plot(lam,g_func, color = gCol)
-ax2.scatter(lam0,g_try_func[50], color = gmresCol, s=70, zorder=4, marker = 's')
-ax2.scatter(np.mean(lambdas),g(A, L, np.mean(lambdas) ), color = MTCCol, zorder=6)
-ax2.scatter(lamPyT,g(A, L, lamPyT) , color = pyTCol, zorder=5, marker = 'D')
+ax2.scatter(minimum[1],g(A, L, minimum[1]), color = gmresCol, s=70, zorder=4, marker = 's')
+ax2.scatter(np.mean(lambdas),g(A, L, np.mean(lambdas) ), color = MTCCol, zorder=5)
+ax2.scatter(lamPyT,g(A, L, lamPyT) , color = pyTCol, zorder=6, marker = 'D')
 #ax2.annotate('T-Walk $\lambda$ sample mean',(lamPyT+1e6,g(A_lin, L, lamPyT) +50), color = 'k')
 ax2.set_ylabel('$g(\lambda)$')#,color = gCol)
 ax2.tick_params(axis = 'y', colors= gCol)
 axs.set_xscale('log')
 axins = axs.inset_axes([0.05,0.5,0.4,0.45])
-#axins.tick_params(axis = 'x', which = 'minor', labelbottom=False)
-axins.plot(lam,f_func, color = fCol, zorder=0)
+frame1 = plt.gca()
+axins.plot(lam,f_func, color = fCol, zorder=1)
+axins.errorbar(np.mean(lambdas),f_MTC, color = MTCCol, zorder=3,xerr=np.sqrt(np.var(lambdas))/2,markersize = 15, fmt='o', label = 'MTC') #markersize = 15
+axins.errorbar(lamPyT,f_tW, xerr=np.sqrt(varPyT)/2, color = pyTCol, markersize = 10,zorder=5,fmt='D', label = 't-walk') #markersize = 10
+axins.add_patch(mpl.patches.Rectangle( (xpyT, f_pyT_min), np.sqrt(varPyT), f_pyT_max - f_pyT_min,edgecolor=pyTCol,facecolor='none', alpha = 1, zorder = 0, linewidth = 5))
+axins.add_patch(mpl.patches.Rectangle((xMTC, f_MTC_min), np.sqrt(np.var(lambdas)), f_MTC_max - f_MTC_min,edgecolor=MTCCol, facecolor='none',alpha =1,zorder = 0, linewidth = 5))
+axins.scatter(minimum[1],f_mode, color = gmresCol, s= 95, zorder=12, marker = 's', label = 'gmres')
 axins.set_ylim(f_min,f_max)
-#axins.set_ylim(0.3,0.5)
 axins.set_xlabel('$\lambda$')
-#axins.set_xlim(np.mean(lambdas) - np.sqrt(np.var(lambdas)), np.mean(lambdas) + np.sqrt(np.var(lambdas)) )# apply the x-limits
-
-axins.errorbar(np.mean(lambdas),f_MTC, color = MTCCol, zorder=3,xerr=np.sqrt(np.var(lambdas))/2, fmt='o',markersize = 15, label = 'MTC')
-axins.errorbar(lamPyT,f_tW, xerr=np.sqrt(varPyT)/2, color = pyTCol, zorder=5,fmt='D',markersize = 10, label = 't-walk')
-
-#axins.add_patch(mpl.patches.Rectangle( (xpyT, f_pyT_min), np.sqrt(varPyT), f_pyT_max - f_pyT_min,edgecolor=pyTCol,facecolor=pyTCol, alpha = 1, zorder = 1))
-#axins.add_patch(mpl.patches.Rectangle((xMTC, f_MTC_min), np.sqrt(np.var(lambdas)), f_MTC_max - f_MTC_min,color=MTCCol, alpha =0.2,zorder = 0))
-axins.scatter(lam0,f_try_func[50], color = gmresCol, s= 95, zorder=12, marker = 's', label = 'gmres')
-axins.set_yscale('log')
 axins.set_xlim([np.mean(lambdas) -np.sqrt(np.var(lambdas)), 1.5*np.mean(lambdas) + np.sqrt(np.var(lambdas))])# apply the x-limits
-# for label in axins.xaxis.get_ticklabels()[::2]:
-#     label.set_visible(False)
-axin2 = axins.twinx()
+axins.set_yscale('log')
+axins.set_xscale('log')
 
-#axin2.set_xticks([np.mean(lambdas) -np.sqrt(np.var(lambdas)) , np.mean(lambdas), np.mean(lambdas) + np.sqrt(np.var(lambdas)) ] )
-axin2.plot(lam,g_func, color = gCol, zorder=0)
-#axin2.add_patch(mpl.patches.Rectangle( (xpyT,g(A, L, lamPyT - np.sqrt(varPyT)/2)), np.sqrt(varPyT), g(A, L, lamPyT + np.sqrt(varPyT)/2) - g(A, L, lamPyT - np.sqrt(varPyT)/2),color="black", alpha = 0.5,  zorder = 0))
-axin2.set_ylim(310,390 )
-axin2.errorbar(lamPyT,g(A, L, lamPyT) , xerr=np.sqrt(varPyT)/2, color = pyTCol, zorder=2, fmt='D', markersize=10, capsize =30,markeredgewidth = 3)
-axin2.errorbar(np.mean(lambdas),g(A, L, np.mean(lambdas) ), xerr=np.sqrt(np.var(lambdas))/2, color = MTCCol, zorder=0, fmt='o',markersize=15, capsize =30,markeredgewidth = 3)
-axin2.scatter(lam0,g_try_func[50], color = gmresCol, s=95, zorder=14, marker = 's')
-axin2.set_xscale('log')
-axin2.set_xlim(np.mean(lambdas) - np.sqrt(np.var(lambdas)), 1.5*np.mean(lambdas) + np.sqrt(np.var(lambdas)) )# apply the x-limits
-#axins.tick_params(axis = 'x', labelbottom=False)
-#axin2.set_xticks(lam[::70])
-#axin2.set_xlim([np.mean(lambdas) - np.sqrt(np.var(lambdas)), np.mean(lambdas) + np.sqrt(np.var(lambdas))] )# apply the x-limits
-axins.tick_params(axis = 'y', which = 'both', labelright=False, right=False, labelleft=False, left=False)
-axin2.tick_params(axis = 'y', which = 'both', labelright=False, right=False, labelleft=False, left=False)
-# axins.tick_params(axis = 'x', which = 'both', bottom=False)
-# axin2.tick_params(axis = 'x', which = 'both', bottom=False)
-# for label in axin2.xaxis.get_ticklabels()[::3]:
+# for label in axins.xaxis.get_ticklabels():
 #     label.set_visible(False)
+#axins.xaxis.get_ticklabels()[:] = []
+
+axins.tick_params(axis='y', which='both', labelright=False, right=False, labelleft=False, left=False)
+#axins.tick_params(axis='x', which='both', labelbottom=False)
+# for label in axins.tick_params(axis='x').get_ticklabels()[::3]:
+#     label.set_visible(True)
+# axin2 = axins.twinx()
+# #axin2.set_xticks([np.mean(lambdas) -np.sqrt(np.var(lambdas)) , np.mean(lambdas), np.mean(lambdas) + np.sqrt(np.var(lambdas)) ] )
+# axin2.plot(lam,g_func, color = gCol, zorder=0)
+# #axin2.add_patch(mpl.patches.Rectangle( (xpyT,g(A, L, lamPyT - np.sqrt(varPyT)/2)), np.sqrt(varPyT), g(A, L, lamPyT + np.sqrt(varPyT)/2) - g(A, L, lamPyT - np.sqrt(varPyT)/2),color="black", alpha = 0.5,  zorder = 0))
+# axin2.set_ylim(310,350 )
+# # axin2.errorbar(lamPyT,g(A, L, lamPyT) , xerr=np.sqrt(varPyT)/2, color = pyTCol, zorder=2, fmt='D', markersize=10, capsize =0)#,markeredgewidth = 3)
+# # axin2.errorbar(np.mean(lambdas),g(A, L, np.mean(lambdas) ), xerr=np.sqrt(np.var(lambdas))/2, color = MTCCol, zorder=0, fmt='o',markersize=15, capsize =0)#,markeredgewidth = 3)
+# axin2.errorbar(lamPyT,g(A, L, lamPyT) , xerr=0, color = pyTCol, zorder=1, fmt='D', markersize=10, capsize =0)#,markeredgewidth = 3)
+# axin2.errorbar(np.mean(lambdas),g(A, L, np.mean(lambdas) ), xerr=0, color = MTCCol, zorder=1, fmt='o',markersize=15, capsize =0)#,markeredgewidth = 3)
+#
+# axin2.scatter(minimum[1],g(A, L, minimum[1]), color = gmresCol, s=95, zorder=14, marker = 's')
+# axin2.set_xscale('log')
+# axin2.set_xlim(np.mean(lambdas) - np.sqrt(np.var(lambdas)), 1.5*np.mean(lambdas) + np.sqrt(np.var(lambdas)) )# apply the x-limits
+# #axins.tick_params(axis = 'x', labelbottom=False)
+# #axin2.set_xticks(lam[::70])
+# #axin2.set_xlim([np.mean(lambdas) - np.sqrt(np.var(lambdas)), np.mean(lambdas) + np.sqrt(np.var(lambdas))] )# apply the x-limits
+
+# axin2.tick_params(axis = 'y', which = 'both', labelright=False, right=False, labelleft=False, left=False)
+# # axins.tick_params(axis = 'x', which = 'both', bottom=False)
+# # axin2.tick_params(axis = 'x', which = 'both', bottom=False)
+# for label in axin2.xaxis.get_ticklabels():
+#     label.set_visible(False)
+# for label in axin2.xaxis.get_ticklabels()[::3]:
+#     label.set_visible(True)
 axs.indicate_inset_zoom(axins, edgecolor="none")
 mark_inset(axs, axins, loc1=3, loc2=4, fc="none", ec="0.5")
 lines, lab0 = axins.get_legend_handles_labels()
 ax2.spines['right'].set_color(gCol)
 ax2.spines['left'].set_color(fCol)
 axs.legend(lines, lab0)
+
 #fig.savefig('f_and_g_paper.pgf', bbox_inches='tight')
-#plt.savefig('f_and_g_paper.png',bbox_inches='tight')
+plt.savefig('f_and_g_paper.png',bbox_inches='tight')
 plt.show()
 
 
 ##
+plt.close()
 mpl.use('pgf')
 mpl.rcParams.update(pgf_params)
 fig.savefig('f_and_g_paper.pgf', bbox_inches='tight', dpi = 300)
@@ -1284,7 +1365,7 @@ axs.legend(loc = 'upper right',  frameon =True)
 #plt.savefig('LCurve.png')
 #tikzplotlib.save("LCurve.tex")
 plt.show()
-
+print('bla')
 ##
 
 #
@@ -1300,9 +1381,10 @@ mpl.rcParams.update(pgf_params)
 
 fig.savefig('LCurve.pgf', bbox_inches='tight')
 
-print('bla')
 
-##
+
+###
+plt.close('all')
 
 x = np.mean(Results,0 )/ (num_mole * S[ind,0]  * f_broad * 1e-4 * scalingConst)
 #xerr = np.sqrt(np.var(Results / (num_mole * S[ind, 0] * f_broad * 1e-4 * scalingConst), 0)) / 2
@@ -1348,13 +1430,13 @@ fig3.savefig('FirstRecRes.png')#, dpi = dpi)
 plt.show()
 ##
 
-pgf_params = { "pgf.texsystem": "pdflatex",
-    'text.usetex': True,
-    'pgf.rcfonts': False,
-'axes.labelsize': 12,  # -> axis labels
-'legend.fontsize': 12,
-"font.serif": "cmr"
-               }
+# pgf_params = { "pgf.texsystem": "pdflatex",
+#     'text.usetex': True,
+#     'pgf.rcfonts': False,
+# 'axes.labelsize': 12,  # -> axis labels
+# 'legend.fontsize': 12,
+# "font.serif": "cmr"
+#                }
 
 
 mpl.use('pgf')
