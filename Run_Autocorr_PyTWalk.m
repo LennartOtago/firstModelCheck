@@ -12,9 +12,9 @@ lambdas = data(:,2);
 deltas = lambdas .* gammas;
 
 burn = 50;
-[value_lam,dvalue_lam,ddvalue_lam,tauint_lam,dtauint_lam,Qval_lam,rho_lam,drho_lam,tmax_lam] = UWerr(lambdas(burn:end));
-[value_gam,dvalue_gam,ddvalue_gam,tauint_gam,dtauint_gam,Qval_gam,rho_gam,drho_gam,tmax_gam] = UWerr(gammas(burn:end));
-[value_del,dvalue_del,ddvalue_del,tauint_del,dtauint_del,Qval_del,rho_del,drho_del,tmax_del] = UWerr(deltas(burn:end));
+[value_lam,dvalue_lam,ddvalue_lam,tauint_lam,dtauint_lam,Qval_lam,rho_lam,drho_lam,tmax_lam] = UWerr(lambdas(burn+1:end));
+[value_gam,dvalue_gam,ddvalue_gam,tauint_gam,dtauint_gam,Qval_gam,rho_gam,drho_gam,tmax_gam] = UWerr(gammas(burn+1:end));
+[value_del,dvalue_del,ddvalue_del,tauint_del,dtauint_del,Qval_del,rho_del,drho_del,tmax_del] = UWerr(deltas(burn+1:end));
 
 %% Save rho_... for Autocorrelation plot
 l = length(rho_lam);

@@ -1,27 +1,17 @@
-#import matplotlib as mpl
 
-import time
-from time import perf_counter_ns
-import scipy
-from functions import *
-#from errors import *
-from scipy import constants, optimize
-from scipy.sparse.linalg import gmres
-#import matplotlib.pyplot as plt
+import jax
+import jax.numpy as jnp
 import numpy as np
-#plt.rcParams.update({'font.size': 18})
 import pandas as pd
-from numpy.random import uniform, normal, gamma
+from functions import *
 import scipy as scy
+from scipy import optimize
 
-
-""" for plotting figures,
-PgWidth in points, either collumn width page with of Latex"""
 
 
 n_bins = 20
 burnIn = 50
-
+number_samples = 1000
 
 tol = 1e-6
 
@@ -186,6 +176,95 @@ Source = np.array(C1 /(np.exp(C2) - 1) ).reshape((SpecNumLayers,1))
 T_ref = 296 #K usually
 p_ref = pressure_values[0]
 
+'''weighted absorption cross section according to Hitran and MIPAS instrument description
+S is: The spectral line intensity (cm^−1/(molecule cm^−2))
+f_broad in (1/cm^-1) is the broadening due to pressure and doppler effect,
+ usually one can describe this as the convolution of Lorentz profile and Gaussian profile
+ VMR_O3 is the ozone profile in units of molecule (unitless)
+ has to be extended if multiple gases are to be monitored
+ I multiply with 1e-4 to go from cm^2 to m^2
+ '''
+f_broad = 1
+w_cross =  VMR_O3 * f_broad * 1e-4
+#w_cross[0], w_cross[-1] = 0, 0
+
+#from : https://hitran.org/docs/definitions-and-units/
+HitrConst2 = 1.4387769 # in cm K
+
+# internal partition sum
+Q = g_doub_prime[ind,0] * np.exp(- HitrConst2 * E[ind,0]/ temp_values)
+Q_ref = g_doub_prime[ind,0] * np.exp(- HitrConst2 * E[ind,0]/ 296)
+LineInt = S[ind,0] * Q_ref / Q * np.exp(- HitrConst2 * E[ind,0]/ temp_values)/ np.exp(- HitrConst2 * E[ind,0]/ 296) * (1 - np.exp(- HitrConst2 * wvnmbr[ind,0]/ temp_values))/ (1- np.exp(- HitrConst2 * wvnmbr[ind,0]/ 296))
+LineIntScal = Q_ref / Q * np.exp(- HitrConst2 * E[ind,0]/ temp_values)/ np.exp(- HitrConst2 * E[ind,0]/ 296) * (1 - np.exp(- HitrConst2 * wvnmbr[ind,0]/ temp_values))/ (1- np.exp(- HitrConst2 * wvnmbr[ind,0]/ 296))
+
+#fig, axs = plt.subplots(tight_layout=True)
+#plt.plot(LineInt,height_values)
+#plt.show()
+
+''' calculate model depending on where the Satellite is and 
+how many measurements we want to do in between the max angle and min angle
+ or max height and min height..
+ we specify the angles
+ because measurment will collect more than just the stuff around the tangent height'''
+
+#take linear
+num_mole = 1 / (scy.constants.Boltzmann )#* temp_values)
+
+AscalConstKmToCm = 1e3
+#1e2 for pressure values from hPa to Pa
+A_scal = pressure_values.reshape((SpecNumLayers,1)) * 1e2 * LineIntScal * Source * AscalConstKmToCm/ ( temp_values)
+scalingConst = 1e11
+#theta =(num_mole * w_cross.reshape((SpecNumLayers,1)) * Source * scalingConst )
+theta = num_mole* w_cross.reshape((SpecNumLayers,1)) * scalingConst * S[ind,0]
+A = A_lin * A_scal.T
+ATA = np.matmul(A.T,A)
+Ax = np.matmul(A, theta)
+
+y = add_noise(Ax, 0.01)
+
+ATy = np.matmul(A.T, y)
+
+"""start the mtc algo with first guesses of noise and lumping const delta"""
+
+
+vari = np.zeros((len(theta)-2,1))
+
+for j in range(1,len(theta)-1):
+    vari[j-1] = np.var([theta[j-1],theta[j],theta[j+1]])
+
+#find minimum for first guesses
+'''params[1] = delta
+params[0] = gamma'''
+def MinLogMargPost(params):#, coeff):
+
+    # gamma = params[0]
+    # delta = params[1]
+    gamma = params[0]
+    lamb = params[1]
+    if lamb < 0  or gamma < 0:
+        return np.nan
+
+    n = SpecNumLayers
+    m = SpecNumMeas
+
+    Bp = ATA + lamb * L
+
+
+    B_inv_A_trans_y, exitCode = gmres(Bp, ATy[0::, 0], tol=tol, restart=25)
+    # if exitCode != 0:
+    #     print(exitCode)
+
+    G = g(A, L,  lamb)
+    F = f(ATy, y,  B_inv_A_trans_y)
+
+    return -n/2 * np.log(lamb) - (m/2 + 1) * np.log(gamma) + 0.5 * G + 0.5 * gamma * F + 1e-4 * ( lamb * gamma + gamma)
+
+#minimum = optimize.fmin(MargPostU, [5e-5,0.5])
+minimum = optimize.fmin(MinLogMargPost, [1/(max(Ax) * 0.01)[0],(2*np.mean(vari))*1/(max(Ax) * 0.01)[0]])
+
+lambda0 = minimum[1]
+gamma0 = minimum[0]
+print(minimum)
 
 
 
@@ -251,69 +330,10 @@ y = add_noise(Ax, 0.01)
 
 ATy = np.matmul(A.T, y)
 
-np.savetxt('dataY.txt', y, header = 'Data y including noise', fmt = '%.15f')
-np.savetxt('ForWardMatrix.txt', A, header = 'Forward Matrix A', fmt = '%.15f', delimiter= '\t')
 
+B = (ATA + lambda0* L)
 
-
-
-
-"""start the mtc algo with first guesses of noise and lumping const delta"""
-
-
-vari = np.zeros((len(theta)-2,1))
-
-for j in range(1,len(theta)-1):
-    vari[j-1] = np.var([theta[j-1],theta[j],theta[j+1]])
-
-#find minimum for first guesses
-'''params[1] = delta
-params[0] = gamma'''
-def MinLogMargPost(params):#, coeff):
-
-    # gamma = params[0]
-    # delta = params[1]
-    gamma = params[0]
-    lamb = params[1]
-    if lamb < 0  or gamma < 0:
-        return np.nan
-
-    n = SpecNumLayers
-    m = SpecNumMeas
-
-    Bp = ATA + lamb * L
-
-
-    B_inv_A_trans_y, exitCode = gmres(Bp, ATy[0::, 0], tol=tol, restart=25)
-    if exitCode != 0:
-        print(exitCode)
-
-    G = g(A, L,  lamb)
-    F = f(ATy, y,  B_inv_A_trans_y)
-
-    return -n/2 * np.log(lamb) - (m/2 + 1) * np.log(gamma) + 0.5 * G + 0.5 * gamma * F + 1e-4 * ( lamb * gamma + gamma)
-
-#minimum = optimize.fmin(MargPostU, [5e-5,0.5])
-minimum = optimize.fmin(MinLogMargPost, [1/(max(Ax) * 0.01)[0],(2*np.mean(vari))*1/(max(Ax) * 0.01)[0]])
-
-lam0 = minimum[1]
-print(minimum)
-
-##
-''' check taylor series in f(lambda) and g(lambda)
-around lam0 from gmres = '''
-
-
-
-#taylor series arounf lam_0
-
-B = (ATA + lam0* L)
-
-B_inv_A_trans_y, exitCode = gmres(B, ATy[0::, 0], tol=tol, restart=25)
-#print(exitCode)
-
-CheckB_inv_ATy = np.matmul(B, B_inv_A_trans_y)
-
+B_inv_A_trans_y, exitCode = jax.scipy.sparse.linalg.gmres(B, ATy[0::, 0], tol=tol, restart=25)
 
 
 B_inv_L = np.zeros(np.shape(B))
@@ -323,172 +343,138 @@ for i in range(len(B)):
     if exitCode != 0:
         print('B_inv_L ' + str(exitCode))
 
-#relative_tol_L = tol
-#CheckB_inv_L = np.matmul(B, B_inv_L)
-#print(np.linalg.norm(L- CheckB_inv_L)/np.linalg.norm(L)<relative_tol_L)
+
 B_inv_L_2 = np.matmul(B_inv_L, B_inv_L)
 B_inv_L_3 = np.matmul(B_inv_L_2, B_inv_L)
-#B_inv_L_4 = np.matmul(B_inv_L_2, B_inv_L_2)
-#B_inv_L_5 = np.matmul(B_inv_L_4, B_inv_L)
-
-
 
 f_0_1 = np.matmul(np.matmul(ATy[0::, 0].T, B_inv_L), B_inv_A_trans_y)
 f_0_2 = -2 * np.matmul(np.matmul(ATy[0::, 0].T, B_inv_L_2), B_inv_A_trans_y)
 f_0_3 = 6 * np.matmul(np.matmul(ATy[0::, 0].T,B_inv_L_3) ,B_inv_A_trans_y)
-
 
 g_0_1 = np.trace(B_inv_L)
 g_0_2 = -1 / 2 * np.trace(B_inv_L_2)
 g_0_3 = 1 /6 * np.trace(B_inv_L_3)
 
 
+def matrix_product(matrix1, matrix2):
+    print(matrix1)
+    result = matrix1 @ matrix2
+    return result
+key = jax.random.PRNGKey(137)
+B = jax.random.normal(key = jax.random.PRNGKey(137), shape=(3, 3))
+jit_matrix_product = jax.jit(matrix_product)
+print("First call to jit_multipy(): ", jit_matrix_product(B, B))
+gammas = jnp.zeros(number_samples + burnIn)
+# deltas = np.zeros(number_samples + burnIn)
+lambdas = jnp.zeros(number_samples + burnIn)
+
+gammas = gammas.at[0].set(gamma0)
+lambdas = lambdas.at[0].set(lambda0)
+delta_lam = 1 - lambdas[0]
+print(len(lambdas))
+wLam = 2e2
+key = jax.random.PRNGKey(1)
+#key, subkey = jax.random.split(key)
+lam_p = lambdas[0] + jax.random.normal(key=key) * wLam
+print(lam_p)
+#lam_p = 10 + jax.random.normal(key=key) * wLam
+#lam_p = -10
+def body_fun(x):
+    lam , key, j = x
+    j = j + 1
+    wLam = 2e2
+    new_key, subkey = jax.random.split(key)
+    del key
+    sample = lam + jax.random.normal(key=subkey) * wLam
+    del subkey
+    return (sample, new_key, j)
+
+def cond_fun(x):
+    lam , key, j = x
+    new_key, subkey = jax.random.split(key)
+    del key
+    del subkey
+    return lam < 0
+u=lam_p
+output = jax.lax.while_loop(cond_fun, body_fun, (u,  subkey, 0))
+print('xla', output)
+print('xla', u)
+
+##
+print("old key", key)
+new_key, subkey = jax.random.split(key)
+del key  # The old key is discarded -- we must never use it again.
+normal_sample = jax.random.normal(subkey)
+print(r"    \---SPLIT --> new key   ", new_key)
+print(r"             \--> new subkey", subkey, "--> normal", normal_sample)
+del subkey  # The subkey is also discarded after use.
+
+# Note: you don't actually need to `del` keys -- that's just for emphasis.
+# Not reusing the same values is enough.
+
+key = new_key
+
 
 ##
 
-'''do the sampling'''
-number_samples = 10000
+import jax
+from jax import lax
+
+def body(x):
+  i, val, rng_key = x
+  rng_key, rng_random = jax.random.split(rng_key, 2)
+  val += jax.random.uniform(rng_random)
+  return (i + 1, val, rng_key)
+
+def cond(x):
+  i, val, rng_key = x
+  return i < 10
+
+i, val, rng_key = lax.while_loop(cond, body, (0, 0., jax.random.PRNGKey(0)))
+
+print(val)
 
 
-#inintialize sample
-gamma0 = minimum[0] #3.7e-5#1/np.var(y) * 1e1 #(0.01* np.max(Ax))1e-5#
-#0.275#1/(2*np.mean(vari))0.1#
-lambda0 = minimum[1]#deltas[0]/gammas[0]
-#deltas[0] =  minimum[1] * minimum[0]
-ATy = np.matmul(A.T, y)
-B = (ATA + lambda0 * L)
 
-B_inv_A_trans_y, exitCode = gmres(B, ATy[0::, 0], tol=tol, restart=25)
-if exitCode != 0:
-    print(exitCode)
+def draw_lam(lam,wLam):
+    #wLam = 2e2
 
-Bu, Bs, Bvh = np.linalg.svd(B)
-cond_B =  np.max(Bs)/np.min(Bs)
-print("Condition number B: " + str(orderOfMagnitude(cond_B)))
+    lam_p = lam + jax.random.normal(key=key) * wLam
+    def cond(lam_p):
+        return float(lam_p) < 0
+
+    def body(lam, wLam):
+        key = jax.random.PRNGKey(137)
+        return lam + jax.random.normal(key=key) * wLam
+
+    return jax.lax.while_loop(cond_fun=cond, body_fun=body, init_val=[lam,wLam])
 
 
-wLam = 2e2#5.5e2
-#wgam = 1e-5
-#wdelt = 1e-1
-betaG = 1e-4
-betaD = 1e-4
-alphaG = 1
-alphaD = 1
-rate = f(ATy, y, B_inv_A_trans_y) / 2 + betaG + betaD * lambda0
-# draw gamma with a gibs step
-shape = SpecNumMeas/2 + alphaD + alphaG
+draw_lam_jit = jax.jit(draw_lam, static_argnames =['lam','wLam'])
+#print("Compiling function:")
+print(draw_lam_jit(lambdas[0],wLam))
 
-f_new = f(ATy, y,  B_inv_A_trans_y)
-#g_old = g(A, L,  lambdas[0])
 
-def MHwG(number_samples, burnIn, lambda0, gamma0):
+
+
+def nb_MHwG(n, buIn, lam0, gam0, data, Lapl):
     wLam = 2e2
     betaG = 1e-4
     betaD = 1e-4
     alphaG = 1
     alphaD = 1
     k = 0
+    key = jax.random.PRNGKey(137)
+    gammas = jnp.zeros( (n + buIn, ) )
+    # deltas = np.zeros(n+ buIn)
+    lambdas = jnp.zeros( (n + buIn, ) )
 
-    gammas = np.zeros(number_samples + burnIn)
-    #deltas = np.zeros(number_samples + burnIn)
-    lambdas = np.zeros(number_samples + burnIn)
+    gammas = gammas.at[0].set(gam0)
+    lambdas = lambdas.at[0].set(lam0)
 
-    gammas[0] = gamma0
-    lambdas[0] = lambda0
+    B = (ATA + lam0 * Lapl)
 
-    B = (ATA + lambda0 * L)
-
-    B_inv_A_trans_y, exitCode = gmres(B, ATy[0::, 0], tol=tol, restart=25)
-    if exitCode != 0:
-        print(exitCode)
-
-    shape = SpecNumMeas / 2 + alphaD + alphaG
-    rate = f(ATy, y, B_inv_A_trans_y) / 2 + betaG + betaD * lambda0
-
-
-    for t in range(number_samples + burnIn-1):
-        #print(t)
-
-        # # draw new lambda
-        lam_p = normal(lambdas[t], wLam)
-
-        while lam_p < 0:
-                lam_p = normal(lambdas[t], wLam)
-
-        delta_lam = lam_p - lambdas[t]
-        # B = (ATA + lam_p * L)
-        # B_inv_A_trans_y, exitCode = gmres(B, ATy[0::, 0], tol=tol, restart=25)
-        # if exitCode != 0:
-        #     print(exitCode)
-
-
-        # f_new = f(ATy, y,  B_inv_A_trans_y)
-        # g_new = g(A, L,  lam_p)
-        #
-        # delta_f = f_new - f_old
-        # delta_g = g_new - g_old
-
-        delta_f = f_0_1 * delta_lam + f_0_2 * delta_lam**2 + f_0_3 * delta_lam**3
-        delta_g = g_0_1 * delta_lam + g_0_2 * delta_lam**2 + g_0_3 * delta_lam**3
-
-        log_MH_ratio = ((SpecNumLayers)/ 2) * (np.log(lam_p) - np.log(lambdas[t])) - 0.5 * (delta_g + gammas[t] * delta_f) - betaD * gammas[t] * delta_lam
-
-        #accept or rejeict new lam_p
-        u = uniform()
-        if np.log(u) <= log_MH_ratio:
-        #accept
-            k = k + 1
-            lambdas[t + 1] = lam_p
-            #only calc when lambda is updated
-
-            B = (ATA + lam_p * L)
-            B_inv_A_trans_y, exitCode = gmres(B, ATy[0::, 0], tol=tol, restart=25)
-            if exitCode != 0:
-                print(exitCode)
-
-            f_new = f(ATy, y,  B_inv_A_trans_y)
-            #g_old = np.copy(g_new)
-            rate = f_new/2 + betaG + betaD * lam_p#lambdas[t+1]
-
-        else:
-            #rejcet
-            lambdas[t + 1] = np.copy(lambdas[t])
-
-
-
-
-        gammas[t+1] = np.random.gamma(shape, scale = 1/rate)
-
-        #deltas[t+1] = lambdas[t+1] * gammas[t+1]
-
-    return lambdas, gammas,k
-
-
-
-# startTime = time.time()
-# lambdas ,gammas, k = MHwG(number_samples, burnIn, lambda0, gamma0 )
-# elapsed = time.time() - startTime
-# print('MTC Done in ' + str(elapsed) + ' s')
-
-
-def nb_MHwG(number_samples, burnIn, lambda0, gamma0, y, b, B_inv_A_trans_y):
-    wLam = 2e2
-    betaG = 1e-4
-    betaD = 1e-4
-    alphaG = 1
-    alphaD = 1
-    k = 0
-
-    gammas = jnp.zeros(number_samples + burnIn)
-    #deltas = np.zeros(number_samples + burnIn)
-    lambdas = jnp.zeros(number_samples + burnIn)
-
-    gammas.at[0] = gamma0
-    lambdas.at[0] = lambda0
-
-    B = (ATA + lambda0 * L)
-
-    B_inv_A_trans_y, info = jax.scipy.sparse.linalg.gmres(B, b, x0 = jnp.zeros(len(b)), e=1e-8, nmax_iter = 10, restart=25 , debug=True)
+    B_inv_A_trans_y, info = jax.scipy.sparse.linalg.gmres(B, ATy[0::, 0], tol=1e-8, restart=25)
 
     # if exitCode != 0:
     #     print(exitCode)
@@ -502,12 +488,10 @@ def nb_MHwG(number_samples, burnIn, lambda0, gamma0, y, b, B_inv_A_trans_y):
 
     for t in range(number_samples + burnIn-1):
         #print(t)
-
+        #key, subkey = jax.random.split(key)
         # # draw new lambda
-        lam_p = jax.random.normal(lambdas[t], wLam)
+        lam_p = lambdas[t] + jax.random.normal(key=key) *  wLam
 
-        while lam_p < 0:
-                lam_p = jax.random.normal(lambdas[t], wLam)
 
         delta_lam = lam_p - lambdas[t]
         # B = (ATA + lam_p * L)
@@ -528,7 +512,7 @@ def nb_MHwG(number_samples, burnIn, lambda0, gamma0, y, b, B_inv_A_trans_y):
         log_MH_ratio = ((SpecNumLayers)/ 2) * (jnp.log(lam_p) - jnp.log(lambdas[t])) - 0.5 * (delta_g + gammas[t] * delta_f) - betaD * gammas[t] * delta_lam
 
         #accept or rejeict new lam_p
-        u = uniform()
+        u = jax.random.uniform(key=key)
         if jnp.log(u) <= log_MH_ratio:
         #accept
             k = k + 1
@@ -552,27 +536,20 @@ def nb_MHwG(number_samples, burnIn, lambda0, gamma0, y, b, B_inv_A_trans_y):
 
 
 
-        gammas[t+1] = jax.random.gamma(shape, scale = 1/rate)
+        gammas[t+1] = jax.random.gamma(key=key,a = shape)/rate
 
         #deltas[t+1] = lambdas[t+1] * gammas[t+1]
 
     return lambdas, gammas, k
 
-#MHwG_jit = jax.jit(nb_MHwG, static_argnums=7)
+
+print('bla')
+
+
+MHwG_jit = jax.jit(nb_MHwG, static_argnames =['n', 'buIn'])
 #print("Compiling function:")
-#MHwG_jit(number_samples, burnIn, lambda0, gamma0, y[:, 0], ATy[:, 0] ,B_inv_A_trans_y)
+MHwG_jit(number_samples, burnIn, lambda0, gamma0, y[0::, 0], L)
 
-startTime = time.time()
-lambdas ,gammas, k = nb_MHwG(number_samples, burnIn, lambda0, gamma0, y[:, 0], ATy[:, 0] ,B_inv_A_trans_y)
-elapsed = time.time() - startTime
-print('1MTC Done in ' + str(elapsed) + ' s')
 
-startTime = time.time()
-lambdas ,gammas, k = nb_MHwG(number_samples, burnIn, lambda0, gamma0, y[:, 0], ATy[:, 0] ,B_inv_A_trans_y)
-elapsed = time.time() - startTime
-print('2MTC Done in ' + str(elapsed) + ' s')
 
-startTime = time.time()
-lambdas ,gammas, k = nb_MHwG(number_samples, burnIn, lambda0, gamma0, y[:, 0], ATy[:, 0] , B_inv_A_trans_y)
-elapsed = time.time() - startTime
-print('3MTC Done in ' + str(elapsed) + ' s')
+#%time jit_matrix_product(B, B).block_until_ready()
