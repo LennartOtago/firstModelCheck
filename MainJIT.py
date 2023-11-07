@@ -380,14 +380,12 @@ print(lam_p)
 #lam_p = 10 + jax.random.normal(key=key) * wLam
 #lam_p = -10
 def body_fun(x):
-    lam , key, j = x
-    j = j + 1
-    wLam = 2e2
+    lam, key, wLam = x
     new_key, subkey = jax.random.split(key)
     del key
     sample = lam + jax.random.normal(key=subkey) * wLam
     del subkey
-    return (sample, new_key, j)
+    return (sample, new_key, wLam)
 
 def cond_fun(x):
     lam , key, j = x
@@ -396,8 +394,16 @@ def cond_fun(x):
     del subkey
     return lam < 0
 u=lam_p
-output = jax.lax.while_loop(cond_fun, body_fun, (u,  subkey, 0))
+output = jax.lax.while_loop(cond_fun, body_fun, (u,  key, wLam))
 print('xla', output)
+print('xla', u)
+def true_func(x):
+    u, key, wLam = x
+    return u, key, wLam
+
+operand = (u,  key, wLam)
+u = jax.lax.cond(opera, true_func , true_func, operand)
+
 print('xla', u)
 
 ##
@@ -417,57 +423,18 @@ key = new_key
 
 ##
 
-import jax
-from jax import lax
 
-def body(x):
-  i, val, rng_key = x
-  rng_key, rng_random = jax.random.split(rng_key, 2)
-  val += jax.random.uniform(rng_random)
-  return (i + 1, val, rng_key)
-
-def cond(x):
-  i, val, rng_key = x
-  return i < 10
-
-i, val, rng_key = lax.while_loop(cond, body, (0, 0., jax.random.PRNGKey(0)))
-
-print(val)
-
-
-
-def draw_lam(lam,wLam):
-    #wLam = 2e2
-
-    lam_p = lam + jax.random.normal(key=key) * wLam
-    def cond(lam_p):
-        return float(lam_p) < 0
-
-    def body(lam, wLam):
-        key = jax.random.PRNGKey(137)
-        return lam + jax.random.normal(key=key) * wLam
-
-    return jax.lax.while_loop(cond_fun=cond, body_fun=body, init_val=[lam,wLam])
-
-
-draw_lam_jit = jax.jit(draw_lam, static_argnames =['lam','wLam'])
-#print("Compiling function:")
-print(draw_lam_jit(lambdas[0],wLam))
-
-
-
-
-def nb_MHwG(n, buIn, lam0, gam0, data, Lapl):
+def nb_MHwG(n, buIn, lam0, gam0, data, Lapl, keyF):
     wLam = 2e2
     betaG = 1e-4
     betaD = 1e-4
     alphaG = 1
     alphaD = 1
     k = 0
-    key = jax.random.PRNGKey(137)
-    gammas = jnp.zeros( (n + buIn, ) )
+    #key = jax.random.PRNGKey(137)
+    gammas = jnp.zeros( n + buIn)
     # deltas = np.zeros(n+ buIn)
-    lambdas = jnp.zeros( (n + buIn, ) )
+    lambdas = jnp.zeros(n + buIn )
 
     gammas = gammas.at[0].set(gam0)
     lambdas = lambdas.at[0].set(lam0)
@@ -488,9 +455,44 @@ def nb_MHwG(n, buIn, lam0, gam0, data, Lapl):
 
     for t in range(number_samples + burnIn-1):
         #print(t)
-        #key, subkey = jax.random.split(key)
         # # draw new lambda
-        lam_p = lambdas[t] + jax.random.normal(key=key) *  wLam
+        new_key, subkey = jax.random.split(keyF)
+        lam_p = lambdas[t] + jax.random.normal(key=subkey) *  wLam
+
+        del subkey
+        del keyF
+        keyF = new_key
+
+
+        def body_fun(x):
+            lam, keyF, wLam = x
+            new_key, subkey = jax.random.split(keyF)
+            del keyF
+            sample = lam + jax.random.normal(key=subkey) * wLam
+            del subkey
+            return (sample, new_key, wLam)
+
+        def cond_fun(x):
+            lam, keyF, wLam = x
+            return lam < 0
+        def false_fun(x):
+            lam, keyF, wLam = x
+            return lam
+        new_key, subkey = jax.random.split(keyF)
+
+        #lam_p, subkey, wLam = jax.lax.cond(lam_p < 0, jax.lax.while_loop(cond_fun, body_fun, (lam_p, subkey, wLam)), lambda x: x ,(lam_p, subkey, wLam))
+
+        lam_p, subkey, wLam = jax.lax.cond(lam_p < 0, jax.lax.while_loop(cond_fun, body_fun, (lam_p, subkey, wLam)), lambda x: x ,(lam_p, subkey, wLam))
+
+
+            #lam_p, subkey, wLam = jax.lax.while_loop(cond_fun, body_fun, (lam_p, subkey, wLam))
+        del subkey
+        del keyF
+        keyF = new_key
+
+
+
+
 
 
         delta_lam = lam_p - lambdas[t]
@@ -511,8 +513,12 @@ def nb_MHwG(n, buIn, lam0, gam0, data, Lapl):
 
         log_MH_ratio = ((SpecNumLayers)/ 2) * (jnp.log(lam_p) - jnp.log(lambdas[t])) - 0.5 * (delta_g + gammas[t] * delta_f) - betaD * gammas[t] * delta_lam
 
+        new_key, subkey = jax.random.split(keyF)
+        del keyF
         #accept or rejeict new lam_p
-        u = jax.random.uniform(key=key)
+        u = jax.random.uniform(key=subkey)
+        del subkey
+        keyF = new_key
         if jnp.log(u) <= log_MH_ratio:
         #accept
             k = k + 1
@@ -533,10 +539,11 @@ def nb_MHwG(n, buIn, lam0, gam0, data, Lapl):
             #rejcet
             lambdas[t + 1] =lambdas[t]# np.copy(lambdas[t])
 
-
-
-
-        gammas[t+1] = jax.random.gamma(key=key,a = shape)/rate
+        new_key, subkey = jax.random.split(keyF)
+        del keyF
+        gammas[t+1] = jax.random.gamma(key=subkey,a = shape)/rate
+        del subkey
+        keyF = new_key
 
         #deltas[t+1] = lambdas[t+1] * gammas[t+1]
 
@@ -548,7 +555,7 @@ print('bla')
 
 MHwG_jit = jax.jit(nb_MHwG, static_argnames =['n', 'buIn'])
 #print("Compiling function:")
-MHwG_jit(number_samples, burnIn, lambda0, gamma0, y[0::, 0], L)
+MHwG_jit(number_samples, burnIn, lambda0, gamma0, y[0::, 0], L, key)
 
 
 
