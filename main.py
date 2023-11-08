@@ -490,6 +490,7 @@ for i in range(len(B)):
 #relative_tol_L = tol
 #CheckB_inv_L = np.matmul(B, B_inv_L)
 #print(np.linalg.norm(L- CheckB_inv_L)/np.linalg.norm(L)<relative_tol_L)
+
 B_inv_L_2 = np.matmul(B_inv_L, B_inv_L)
 B_inv_L_3 = np.matmul(B_inv_L_2, B_inv_L)
 #B_inv_L_4 = np.matmul(B_inv_L_2, B_inv_L_2)
@@ -522,7 +523,7 @@ lambda0 = minimum[1]#deltas[0]/gammas[0]
 ATy = np.matmul(A.T, y)
 B = (ATA + lambda0 * L)
 
-B_inv_A_trans_y, exitCode = gmres(B, ATy[0::, 0], tol=tol, restart=25)
+B_inv_A_trans_y0, exitCode = gmres(B, ATy[0::, 0], tol=tol, restart=25)
 if exitCode != 0:
     print(exitCode)
 
@@ -538,11 +539,11 @@ betaG = 1e-4
 betaD = 1e-4
 alphaG = 1
 alphaD = 1
-rate = f(ATy, y, B_inv_A_trans_y) / 2 + betaG + betaD * lambda0
+rate = f(ATy, y, B_inv_A_trans_y0) / 2 + betaG + betaD * lambda0
 # draw gamma with a gibs step
 shape = SpecNumMeas/2 + alphaD + alphaG
 
-f_new = f(ATy, y,  B_inv_A_trans_y)
+f_new = f(ATy, y,  B_inv_A_trans_y0)
 #g_old = g(A, L,  lambdas[0])
 
 def MHwG(number_samples, burnIn, lambda0, gamma0):
@@ -561,8 +562,9 @@ def MHwG(number_samples, burnIn, lambda0, gamma0):
     lambdas[0] = lambda0
 
     B = (ATA + lambda0 * L)
+    B_inv_A_trans_y, exitCode = gmres(B, ATy[0::, 0], x0=B_inv_A_trans_y0, tol=tol, restart=25)
 
-    B_inv_A_trans_y, exitCode = gmres(B, ATy[0::, 0], tol=tol, restart=25)
+    #B_inv_A_trans_y, exitCode = gmres(B, ATy[0::, 0], tol=tol, restart=25)
     if exitCode != 0:
         print(exitCode)
 
@@ -606,9 +608,11 @@ def MHwG(number_samples, burnIn, lambda0, gamma0):
             #only calc when lambda is updated
 
             B = (ATA + lam_p * L)
-            B_inv_A_trans_y, exitCode = gmres(B, ATy[0::, 0], tol=tol, restart=25)
-            if exitCode != 0:
-                print(exitCode)
+            B_inv_A_trans_y, exitCode = gmres(B, ATy[0::, 0], x0= B_inv_A_trans_y0,tol=tol, restart=25)
+            #B_inv_A_trans_y, exitCode = gmres(B, ATy[0::, 0], tol=tol, restart=25)
+
+            # if exitCode != 0:
+            #         print(exitCode)
 
             f_new = f(ATy, y,  B_inv_A_trans_y)
             #g_old = np.copy(g_new)
@@ -621,7 +625,7 @@ def MHwG(number_samples, burnIn, lambda0, gamma0):
 
 
 
-        gammas[t+1] = np.random.gamma(shape, scale = 1/rate)
+        gammas[t+1] = np.random.gamma(shape = shape, scale = 1/rate)
 
         #deltas[t+1] = lambdas[t+1] * gammas[t+1]
 
@@ -819,22 +823,47 @@ import pytwalk
 #     Params[1] = minimum[1] #lambda
 #     return Params
 
-def MargPost(Params):
+# def MargPost(Params):
+#     n = SpecNumLayers
+#     m = SpecNumMeas
+#     Bp= ATA + Params[1]/Params[0] * L
+#     #Bp= ATA + Params[1] * L
+#
+#     B_inv_A_trans_y, exitCode = gmres(Bp, ATy[0::, 0], x0 = B_inv_A_trans_y0, tol=tol, restart=25)
+#     if exitCode != 0:
+#         print(exitCode)
+#
+#     G = g(A, L,  Params[1]/Params[0])
+#     #G = g(A, L,  Params[1])
+#     F = f(np.matmul(A.T, y), y, B_inv_A_trans_y)
+#
+#     return -n/2 * np.log(Params[1]) - (m/2) * np.log(Params[0]) + 0.5 * G + 0.5 * Params[0] * F + 1e-4 * (Params[1] + Params[0])
+
+def MinLogMargPost(params):#, coeff):
+
+    # gamma = params[0]
+    # delta = params[1]
+    gamma = params[0]
+    lamb = params[1]
+    if lamb < 0  or gamma < 0:
+        return np.nan
+
     n = SpecNumLayers
     m = SpecNumMeas
-    Bp= ATA + Params[1]/Params[0] * L
-    #Bp= ATA + Params[1] * L
 
-    B_inv_A_trans_y, exitCode = gmres(Bp, ATy[0::, 0], tol=tol, restart=25)
+    Bp = ATA + lamb * L
+
+
+    B_inv_A_trans_y, exitCode = gmres(Bp, ATy[0::, 0], x0 =B_inv_A_trans_y0,  tol=tol, restart=25)
     if exitCode != 0:
         print(exitCode)
 
-    G = g(A, L,  Params[1]/Params[0])
-    #G = g(A, L,  Params[1])
-    F = f(np.matmul(A.T, y), y, B_inv_A_trans_y)
+    G = g(A, L,  lamb)
+    F = f(ATy, y,  B_inv_A_trans_y)
 
-    return -n/2 * np.log(Params[1]) - (m/2) * np.log(Params[0]) + 0.5 * G + 0.5 * Params[0] * F + 1e-4 * (Params[1] + Params[0])
+    return -n/2 * np.log(lamb) - (m/2 + 1) * np.log(gamma) + 0.5 * G + 0.5 * gamma * F + 1e-4 * ( lamb * gamma + gamma)
 
+#minimum = optimiz
 
 def MargPostSupp(Params):
 	return all(0 < Params)
