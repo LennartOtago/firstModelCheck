@@ -7,8 +7,8 @@ from functions import *
 import scipy as scy
 from scipy import optimize
 import matplotlib.pyplot as plt
-
-
+from functools import partial
+from jax import jit
 n_bins = 20
 burnIn = 50
 #number_samples = 1000
@@ -320,7 +320,7 @@ f_new = y.T @ y - ATy.T @ B_inv_A_trans_y
 
 from jax.experimental.host_callback import call
 
-def nb_MHwG(n, buIn, lam0, gam0, ATdata, Lapl, keyF, ATA, x0):
+def nb_MHwG(n, buIn, lam0, gam0, ATdata, Lapl, ATA_for, x0, tol, data, keyF):
     wLam = 2e2
     betaG = 1e-4
     betaD = 1e-4
@@ -335,20 +335,17 @@ def nb_MHwG(n, buIn, lam0, gam0, ATdata, Lapl, keyF, ATA, x0):
     gammas = gammas.at[0].set(gam0)
     lambdas = lambdas.at[0].set(lam0)
 
-    B = (ATA + lam0 * Lapl)
 
-    B_inv_A_trans_y, info = jax.scipy.sparse.linalg.gmres(B, ATdata, tol=tol, x0=x0,
-                                                              atol=tol, restart=25, solve_method='batched')
-
-    f_new = y.T @ y - ATdata.T @ B_inv_A_trans_y
+    B_inv = x0
+    f_new = data.T @ data - ATdata.T @ B_inv_A_trans_y
     #call(lambda f_new: print(f"{f_new}"), f_new)
     rate = f_new / 2 + betaG + betaD * lambda0
 
     shape = SpecNumMeas / 2 + alphaD + alphaG
     #call(lambda shape : print(f"{shape }"), shape )
     def forloop_fun(i, x):
-        lambdas, gammas, keyF, wLam, ATA, Lapl, k, rate, x0 , ATdata, f_new= x
-
+        ATdata, lambdas, gammas, keyF, wLam, ATA_for, Lapl, k, rate, x0 , data, tol, f_new, B_inv = x
+        #call(lambda f_new: print(f"{f_new}"), f_new)
         new_key, subkey = jax.random.split(keyF)
         del keyF
         keyF = new_key
@@ -397,23 +394,52 @@ def nb_MHwG(n, buIn, lam0, gam0, ATdata, Lapl, keyF, ATA, x0):
         log_MH_ratio = ((SpecNumLayers)/ 2) * (jnp.log(lam_p) - jnp.log(lambdas[i])) - 0.5 * (delta_g + gammas[i] * delta_f) - betaD * gammas[i] * delta_lam
 
         def accept_func(x):
-            lam_p, lambdas, ATA, L, k, rate, x0, i, ATdata, f_new = x
-            k += 1
+            lam_p, lambdas, i, B_inv , bol  = x
+            #k += 1
             lambdas = lambdas.at[i + 1].set(lam_p)
-            B = (ATA + lam_p * L)
-            B_inv_A_trans_y, exitCode = jax.scipy.sparse.linalg.gmres(B, ATdata, tol=tol,
-                                                                      x0=x0, atol=tol, restart=25,
-                                                                      solve_method='batched')
-            f_new = y.T @ y - ATdata.T @ B_inv_A_trans_y
-            rate = f_new / 2 + betaG + betaD * lam_p
 
-            return lam_p, lambdas, ATA, L, k, rate, x0, i, ATdata,  f_new
+            bol = True
+            #call(lambda f_new: print(f"inside accept before {f_new}"), f_new)
+            #B = (ATA + lam_p * L)
+            #B_inv, exitCode = jax.scipy.sparse.linalg.gmres(B, ATdata, tol=tol,
+            #                                                          x0=x0, atol=tol, restart=25,
+            #                                                        solve_method='batched')
+
+            #f_new = data.T @ data - ATdata.T @ B_inv_A_trans_y
+            #call(lambda B_inv_A_trans_y: print(f"{B_inv_A_trans_y}"), B_inv_A_trans_y)
+            #call(lambda f_new: print(f"just after {f_new}"), f_new)
+            #call(lambda exitCode: print(f"exitcode {exitCode}"), exitCode)
+            #check if converges
+            # op = ATdata, B, tol, x0, B_inv, exitCode
+            # def inverse_batch(x):
+            #     ATdata, B,  tol, x0, B_inv, exitCode = x
+            #     #call(lambda f_new: print(f"{f_new}"), f_new)
+            #     #call(lambda exitCode: print(f"{exitCode}"), exitCode)
+            #     B_inv, exitCode = jax.scipy.sparse.linalg.gmres(B, ATdata, tol=tol,
+            #                                                               x0=x0, atol=tol, restart=25,
+            #                                                               solve_method='batched')
+            #     return ATdata,B , tol, x0, B_inv, exitCode
+            # def all_good(x):
+            #     ATdata, B, tol, x0, B_inv, exitCode = x
+            #     return ATdata,B , tol, x0, B_inv, exitCode
+            # ATdata, B, tol, x0, B_inv, exitCode = jax.lax.select(jnp.not_equal(exitCode,0),  all_good, inverse_batch, op)
+            #
+            #call(lambda B_inv_A_trans_y: print(f"{B_inv_A_trans_y}"), B_inv_A_trans_y)
+
+            #call(lambda x: print(f"data {data}"), data)
+            #call(lambda x: print(f"ATdata {ATdata}"), ATdata)
+            #f_new = data.T @ data - ATdata.T @ B_inv
+            #call(lambda f_new: print(f"inside accept{f_new}"), f_new)
+            #rate = f_new / 2 + betaG + betaD * lam_p
+
+            return lam_p, lambdas, i, B_inv, bol
 
         def reject_func(x):
-            lam_p, lambdas, ATA, L, k, rate, x0, i, ATdata, f_new= x
-            temp_lam = lambdas[i]
+            lam_p, lambdas, i , B_inv, bol = x
+            temp_lam = jnp.copy(lambdas[i])
             lambdas = lambdas.at[i + 1].set(temp_lam)
-            return lam_p, lambdas, ATA, L, k, rate, x0, i, ATdata, f_new
+            bol = False
+            return lam_p, lambdas, i, B_inv, bol
 
         new_key, subkey = jax.random.split(keyF)
         del keyF
@@ -422,13 +448,61 @@ def nb_MHwG(n, buIn, lam0, gam0, ATdata, Lapl, keyF, ATA, x0):
         del subkey
         keyF = new_key
         del new_key
-        operand = (lam_p, lambdas, ATA, Lapl, k, rate, x0, i, ATdata , f_new)
-        lam_p, lambdas, ATA, Lapl, k, rate, x0, i, ATdata, f_new =  jax.lax.cond(jnp.log(u) <= log_MH_ratio, accept_func , reject_func, operand)
+        #call(lambda f_new: print(f"outside{f_new}"), f_new)
+        #call(lambda x: print(f"data {data}"), data)
+        #call(lambda x: print(f"ATdata {ATdata}"), ATdata)
+        bol = True
+        operand = (lam_p, lambdas, i , B_inv, bol)
+        lam_p, lambdas, i, B_inv, bol =  jax.lax.cond(jnp.log(u) <= log_MH_ratio, accept_func , reject_func, operand)
 
         new_key, subkey = jax.random.split(keyF)
         del keyF
-        f_new = y.T @ y - ATdata.T @ B_inv_A_trans_y
-        rate = f_new / 2 + betaG + betaD * lambdas[i+1]
+        #call(lambda x: print(f"{x}"), bol)
+        @partial(jit, static_argnames=["ATdata"])
+        def inverse(ATdata, x ):
+            ATA_for, Lapl, lam_p, tol, x0, B_inv, exitCode, rate, f_new = x
+            B = (ATA_for + lam_p * Lapl)
+            B_inv, exitCode = jax.scipy.sparse.linalg.gmres(B, ATdata, tol=tol, x0=x0, atol=tol, restart=25,solve_method='batched')
+            f_new = data.T @ data - ATdata.T @ B_inv
+            #call(lambda f_new: print(f"{f_new}"), f_new)
+            #print(f"inverse")
+            rate = f_new / 2 + betaG + betaD * lam_p
+            return ATdata, ATA_for, Lapl, lam_p, tol, x0, B_inv, exitCode, rate, f_new
+
+        @partial(jit, static_argnames=["ATdata"])
+        def false(ATdata, x):
+            ATA_for, Lapl, lam_p, tol, x0, B_inv, exitCode, rate, f_new = x
+            return ATdata, ATA_for, Lapl, lam_p, tol, x0, B_inv, exitCode, rate, f_new
+        exitCode = 0
+        op = (ATA_for, Lapl, lam_p, tol, x0, B_inv, exitCode, rate, f_new)
+        ATdata, ATA_for, Lapl, lam_p, tol, x0, B_inv, exitCode, rate, f_new = jax.lax.cond(bol, partial(inverse, ATdata) , partial(false, ATdata), op)
+
+
+
+        #call(lambda exitCode: print(f"exitcode {exitCode}"), exitCode)
+        @partial(jit, static_argnames=["ATdata"])
+        def inverse_batch(ATdata, x ):
+            ATA_for, Lapl, lam_p, tol, x0, B_inv, exitCode, rate, f_new = x
+            B = (ATA_for + lam_p * Lapl)
+            B_inv, exitCode = jax.scipy.sparse.linalg.gmres(B, ATdata, tol=tol, x0=x0, atol=tol, restart=25, solve_method='incremental')
+            f_new = data.T @ data - ATdata.T @ B_inv
+            #call(lambda f_new: print(f"{f_new}"), f_new)
+            #print(f"inverse batch")
+            rate = f_new / 2 + betaG + betaD * lam_p
+            #call(lambda exitCode: print(f"{exitCode}"), exitCode)
+            return ATdata, ATA_for, Lapl, lam_p, tol, x0, B_inv, exitCode, rate, f_new
+
+        @partial(jit, static_argnames=["ATdata"])
+        def true_func(ATdata,x):
+            ATA_for, Lapl, lam_p, tol, x0, B_inv, exitCode,rate, f_new = x
+            return ATdata, ATA_for, Lapl, lam_p, tol, x0, B_inv, exitCode, rate, f_new
+        op = ( ATA_for, Lapl, lam_p, tol, x0, B_inv, exitCode, rate, f_new)
+        ATdata, ATA_for, Lapl, lam_p, tol, x0, B_inv, exitCode, rate, f_new = jax.lax.cond(jnp.equal(exitCode,0),   partial(true_func, ATdata),partial(inverse_batch, ATdata), op)
+
+
+        # f_new = data.T @ data - ATdata.T @ B_inv
+        # #call(lambda f_new: print(f"{f_new}"), f_new)
+        # rate = f_new / 2 + betaG + betaD * lambdas[i+1]
         propGam = jax.random.gamma(key=subkey,a = shape)/rate
         #call(lambda propGam: print(f"{propGam[0,0]}"), propGam)
         gammas = gammas.at[i+1].set(propGam[0,0])
@@ -436,11 +510,11 @@ def nb_MHwG(n, buIn, lam0, gam0, ATdata, Lapl, keyF, ATA, x0):
         keyF = new_key
         del new_key
 
-        return lambdas, gammas, keyF, wLam, ATA, Lapl, k, rate, x0, ATdata, f_new
+        return ATdata, lambdas, gammas, keyF, wLam, ATA_for, Lapl, k, rate, x0,  data, tol, f_new, B_inv
 
     key, subkey = jax.random.split(keyF)
-    ForInputs = (lambdas, gammas, subkey, wLam, ATA, Lapl, k, rate, x0, ATdata, f_new)
-    lambdas, gammas, subkey, wLam, ATA, Lapl, k, rate, x0, ATdata, f_new = jax.lax.fori_loop(0, n + buIn-1, forloop_fun, ForInputs)
+    ForInputs = (ATdata, lambdas, gammas, subkey, wLam,ATA_for, Lapl, k, rate, x0, data, tol, f_new, B_inv)
+    ATdata, lambdas, gammas, subkey, wLam, ATA_for, Lapl, k, rate, x0, data, tol, f_new, B_inv = jax.lax.fori_loop(0, n + buIn-1, forloop_fun, ForInputs)
 
 
 
@@ -451,7 +525,7 @@ number_sam = 10000
 key = jax.random.PRNGKey(137)
 new_key, subkey = jax.random.split(key)
 del key
-MHwG_jit = jax.jit(nb_MHwG, static_argnames =['n', 'buIn'])
+MHwG_jit = jax.jit(nb_MHwG, static_argnames =['n', 'buIn', 'lam0', 'gam0'])
 del subkey
 key = new_key
 del new_key
@@ -462,7 +536,7 @@ key = new_key
 del new_key
 #key, *subkeyms = jax.random.split(key, number_sam+burnIn)
 startTime = time.time()
-lambdas, gammas, k = MHwG_jit(number_sam, burnIn, lambda0, gamma0, ATy[0::, 0], L, subkey, ATA, B_inv_A_trans_y0)
+lambdas, gammas, k = MHwG_jit(number_sam, burnIn, lambda0, gamma0, ATy[0::, 0], L, ATA, B_inv_A_trans_y0, tol,y, subkey)
 elapsed = time.time() - startTime
 print('First compile Done in ' + str(elapsed) + ' s')
 del subkey
@@ -473,7 +547,7 @@ del key
 
 
 startTime = time.time()
-lambdas, gammas, k = MHwG_jit(number_sam, burnIn, lambda0, gamma0, ATy[0::, 0], L, subkey, ATA, B_inv_A_trans_y0)
+lambdas, gammas, k = MHwG_jit(number_sam, burnIn, lambda0, gamma0, ATy[0::, 0], L,  ATA, B_inv_A_trans_y0, tol, y, subkey)
 elapsed = time.time() - startTime
 print('First proper run done in ' + str(elapsed) + ' s')
 del subkey
@@ -482,7 +556,7 @@ key = new_key
 new_key, subkey = jax.random.split(key)
 del key
 startTime = time.time()
-lambdas, gammas, k = MHwG_jit(number_sam, burnIn, lambda0, gamma0, ATy[0::, 0], L, subkey, ATA, B_inv_A_trans_y0)
+lambdas, gammas, k = MHwG_jit(number_sam, burnIn, lambda0, gamma0, ATy[0::, 0], L, ATA, B_inv_A_trans_y0, tol, y, subkey)
 elapsed = time.time() - startTime
 print('First proper run done in  ' + str(elapsed) + ' s')
 del subkey
