@@ -255,7 +255,7 @@ how many measurements we want to do in between the max angle and min angle
  because measurment will collect more than just the stuff around the tangent height'''
 
 #take linear
-num_mole = 1 / (scy.constants.Boltzmann )#* temp_values)
+num_mole = 1 / ( scy.constants.Boltzmann )#* temp_values)
 
 AscalConstKmToCm = 1e3
 #1e2 for pressure values from hPa to Pa

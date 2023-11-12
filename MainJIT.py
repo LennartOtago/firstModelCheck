@@ -458,46 +458,51 @@ def nb_MHwG(n, buIn, lam0, gam0, ATdata, Lapl, ATA_for, x0, tol, data, keyF):
         new_key, subkey = jax.random.split(keyF)
         del keyF
         #call(lambda x: print(f"{x}"), bol)
-        @partial(jit, static_argnames=["ATdata"])
-        def inverse(ATdata, x ):
-            ATA_for, Lapl, lam_p, tol, x0, B_inv, exitCode, rate, f_new = x
+        #@partial(jit, static_argnames=["ATdata"])
+        def inverse( x ):
+            ATdata, ATA_for, Lapl, lam_p, tol, x0, B_inv, exitCode, rate, f_new = x
             B = (ATA_for + lam_p * Lapl)
             B_inv, exitCode = jax.scipy.sparse.linalg.gmres(B, ATdata, tol=tol, x0=x0, atol=tol, restart=25,solve_method='batched')
             f_new = data.T @ data - ATdata.T @ B_inv
-            #call(lambda f_new: print(f"{f_new}"), f_new)
+            #call(lambda f_new: print(f"inverse {f_new}"), f_new)
             #print(f"inverse")
             rate = f_new / 2 + betaG + betaD * lam_p
             return ATdata, ATA_for, Lapl, lam_p, tol, x0, B_inv, exitCode, rate, f_new
 
-        @partial(jit, static_argnames=["ATdata"])
-        def false(ATdata, x):
-            ATA_for, Lapl, lam_p, tol, x0, B_inv, exitCode, rate, f_new = x
+        #@partial(jit, static_argnames=["ATdata"])
+        def false( x):
+            ATdata, ATA_for, Lapl, lam_p, tol, x0, B_inv, exitCode, rate, f_new = x
             return ATdata, ATA_for, Lapl, lam_p, tol, x0, B_inv, exitCode, rate, f_new
         exitCode = 0
-        op = (ATA_for, Lapl, lam_p, tol, x0, B_inv, exitCode, rate, f_new)
-        ATdata, ATA_for, Lapl, lam_p, tol, x0, B_inv, exitCode, rate, f_new = jax.lax.cond(bol, partial(inverse, ATdata) , partial(false, ATdata), op)
+        #op = (ATA_for, Lapl, lam_p, tol, x0, B_inv, exitCode, rate, f_new)
+        #ATdata, ATA_for, Lapl, lam_p, tol, x0, B_inv, exitCode, rate, f_new = jax.lax.cond(bol, partial(inverse, ATdata) , partial(false, ATdata), op)
+
+        op = (ATdata, ATA_for, Lapl, lam_p, tol, x0, B_inv, exitCode, rate, f_new)
+        ATdata, ATA_for, Lapl, lam_p, tol, x0, B_inv, exitCode, rate, f_new = jax.lax.cond(bol, inverse , false, op)
 
 
 
         #call(lambda exitCode: print(f"exitcode {exitCode}"), exitCode)
-        @partial(jit, static_argnames=["ATdata"])
-        def inverse_batch(ATdata, x ):
-            ATA_for, Lapl, lam_p, tol, x0, B_inv, exitCode, rate, f_new = x
+        #@partial(jit, static_argnames=["ATdata"])
+        def inverse_batch( x ):
+            ATdata, ATA_for, Lapl, lam_p, tol, x0, B_inv, exitCode, rate, f_new = x
             B = (ATA_for + lam_p * Lapl)
             B_inv, exitCode = jax.scipy.sparse.linalg.gmres(B, ATdata, tol=tol, x0=x0, atol=tol, restart=25, solve_method='incremental')
             f_new = data.T @ data - ATdata.T @ B_inv
-            #call(lambda f_new: print(f"{f_new}"), f_new)
+            #call(lambda f_new: print(f"batch {f_new}"), f_new)
             #print(f"inverse batch")
             rate = f_new / 2 + betaG + betaD * lam_p
             #call(lambda exitCode: print(f"{exitCode}"), exitCode)
             return ATdata, ATA_for, Lapl, lam_p, tol, x0, B_inv, exitCode, rate, f_new
 
-        @partial(jit, static_argnames=["ATdata"])
-        def true_func(ATdata,x):
-            ATA_for, Lapl, lam_p, tol, x0, B_inv, exitCode,rate, f_new = x
+        #@partial(jit, static_argnames=["ATdata"])
+        def true_func(x):
+            ATdata, ATA_for, Lapl, lam_p, tol, x0, B_inv, exitCode,rate, f_new = x
             return ATdata, ATA_for, Lapl, lam_p, tol, x0, B_inv, exitCode, rate, f_new
-        op = ( ATA_for, Lapl, lam_p, tol, x0, B_inv, exitCode, rate, f_new)
-        ATdata, ATA_for, Lapl, lam_p, tol, x0, B_inv, exitCode, rate, f_new = jax.lax.cond(jnp.equal(exitCode,0),   partial(true_func, ATdata),partial(inverse_batch, ATdata), op)
+        #op = ( ATA_for, Lapl, lam_p, tol, x0, B_inv, exitCode, rate, f_new)
+        #ATdata, ATA_for, Lapl, lam_p, tol, x0, B_inv, exitCode, rate, f_new = jax.lax.cond(jnp.equal(exitCode,0),   partial(true_func, ATdata),partial(inverse_batch, ATdata), op)
+        op = (   ATdata, ATA_for, Lapl, lam_p, tol, x0, B_inv, exitCode, rate, f_new)
+        ATdata, ATA_for, Lapl, lam_p, tol, x0, B_inv, exitCode, rate, f_new = jax.lax.cond(jnp.equal(exitCode,0),   true_func ,inverse_batch, op)
 
 
         # f_new = data.T @ data - ATdata.T @ B_inv
