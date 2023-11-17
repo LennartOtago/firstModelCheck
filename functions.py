@@ -117,7 +117,7 @@ def gen_measurement(meas_ang, layers, w_cross, VMR_O3, P, T, Source, obs_height=
 
 
 def add_noise(Ax, percent):
-    return Ax + np.random.normal(0, percent * max(Ax), (len(Ax), 1))
+    return Ax + np.random.normal(0, percent * np.max(Ax), (len(Ax), 1))
 
 
 def plot_svd(ATA, height_values):

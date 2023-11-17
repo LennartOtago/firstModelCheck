@@ -14,8 +14,8 @@ b = importdata('dataY.txt', '\t' ,1).data;
 
 %%
 
-[U,s,V] = csvd(A);
-[UU,ss,XX,VV,WW] = cgsvd(A,L);
+%[U,s,V] = csvd(A);
+%[UU,ss,XX,VV,WW] = cgsvd(A,L);
 
 
 %[reg_corner,rho,eta,reg_param] = l_curve(U,s,b,'Tikh',L,V);

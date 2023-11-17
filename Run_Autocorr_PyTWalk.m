@@ -16,6 +16,8 @@ burn = 50;
 [value_gam,dvalue_gam,ddvalue_gam,tauint_gam,dtauint_gam,Qval_gam,rho_gam,drho_gam,tmax_gam] = UWerr(gammas(burn+1:end));
 [value_del,dvalue_del,ddvalue_del,tauint_del,dtauint_del,Qval_del,rho_del,drho_del,tmax_del] = UWerr(deltas(burn+1:end));
 
+[value_comb,dvalue_comb,ddvalue_comb,tauint_comb,dtauint_comb,Qval_comb,rho_comb,drho_comb,tmax_comb] = UWerr([gammas(burn+1:end), deltas(burn+1:end)],[], [] ,[], 2);
+
 %% Save rho_... for Autocorrelation plot
 l = length(rho_lam);
 if length(rho_lam) < length(rho_gam) && length(rho_del) < length(rho_gam)
