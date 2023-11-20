@@ -776,7 +776,7 @@ xTLxCurveTest = np.sqrt(np.matmul(np.matmul(np.mean(Results,0 ).T, L), np.mean(R
 # plt.show()
 
 ##
-BinHist = 200#n_bins
+BinHist = 500#n_bins
 lambHist, lambBinEdges = np.histogram(new_lamb, bins= BinHist)
 gamHist, gamBinEdges = np.histogram(new_gam, bins= BinHist)
 
@@ -830,21 +830,54 @@ plt.show()
 print('MTC Done in ' + str(elapsed) + ' s')
 
 ##
-
-deltHist, deltBinEdges = np.histogram(new_delt, bins= BinHist)
+BinHist = 500#n_bins
+deltHist, deltBinEdges = np.histogram(new_delt, bins= BinHist, density=True)
 def HypPrior(x):
     beta = 1e-7
     return x**(0) * np.exp(-beta * x)
-x = np.linspace(0,100000,100)
 
+def normal_dist(x, mean, sd):
+    prob_density = (np.pi*sd) * np.exp(-0.5*((x-mean)/sd)**2)
+    return prob_density
+
+x = np.linspace(0,100000,100)
+def f1(x, b, loc, scale):
+    return scy.stats.rice.pdf(x, b, loc, scale) * 550
 mpl.use(defBack)
 mpl.rcParams.update(mpl.rcParamsDefault)
 
-fig, axs = plt.subplots(1, 1,tight_layout=True,figsize=set_size(PgWidthPt, fraction=fraction))#, dpi = dpi)
+MN = np.sum(normal_dist(x,mean = np.mean(deltas), sd = np.sqrt(np.var(deltas))))
 
-axs.plot(x, HypPrior(x)/np.sum(HypPrior(x)))
-axs.plot(deltBinEdges[1::], deltHist / np.sum( deltHist ) )
+x = np.linspace(deltBinEdges[0],deltBinEdges[-1],100)
+fig, axs = plt.subplots(1, 1,tight_layout=True,figsize=set_size(PgWidthPt, fraction=fraction))#, dpi = dpi)
+#axs.plot(x, HypPrior(x)/np.sum(HypPrior(x)))
+axs.plot(deltBinEdges[1::], deltHist/ np.sum(deltHist)  )
+#axs.plot(x,  f1(x, b = 2, loc = np.mean(deltas)-40000, scale = 20000)  )
+axs.plot(x,  normal_dist(x,mean = np.mean(deltas), sd = np.sqrt(np.var(deltas)))/MN )
 plt.show()
+
+
+#fit function
+bounds = [(0, 30), (0, 1)]
+res = scy.stats.fit(scy.stats.normal, deltHist/ np.sum(deltHist) , bounds)
+
+#params, covs = scy.optimize.curve_fit(normal_dist, deltBinEdges[1::], deltHist/ np.sum(deltHist) )
+
+#params, covs = scy.optimize.curve_fit(f1, deltBinEdges[1::], deltHist / np.sum( deltHist ))
+# from sklearn.neighbors import KernelDensity
+# model = KernelDensity(bandwidth=2, kernel='gaussian')
+# sample = deltHist.reshape((len(deltHist), 1))
+# model.fit(sample)
+
+# sample probabilities for a range of outcomes
+# values = deltBinEdges[1::]
+# values = values.reshape((len(values), 1))
+# probabilities = model.score_samples(values)
+# probabilities = np.exp(probabilities)
+# # plot the histogram and pdf
+# plt.hist(sample, bins=50, density=True)
+# plt.plot(values[:], probabilities)
+# plt.show()
 ##
 mpl.use(defBack)
 mpl.rcParams.update(mpl.rcParamsDefault)
