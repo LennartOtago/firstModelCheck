@@ -315,6 +315,7 @@ Ax = np.matmul(A, theta)
 
 #convolve measurements and add noise
 y = add_noise(Ax, 0.01)
+y[y<=0] = 0
 
 ATy = np.matmul(A.T, y)
 
@@ -776,9 +777,9 @@ xTLxCurveTest = np.sqrt(np.matmul(np.matmul(np.mean(Results,0 ).T, L), np.mean(R
 # plt.show()
 
 ##
-BinHist = 500#n_bins
-lambHist, lambBinEdges = np.histogram(new_lamb, bins= BinHist)
-gamHist, gamBinEdges = np.histogram(new_gam, bins= BinHist)
+BinHist = 200#n_bins
+lambHist, lambBinEdges = np.histogram(new_lamb, bins= BinHist, density =True)
+#gamHist, gamBinEdges = np.histogram(new_gam, bins= BinHist)
 
 MargResults = np.zeros((BinHist,len(theta)))
 MargVarResults = np.zeros((BinHist,len(theta)))
@@ -797,17 +798,17 @@ for p in range(BinHist):
     if exitCode != 0:
         print(exitCode)
 
-    MargResults[p, :] = B_inv_A_trans_y * lambHist[p]/sum(lambHist)
-    MargVarResults[p, :] = (B_inv_A_trans_y)**2 * lambHist[p]/sum(lambHist)
+    MargResults[p, :] = B_inv_A_trans_y * lambHist[p]/ np.sum(lambHist)
+    MargVarResults[p, :] = (B_inv_A_trans_y)**2 * lambHist[p]/ np.sum(lambHist)
 
 
-sc = 2 * np.ones(MargResults.shape)
-sc[:,0] = 1
-sc[:,-1] = 1
-MargInteg = 0.5 * np.sum(MargResults * sc , 0) #* (lambBinEdges[1]- lambBinEdges[0] )
+trapezMat = 2 * np.ones(MargResults.shape)
+trapezMat[:,0] = 1
+trapezMat[:,-1] = 1
+MargInteg = 0.5 * np.sum(MargResults * trapezMat , 0) #* (lambBinEdges[1]- lambBinEdges[0] )
 #MargInteg = 0.5 * ( MargResults[1::] + MargResults[0:-1] ) * (lambBinEdges[1]- lambBinEdges[0] )
 
-MargIntegSq = 0.5 * np.sum(MargVarResults * sc , 0)
+MargIntegSq = 0.5 * np.sum(MargVarResults * trapezMat , 0)
 #lambBinEdges[1::]- lambBinEdges[0:-1]
 NormMargRes = np.linalg.norm( np.matmul(A,MargInteg) - y[0::,0])
 xTLxMargRes = np.sqrt(np.matmul(np.matmul(MargInteg.T, L),MargInteg))
@@ -830,54 +831,111 @@ plt.show()
 print('MTC Done in ' + str(elapsed) + ' s')
 
 ##
-BinHist = 500#n_bins
-deltHist, deltBinEdges = np.histogram(new_delt, bins= BinHist, density=True)
+BinHist = 200#n_bins
+deltHist, deltBinEdges = np.histogram(new_delt, bins= BinHist)#, density=True)
 def HypPrior(x):
     beta = 1e-7
     return x**(0) * np.exp(-beta * x)
 
-def normal_dist(x, mean, sd):
-    prob_density = (np.pi*sd) * np.exp(-0.5*((x-mean)/sd)**2)
+def normal_dist(x, mean, sd, c):
+    prob_density = c * np.exp(-0.5*((x-mean)/sd)**2)
     return prob_density
 
-x = np.linspace(0,100000,100)
-def f1(x, b, loc, scale):
-    return scy.stats.rice.pdf(x, b, loc, scale) * 550
+def rician(x, sd, c, b):
+    prob_density = x/sd**2 * np.exp(-0.5*(x**2 + b**2/ sd**2 ) ) * c
+    return prob_density * scy.special.i0(x * b / sd**2)
+
+
+def rayleigh(x, sd, c ):
+    prob_density = x/sd**2 * np.exp(-0.5*(x**2 / sd**2 ) ) * c
+    return prob_density
+
+
+
 mpl.use(defBack)
 mpl.rcParams.update(mpl.rcParamsDefault)
+DMax = np.max(deltHist/ np.sum(deltHist))
 
-MN = np.sum(normal_dist(x,mean = np.mean(deltas), sd = np.sqrt(np.var(deltas))))
+#x = np.linspace(deltBinEdges[0],deltBinEdges[-1],100)
+st = 25
+xRay = deltBinEdges[int(st)::]-deltBinEdges[int(st)]
+yRay = deltHist[int(st-1)::]/ np.sum(deltHist[int(st-1)::])
+#x = np.linspace(0,10,100)
+# fig, axs = plt.subplots(1, 1,tight_layout=True,figsize=set_size(PgWidthPt, fraction=fraction))#, dpi = dpi)
+# axs.plot(xRay,yRay)
+# axs.plot(xRay, rayleigh(xRay, sd = np.sqrt(np.var(deltas))+10000, c = 800)  )
+# #axs.plot(x,  normal_dist(x,mean = np.mean(deltas), sd = np.sqrt(np.var(deltas)), c = 0.75 * DMax) )
+# plt.show()
 
-x = np.linspace(deltBinEdges[0],deltBinEdges[-1],100)
+
+paramsRay, covs = scy.optimize.curve_fit(rayleigh,xRay,yRay, p0 = [np.sqrt(np.var(deltas))+10000, 800 ] )
+
 fig, axs = plt.subplots(1, 1,tight_layout=True,figsize=set_size(PgWidthPt, fraction=fraction))#, dpi = dpi)
-#axs.plot(x, HypPrior(x)/np.sum(HypPrior(x)))
-axs.plot(deltBinEdges[1::], deltHist/ np.sum(deltHist)  )
-#axs.plot(x,  f1(x, b = 2, loc = np.mean(deltas)-40000, scale = 20000)  )
-axs.plot(x,  normal_dist(x,mean = np.mean(deltas), sd = np.sqrt(np.var(deltas)))/MN )
+axs.plot(xRay,yRay)
+axs.plot(xRay, rayleigh(xRay, *paramsRay)  )
 plt.show()
 
 
-#fit function
-bounds = [(0, 30), (0, 1)]
-res = scy.stats.fit(scy.stats.normal, deltHist/ np.sum(deltHist) , bounds)
+st = 0
+xNormal = deltBinEdges[int(st)::]-deltBinEdges[int(st)]
+yNormal = deltHist[int(st-1)::]/ np.sum(deltHist[int(st-1)::])
 
-#params, covs = scy.optimize.curve_fit(normal_dist, deltBinEdges[1::], deltHist/ np.sum(deltHist) )
+paramsNormal, covs = scy.optimize.curve_fit(normal_dist, deltBinEdges[1::], deltHist/ np.sum(deltHist), p0 = [np.mean(deltas),  np.sqrt(np.var(deltas)), DMax ] )
 
-#params, covs = scy.optimize.curve_fit(f1, deltBinEdges[1::], deltHist / np.sum( deltHist ))
-# from sklearn.neighbors import KernelDensity
-# model = KernelDensity(bandwidth=2, kernel='gaussian')
-# sample = deltHist.reshape((len(deltHist), 1))
-# model.fit(sample)
+fig, axs = plt.subplots(1, 1,tight_layout=True,figsize=set_size(PgWidthPt, fraction=fraction))#, dpi = dpi)
+axs.plot(deltBinEdges[1::], deltHist/ np.sum(deltHist))
+axs.plot(xNormal,  normal_dist(xNormal,*paramsNormal ) )
+plt.show()
 
-# sample probabilities for a range of outcomes
-# values = deltBinEdges[1::]
-# values = values.reshape((len(values), 1))
-# probabilities = model.score_samples(values)
-# probabilities = np.exp(probabilities)
-# # plot the histogram and pdf
-# plt.hist(sample, bins=50, density=True)
-# plt.plot(values[:], probabilities)
-# plt.show()
+
+#draw paramter samples
+paraSamp = 200#n_bins
+NewResults = np.zeros((paraSamp,len(theta)))
+NewNormRes = np.zeros(paraSamp)
+NewxTLxRes = np.zeros(paraSamp)
+SetGammas = new_gam[np.random.randint(low=0, high=len(new_gam), size=paraSamp)]
+SetDeltas  = np.random.normal(loc = paramsNormal[0], scale = paramsNormal[1], size = paraSamp)
+for p in range(paraSamp):
+    # SetLambda = new_lamb[np.random.randint(low=0, high=len(new_lamb), size=1)]
+    SetGamma = SetGammas[p] #minimum[0]
+    SetDelta  = SetDeltas[p] #minimum[1]
+    W = np.random.multivariate_normal(np.zeros(len(A)), np.eye(len(A)))
+    v_1 = np.sqrt(SetGamma) *  A.T @ W
+    W2 = np.random.multivariate_normal(np.zeros(len(L)), L)
+    v_2 = np.sqrt(SetDelta) * W2
+
+    SetB = SetGamma * ATA + SetDelta * L
+    RandX = (SetGamma * ATy[0::, 0] + v_1 + v_2)
+
+    # SetB_inv = np.zeros(np.shape(SetB))
+    # for i in range(len(SetB)):
+    #     e = np.zeros(len(SetB))
+    #     e[i] = 1
+    #     SetB_inv[:, i], exitCode = gmres(SetB, e, tol=tol, restart=25)
+    #     if exitCode != 0:x
+    #         print(exitCode)
+
+    B_inv_A_trans_y, exitCode = gmres(SetB, RandX, x0=B_inv_A_trans_y0, tol=tol, restart=25)
+
+    # B_inv_A_trans_y, exitCode = gmres(B, ATy[0::, 0], tol=tol, restart=25)
+    if exitCode != 0:
+        print(exitCode)
+
+    #CheckB_inv = np.matmul(SetB, SetB_inv)
+    #print(np.linalg.norm(np.eye(len(SetB)) - CheckB_inv) / np.linalg.norm(np.eye(len(SetB))) < tol)
+
+    NewResults[p, :] = B_inv_A_trans_y
+
+    NewNormRes[p] = np.linalg.norm( np.matmul(A,B_inv_A_trans_y) - y[0::,0])
+    NewxTLxRes[p] = np.sqrt(np.matmul(np.matmul(B_inv_A_trans_y.T, L), B_inv_A_trans_y))
+
+
+NewNormLTest = np.linalg.norm( np.matmul(A,np.mean(Results,0 )) - y[0::,0])
+NewxTLxCurveTest = np.sqrt(np.matmul(np.matmul(np.mean(Results,0 ).T, L), np.mean(Results,0 )))
+
+
+
+
 ##
 mpl.use(defBack)
 mpl.rcParams.update(mpl.rcParamsDefault)
@@ -1499,7 +1557,7 @@ lam_opt = opt_ind#lamLCurve[int(opt_ind - 1)]
 
 B = (ATA + lam_opt * L)
 x_opt, exitCode = gmres(B, ATy[0::, 0], tol=tol, restart=25)
-LNormOpt = np.linalg.norm( np.matmul(A,x_opt) - y[0::,0], ord = 2)
+LNormOpt = np.linalg.norm( np.matmul(A,x_opt) - y[0::,0])#, ord = 2)
 xTLxOpt = np.sqrt(np.matmul(np.matmul(x_opt.T, L), x_opt))
 
 # xTLxMargRes = np.sqrt(np.matmul(np.matmul(np.sum(MargInteg,0 ).T, L),np.sum(MargInteg,0 )))
@@ -1539,6 +1597,8 @@ xTLxOpt = np.sqrt(np.matmul(np.matmul(x_opt.T, L), x_opt))
 # x, exitCode = gmres(B, ATy[0::, 0], tol=tol, restart=25)
 # if exitCode != 0:
 #     print(exitCode)
+SampleNorm = np.linalg.norm( np.matmul(A,np.mean(Results,0 )) - y[0::,0])
+SamplexTLx = np.sqrt(np.matmul(np.matmul(np.mean(Results,0 ).T, L), np.mean(Results,0 )))
 
 
 mpl.use(defBack)
@@ -1553,6 +1613,9 @@ axs.scatter(NormLCurve,xTLxCurve, zorder = 0, color = [0, 114/255, 178/255], lab
 axs.scatter(LNormOpt ,xTLxOpt, zorder = 10, color = 'red')
 axs.scatter(opt_norm ,opt_regNorm, zorder = 10, color = 'red')
 axs.scatter(NormRes, xTLxRes, color = MTCCol, label = 'MTC RTO method')#, marker = "." ,mfc = 'black' , markeredgecolor='r',markersize=10,linestyle = 'None')
+axs.scatter(NewNormRes, NewxTLxRes, color = 'red', label = 'MTC RTO method')#, marker = "." ,mfc = 'black' , markeredgecolor='r',markersize=10,linestyle = 'None')
+
+axs.scatter(SampleNorm, SamplexTLx, color = 'green', marker = 's', s= 100)
 axs.scatter(NormMargRes, xTLxMargRes, color = MTCCol, marker = 's', s= 50, label = r'MTC E$_{\mathbf{x},\mathbf{\theta}| \mathbf{y}}[\mathbf{x}_{\lambda}]$')
 
 #zoom in
@@ -1564,6 +1627,7 @@ axins.scatter(NormLCurve,xTLxCurve, color = [0, 114/255, 178/255])
 axins.scatter(NormMargRes, xTLxMargRes, color = MTCCol, marker = 's', s= 50)
 # axins.scatter(LNormOpt, xTLxOpt, color = 'crimson', marker = "s", s =80)
 #axins.annotate(r'E$_{\mathbf{x},\mathbf{\theta}| \mathbf{y}}[\lambda]$ = ' + str('{:.2f}'.format(lam_opt)), (LNormOpt+0.05,xTLxOpt))
+axins.scatter(NewNormRes, NewxTLxRes, color = 'red', label = 'MTC RTO method', s = 10)#, marker = "." ,mfc = 'black' , markeredgecolor='r',markersize=10,linestyle = 'None')
 
 axins.set_xlim(x1-0.01, x2-1) # apply the x-limits
 #axins.set_ylim(y2,y1)

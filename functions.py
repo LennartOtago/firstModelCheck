@@ -46,7 +46,7 @@ def generate_L(neigbours):
             if ~np.isnan(neigbours[i, j]):
                 L[i, int(neigbours[i, j])] = -1
     #non periodic boundaries
-    #L[0,0] = 1
+    # L[0,0] = 1
     #L[-1,-1] = 1
     return L
 
