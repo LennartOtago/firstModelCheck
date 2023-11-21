@@ -36,6 +36,7 @@ def G(x, alpha):
 
 
 def generate_L(neigbours):
+    #Dirichlet Boundaries
     siz = int(np.size(neigbours, 0))
     neig = np.size(neigbours, 1)
     L = np.zeros((siz, siz))
@@ -45,9 +46,13 @@ def generate_L(neigbours):
         for j in range(0, neig):
             if ~np.isnan(neigbours[i, j]):
                 L[i, int(neigbours[i, j])] = -1
-    #non periodic boundaries
+    #non periodic boundaries Neumann
     # L[0,0] = 1
-    #L[-1,-1] = 1
+    # L[-1,-1] = 1
+    #periodic boundaires
+    # L[0,-1] = -1
+    # L[-1,0] = -1
+
     return L
 
 

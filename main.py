@@ -101,9 +101,21 @@ MinAng = np.arcsin((height_values[0] + R) / (R + ObsHeight))
 
 #find best configuration of layers and num_meas
 #so that cond(A) is not inf
-#meas_ang = min_ang + ((max_ang - min_ang) * np.exp(coeff * (np.linspace(0, int(num_meas) - 1, int(num_meas)+1) - (int(num_meas) - 1))))
+#coeff = 1/(SpecNumMeas)
+#meas_ang = (MinAng) + (MaxAng - MinAng) * np.exp(- coeff * 1* np.linspace(0, int(SpecNumMeas) -1 , SpecNumMeas ))
+# coeff = 1/np.log(SpecNumMeas)
+# meas_ang = (MinAng) + (MaxAng - MinAng) * coeff * np.log( np.linspace(1, int(SpecNumMeas) , SpecNumMeas ))
+
+# fig, axs = plt.subplots(tight_layout=True)
+# plt.scatter(range(len(meas_ang )),meas_ang )
+# plt.show()
 meas_ang = np.linspace(MinAng, MaxAng, SpecNumMeas)
 A_lin, tang_heights_lin, extraHeight = gen_forward_map(meas_ang,height_values,ObsHeight,R)
+
+
+# fig, axs = plt.subplots(tight_layout=True)
+# plt.scatter(range(len(tang_heights_lin)),tang_heights_lin)
+# plt.show()
 
 ATA_lin = np.matmul(A_lin.T,A_lin)
 #condition number for A
@@ -244,10 +256,10 @@ Q = g_doub_prime[ind,0] * np.exp(- HitrConst2 * E[ind,0]/ temp_values)
 Q_ref = g_doub_prime[ind,0] * np.exp(- HitrConst2 * E[ind,0]/ 296)
 LineInt = S[ind,0] * Q_ref / Q * np.exp(- HitrConst2 * E[ind,0]/ temp_values)/ np.exp(- HitrConst2 * E[ind,0]/ 296) * (1 - np.exp(- HitrConst2 * wvnmbr[ind,0]/ temp_values))/ (1- np.exp(- HitrConst2 * wvnmbr[ind,0]/ 296))
 LineIntScal = Q_ref / Q * np.exp(- HitrConst2 * E[ind,0]/ temp_values)/ np.exp(- HitrConst2 * E[ind,0]/ 296) * (1 - np.exp(- HitrConst2 * wvnmbr[ind,0]/ temp_values))/ (1- np.exp(- HitrConst2 * wvnmbr[ind,0]/ 296))
-
-fig, axs = plt.subplots(tight_layout=True)
-plt.plot(LineInt,height_values)
-#plt.show()
+#
+# fig, axs = plt.subplots(tight_layout=True)
+# plt.plot(LineInt,height_values)
+# plt.show()
 
 ''' calculate model depending on where the Satellite is and 
 how many measurements we want to do in between the max angle and min angle
@@ -309,8 +321,8 @@ print("normal: " + str(orderOfMagnitude(cond_A)))
 ATAu, ATAs, ATAvh = np.linalg.svd(ATA)
 cond_ATA = np.max(ATAs)/np.min(ATAs)
 print("Condition Number A^T A: " + str(orderOfMagnitude(cond_ATA)))
-theta[0] = 0
-theta[-1] = 0
+#theta[0] = 0
+#theta[-1] = 0
 Ax = np.matmul(A, theta)
 
 #convolve measurements and add noise
@@ -850,16 +862,40 @@ def rayleigh(x, sd, c ):
     prob_density = x/sd**2 * np.exp(-0.5*(x**2 / sd**2 ) ) * c
     return prob_density
 
-
+def skew_norm_pdf(x,mean=0,w=1,skewP=0, scale = 0.1):
+    # adapated from:
+    # http://stackoverflow.com/questions/5884768/skew-normal-distribution-in-scipy
+    t = (x-mean) / w
+    return 2.0 * w * scy.stats.norm.pdf(t) * scy.stats.norm.cdf(skewP*t) * scale
 
 mpl.use(defBack)
 mpl.rcParams.update(mpl.rcParamsDefault)
+
+
 DMax = np.max(deltHist/ np.sum(deltHist))
 
 #x = np.linspace(deltBinEdges[0],deltBinEdges[-1],100)
-st = 25
+st = 5
 xRay = deltBinEdges[int(st)::]-deltBinEdges[int(st)]
 yRay = deltHist[int(st-1)::]/ np.sum(deltHist[int(st-1)::])
+
+xtest = np.linspace(-5,20,100)
+
+
+paramsSkew, covs = scy.optimize.curve_fit(skew_norm_pdf,xRay, yRay, p0 = [np.mean(new_delt)-40000,np.sqrt(np.var(deltas)),0.1, 0.000002] )
+
+fig, axs = plt.subplots(1, 1,tight_layout=True,figsize=set_size(PgWidthPt, fraction=fraction))#, dpi = dpi)
+axs.plot(xRay, skew_norm_pdf(xRay, *paramsSkew)  )
+
+axs.plot(xRay,yRay)
+plt.show()
+
+
+
+
+
+
+##
 #x = np.linspace(0,10,100)
 # fig, axs = plt.subplots(1, 1,tight_layout=True,figsize=set_size(PgWidthPt, fraction=fraction))#, dpi = dpi)
 # axs.plot(xRay,yRay)
