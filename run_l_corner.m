@@ -14,17 +14,17 @@ b = importdata('dataY.txt', '\t' ,1).data;
 
 %%
 
-%[U,s,V] = csvd(A);
-%[UU,ss,XX,VV,WW] = cgsvd(A,L);
+[U,s,V] = csvd(A);
+[UU,ss,XX,VV,WW] = cgsvd(A,L);
 
 
-%[reg_corner,rho,eta,reg_param] = l_curve(U,s,b,'Tikh',L,V);
-%[reg_corner,rho,eta,reg_param_out] = l_curve(UU,ss,b,'Tikh',L,VV);
+%[reg_corner,rho,eta,reg_param] = l_curve(U,s,b,'Tikh',sqrt(L),V);
+[reg_corner,rho,eta,reg_param_out] = l_curve(UU,ss,b,'Tikh',sqrt(L),VV);
 % 
 % [x_lambda,rho,eta] = tikhonov(UU,ss,VV,b,reg_param);
 % reg_param_out = reg_param;
 %[reg_corner,rho_c,eta_c] = l_corner(rho, eta, reg_param);%,U,s,y,'Tikh')
-[reg_corner,rho,eta] = l_corner(resid_norm, reg_norm, reg_param);%,UU,ss,b,'Tikh');
+%[reg_corner,rho,eta] = l_corner(resid_norm, reg_norm, reg_param,U,s,b,'Tikh');
 reg_param_out = reg_corner;
 
 %[reg_min,G,reg_param] = gcv(UU,ss,b,'Tikh');

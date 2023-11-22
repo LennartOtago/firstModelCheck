@@ -103,19 +103,19 @@ MinAng = np.arcsin((height_values[0] + R) / (R + ObsHeight))
 #so that cond(A) is not inf
 #coeff = 1/(SpecNumMeas)
 #meas_ang = (MinAng) + (MaxAng - MinAng) * np.exp(- coeff * 1* np.linspace(0, int(SpecNumMeas) -1 , SpecNumMeas ))
-# coeff = 1/np.log(SpecNumMeas)
-# meas_ang = (MinAng) + (MaxAng - MinAng) * coeff * np.log( np.linspace(1, int(SpecNumMeas) , SpecNumMeas ))
+coeff = 1/np.log(SpecNumMeas)
+meas_ang = (MinAng) + (MaxAng - MinAng) * coeff * 0.9 * np.log( np.linspace(1, int(SpecNumMeas) , SpecNumMeas ))
 
-# fig, axs = plt.subplots(tight_layout=True)
-# plt.scatter(range(len(meas_ang )),meas_ang )
-# plt.show()
-meas_ang = np.linspace(MinAng, MaxAng, SpecNumMeas)
+fig, axs = plt.subplots(tight_layout=True)
+plt.scatter(range(len(meas_ang )),meas_ang )
+plt.show()
+#meas_ang = np.linspace(MinAng, MaxAng, SpecNumMeas)
 A_lin, tang_heights_lin, extraHeight = gen_forward_map(meas_ang,height_values,ObsHeight,R)
 
 
-# fig, axs = plt.subplots(tight_layout=True)
-# plt.scatter(range(len(tang_heights_lin)),tang_heights_lin)
-# plt.show()
+fig, axs = plt.subplots(tight_layout=True)
+plt.scatter(range(len(tang_heights_lin)),tang_heights_lin)
+plt.show()
 
 ATA_lin = np.matmul(A_lin.T,A_lin)
 #condition number for A
@@ -1551,7 +1551,7 @@ for i in range(len(lamLCurve)):
         #xTLxCurve[i] = np.sqrt(x.T @ x)
 
 
-lamLCurveZoom = np.logspace(1,5,200)
+lamLCurveZoom = np.logspace(0,5,200)
 NormLCurveZoom = np.zeros(len(lamLCurve))
 xTLxCurveZoom = np.zeros(len(lamLCurve))
 for i in range(len(lamLCurveZoom)):
@@ -1565,6 +1565,61 @@ for i in range(len(lamLCurveZoom)):
     xTLxCurveZoom[i] = np.sqrt(np.matmul(np.matmul(x.T, L), x))
 
 
+#
+# # NormLCurveZoom = lamLCurveZoom**(-2+1)
+# # xTLxCurveZoom = lamLCurveZoom**2
+# mpl.use(defBack)
+# mpl.rcParams.update(mpl.rcParamsDefault)
+# mpl.rcParams.update({'font.size': 12})#,
+# # fig, axs = plt.subplots( tight_layout=True,figsize=set_size(245, fraction=fraction))
+# # axs.scatter( xTLxCurveZoom,NormLCurveZoom)
+# # axs.set_xscale('log')
+# # axs.set_yscale('log')
+# # plt.show()
+fig, axs = plt.subplots( tight_layout=True,figsize=set_size(245, fraction=fraction))
+axs.plot( NormLCurveZoom, xTLxCurveZoom)
+#axs.plot( lamLCurveZoom, xTLxCurveZoom)
+axs.set_xscale('log')
+axs.set_yscale('log')
+plt.show()
+
+# #
+# diff = lamLCurveZoom[1::] - lamLCurveZoom[0:-1]
+# diffMat = np.append((np.zeros(198) - np.eye(198)),np.zeros((198,2)), axis = 1) + np.append(np.zeros((198,2)), np.zeros(198) + np.eye(198), axis = 1)
+# def diff_central(x, y):
+#     x0 = x[:-2]
+#     x1 = x[1:-1]
+#     x2 = x[2:]
+#     y0 = y[:-2]
+#     y1 = y[1:-1]
+#     y2 = y[2:]
+#     f = (x2 - x1)/(x2 - x0)
+#     return (1-f)*(y2 - y1)/(x2 - x1) + f*(y1 - y0)/(x1 - x0)
+#
+# st = int(0)
+# dy_dt = np.gradient(NormLCurveZoom[st::], lamLCurveZoom[st::] )
+# dx_dt = np.gradient(xTLxCurveZoom[st::], lamLCurveZoom[st::])
+#
+#
+# # dx_dt = diff_central(lamLCurveZoom, NormLCurveZoom)
+# # dy_dt = diff_central(lamLCurveZoom, xTLxCurveZoom)
+#
+# d2x_dt2 = np.gradient(dx_dt, lamLCurveZoom[st::] )
+# d2y_dt2 = np.gradient(dy_dt, lamLCurveZoom [st::])
+#
+# curvature = np.abs(d2x_dt2 * dy_dt - dx_dt * d2y_dt2) / (dx_dt * dx_dt + dy_dt * dy_dt)**1.5
+#
+#
+# dcurv_dt = np.gradient(curvature , lamLCurveZoom[st::] )
+# fig, axs = plt.subplots( tight_layout=True,figsize=set_size(245, fraction=fraction))
+# #axs.scatter( NormLCurveZoom, xTLxCurveZoom)
+# #axs.scatter( lamLCurveZoom[st::], curvature)
+# axs.plot( lamLCurveZoom[st::], dy_dt)
+# #axs.plot( lamLCurveZoom[st::], dx_dt)
+# #axs.set_xscale('log')
+# #axs.set_yscale('log')
+# plt.show()
+
 
 np.savetxt('LCurve.txt', np.vstack((NormLCurveZoom, xTLxCurveZoom, lamLCurveZoom)).T, header = 'Norm ||Ax - y|| sqrt(x.T L x) lambdas', fmt = '%.15f \t %.15f \t %.15f')
 
@@ -1572,9 +1627,11 @@ np.savetxt('LCurve.txt', np.vstack((NormLCurveZoom, xTLxCurveZoom, lamLCurveZoom
 eng = matlab.engine.start_matlab()
 eng.run_l_corner(nargout=0)
 eng.quit()
+##
 opt_norm , opt_regNorm, opt_ind  = np.loadtxt("l_curve_output.txt", skiprows=4, dtype='float')
 #IntAutoLam, IntAutoGam , IntAutoDelt = np.loadtxt("auto_corr_dat.txt",userow = 1, skiprows=1, dtype='float'
-##
+
+
 # with open("l_curve_output.txt") as fID:
 #     for n, line in enumerate(fID):
 #         if n == 0:
@@ -1587,7 +1644,7 @@ opt_norm , opt_regNorm, opt_ind  = np.loadtxt("l_curve_output.txt", skiprows=4, 
 #
 #             break
 
-lam_opt = opt_ind#lamLCurve[int(opt_ind - 1)]
+lam_opt = 77#opt_ind#lamLCurve[int(opt_ind - 1)]
 #lam_opt = LamMean#sum(lambBinEdges[:-1]* lambHist[p]/sum(lambHist))
 
 
@@ -1647,32 +1704,34 @@ mpl.rcParams.update({'font.size': 12})#,
 fig, axs = plt.subplots( tight_layout=True,figsize=set_size(245, fraction=fraction))
 axs.scatter(NormLCurve,xTLxCurve, zorder = 0, color = [0, 114/255, 178/255], label = 'Tikh. regularization ')
 axs.scatter(LNormOpt ,xTLxOpt, zorder = 10, color = 'red')
-axs.scatter(opt_norm ,opt_regNorm, zorder = 10, color = 'red')
+#axs.scatter(opt_norm ,opt_regNorm, zorder = 10, color = 'red')
 axs.scatter(NormRes, xTLxRes, color = MTCCol, label = 'MTC RTO method')#, marker = "." ,mfc = 'black' , markeredgecolor='r',markersize=10,linestyle = 'None')
-axs.scatter(NewNormRes, NewxTLxRes, color = 'red', label = 'MTC RTO method')#, marker = "." ,mfc = 'black' , markeredgecolor='r',markersize=10,linestyle = 'None')
+#axs.scatter(NewNormRes, NewxTLxRes, color = 'red', label = 'MTC RTO method')#, marker = "." ,mfc = 'black' , markeredgecolor='r',markersize=10,linestyle = 'None')
 
 axs.scatter(SampleNorm, SamplexTLx, color = 'green', marker = 's', s= 100)
 axs.scatter(NormMargRes, xTLxMargRes, color = MTCCol, marker = 's', s= 50, label = r'MTC E$_{\mathbf{x},\mathbf{\theta}| \mathbf{y}}[\mathbf{x}_{\lambda}]$')
 
-#zoom in
-x1, x2, y1, y2 = NormLCurveZoom[0], NormLCurveZoom[-1], xTLxCurveZoom[0], xTLxCurveZoom[-1] # specify the limits
-axins = axs.inset_axes([0.1,0.05,0.7,0.5])
-axins.scatter(LNormOpt ,xTLxOpt, zorder = 10, color = 'red')
-axins.scatter(NormRes, xTLxRes, color = MTCCol)#, s = 15)
-axins.scatter(NormLCurve,xTLxCurve, color = [0, 114/255, 178/255])
-axins.scatter(NormMargRes, xTLxMargRes, color = MTCCol, marker = 's', s= 50)
-# axins.scatter(LNormOpt, xTLxOpt, color = 'crimson', marker = "s", s =80)
-#axins.annotate(r'E$_{\mathbf{x},\mathbf{\theta}| \mathbf{y}}[\lambda]$ = ' + str('{:.2f}'.format(lam_opt)), (LNormOpt+0.05,xTLxOpt))
-axins.scatter(NewNormRes, NewxTLxRes, color = 'red', label = 'MTC RTO method', s = 10)#, marker = "." ,mfc = 'black' , markeredgecolor='r',markersize=10,linestyle = 'None')
+# #zoom in
+# x1, x2, y1, y2 = NormLCurveZoom[0], NormLCurveZoom[-1], xTLxCurveZoom[0], xTLxCurveZoom[-1] # specify the limits
+# axins = axs.inset_axes([0.1,0.05,0.7,0.5])
+# axins.scatter(LNormOpt ,xTLxOpt, zorder = 10, color = 'red')
+# axins.scatter(NormRes, xTLxRes, color = MTCCol)#, s = 15)
+# axins.scatter(NormLCurve,xTLxCurve, color = [0, 114/255, 178/255])
+# axins.scatter(NormMargRes, xTLxMargRes, color = MTCCol, marker = 's', s= 50)
+# # axins.scatter(LNormOpt, xTLxOpt, color = 'crimson', marker = "s", s =80)
+# #axins.annotate(r'E$_{\mathbf{x},\mathbf{\theta}| \mathbf{y}}[\lambda]$ = ' + str('{:.2f}'.format(lam_opt)), (LNormOpt+0.05,xTLxOpt))
+# axins.scatter(NewNormRes, NewxTLxRes, color = 'red', label = 'MTC RTO method', s = 10)#, marker = "." ,mfc = 'black' , markeredgecolor='r',markersize=10,linestyle = 'None')
+#
+# axins.set_xlim(x1-0.01, x2-1) # apply the x-limits
+# #axins.set_ylim(y2,y1)
+# axins.set_ylim(y2+0.003,max(xTLxRes)+0.001) # apply the y-limits (negative gradient)
+# axins.tick_params(axis = 'x', which = 'both', labelbottom=False, bottom = False)
+# axins.tick_params(axis = 'y', which = 'both', labelleft=False, left = False)
+# axins.set_xscale('log')
+# axins.set_yscale('log')
+# axs.indicate_inset_zoom(axins, edgecolor="none")
+#
 
-axins.set_xlim(x1-0.01, x2-1) # apply the x-limits
-#axins.set_ylim(y2,y1)
-axins.set_ylim(y2+0.003,max(xTLxRes)+0.001) # apply the y-limits (negative gradient)
-axins.tick_params(axis = 'x', which = 'both', labelbottom=False, bottom = False)
-axins.tick_params(axis = 'y', which = 'both', labelleft=False, left = False)
-axins.set_xscale('log')
-axins.set_yscale('log')
-axs.indicate_inset_zoom(axins, edgecolor="none")
 axs.set_xscale('log')
 axs.set_yscale('log')
 axs.set_ylabel(r'$ \sqrt{\mathbf{x}_\lambda^T \mathbf{L}\mathbf{x}_\lambda}$', style='italic')
