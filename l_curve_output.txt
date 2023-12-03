@@ -1,5 +1,5 @@
 l_curve output data of Hansens regtoolbox
 The optimal parameter is: 
-1.3355
+199
 rho/ resid_norm eta/ reg_norm reg_param
-0.52506 0.03818 1.33545
+1.88793 0.01487 199.00000
