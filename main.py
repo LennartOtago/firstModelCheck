@@ -141,17 +141,30 @@ print('Distance through layers check: ' + str(np.allclose( sum(A_lin.T), tot_r))
 
 
 
-
+##
 
 
 # graph Laplacian
 # direchlet boundary condition
-neigbours = np.zeros((len(height_values),2))
-neigbours[0] = np.nan, 1
-neigbours[-1] = len(height_values)-2, np.nan
-for i in range(1,len(height_values)-1):
+NOfNeigh = 2
+neigbours = np.zeros((len(height_values),NOfNeigh))
+# neigbours[0] = np.nan, np.nan, 1, 2
+# neigbours[-1] = len(height_values)-2, len(height_values)-3, np.nan, np.nan
+# neigbours[0] = np.nan, 1
+# neigbours[-1] = len(height_values)-2, np.nan
+for i in range(0,len(height_values)):
     neigbours[i] = i-1, i+1
+    #neigbours[i] = i-3, i-2, i-1, i+1, i+2, i+3
+
+
+neigbours[neigbours >= len(height_values)] = np.nan
+neigbours[neigbours < 0] = np.nan
+
 L = generate_L(neigbours)
+# L[15::, 15::] = L[15::, 15::] * 4
+# L[15, 15] = 10
+# L[16, 16] = 13
+
 np.savetxt('GraphLaplacian.txt', L, header = 'Graph Lalplacian', fmt = '%.15f', delimiter= '\t')
 
 
@@ -846,59 +859,60 @@ plt.show()
 print('MTC Done in ' + str(elapsed) + ' s')
 
 ##
-BinHist = 200#n_bins
-deltHist, deltBinEdges = np.histogram(new_delt, bins= BinHist)#, density=True)
-def HypPrior(x):
-    beta = 1e-7
-    return x**(0) * np.exp(-beta * x)
+"Fitting prob distr to hyperparameter histogram"
+# BinHist = 200#n_bins
+# deltHist, deltBinEdges = np.histogram(new_delt, bins= BinHist)#, density=True)
+# def HypPrior(x):
+#     beta = 1e-7
+#     return x**(0) * np.exp(-beta * x)
+#
+# def normal_dist(x, mean, sd, c):
+#     prob_density = c * np.exp(-0.5*((x-mean)/sd)**2)
+#     return prob_density
+#
+# def rician(x, sd, c, b):
+#     prob_density = x/sd**2 * np.exp(-0.5*(x**2 + b**2/ sd**2 ) ) * c
+#     return prob_density * scy.special.i0(x * b / sd**2)
+#
+#
+# def rayleigh(x, sd, c ):
+#     prob_density = x/sd**2 * np.exp(-0.5*(x**2 / sd**2 ) ) * c
+#     return prob_density
+#
+# def skew_norm_pdf(x,mean=0,w=1,skewP=0, scale = 0.1):
+#     # adapated from:
+#     # http://stackoverflow.com/questions/5884768/skew-normal-distribution-in-scipy
+#     t = (x-mean) / w
+#     return 2.0 * w * scy.stats.norm.pdf(t) * scy.stats.norm.cdf(skewP*t) * scale
+#
+# mpl.use(defBack)
+# mpl.rcParams.update(mpl.rcParamsDefault)
+#
+#
+# DMax = np.max(deltHist/ np.sum(deltHist))
+#
+# #x = np.linspace(deltBinEdges[0],deltBinEdges[-1],100)
+# st = 5
+# xRay = deltBinEdges[int(st)::]-deltBinEdges[int(st)]
+# yRay = deltHist[int(st-1)::]/ np.sum(deltHist[int(st-1)::])
+#
+# xtest = np.linspace(-5,20,100)
+#
+#
+# paramsSkew, covs = scy.optimize.curve_fit(skew_norm_pdf,xRay, yRay, p0 = [np.mean(new_delt)-40000,np.sqrt(np.var(deltas)),0.1, 0.000002] )
+#
+# fig, axs = plt.subplots(1, 1,tight_layout=True,figsize=set_size(PgWidthPt, fraction=fraction))#, dpi = dpi)
+# axs.plot(xRay, skew_norm_pdf(xRay, *paramsSkew)  )
+#
+# axs.plot(xRay,yRay)
+# plt.show()
+#
+#
+#
 
-def normal_dist(x, mean, sd, c):
-    prob_density = c * np.exp(-0.5*((x-mean)/sd)**2)
-    return prob_density
-
-def rician(x, sd, c, b):
-    prob_density = x/sd**2 * np.exp(-0.5*(x**2 + b**2/ sd**2 ) ) * c
-    return prob_density * scy.special.i0(x * b / sd**2)
-
-
-def rayleigh(x, sd, c ):
-    prob_density = x/sd**2 * np.exp(-0.5*(x**2 / sd**2 ) ) * c
-    return prob_density
-
-def skew_norm_pdf(x,mean=0,w=1,skewP=0, scale = 0.1):
-    # adapated from:
-    # http://stackoverflow.com/questions/5884768/skew-normal-distribution-in-scipy
-    t = (x-mean) / w
-    return 2.0 * w * scy.stats.norm.pdf(t) * scy.stats.norm.cdf(skewP*t) * scale
-
-mpl.use(defBack)
-mpl.rcParams.update(mpl.rcParamsDefault)
-
-
-DMax = np.max(deltHist/ np.sum(deltHist))
-
-#x = np.linspace(deltBinEdges[0],deltBinEdges[-1],100)
-st = 5
-xRay = deltBinEdges[int(st)::]-deltBinEdges[int(st)]
-yRay = deltHist[int(st-1)::]/ np.sum(deltHist[int(st-1)::])
-
-xtest = np.linspace(-5,20,100)
-
-
-paramsSkew, covs = scy.optimize.curve_fit(skew_norm_pdf,xRay, yRay, p0 = [np.mean(new_delt)-40000,np.sqrt(np.var(deltas)),0.1, 0.000002] )
-
-fig, axs = plt.subplots(1, 1,tight_layout=True,figsize=set_size(PgWidthPt, fraction=fraction))#, dpi = dpi)
-axs.plot(xRay, skew_norm_pdf(xRay, *paramsSkew)  )
-
-axs.plot(xRay,yRay)
-plt.show()
 
 
 
-
-
-
-##
 #x = np.linspace(0,10,100)
 # fig, axs = plt.subplots(1, 1,tight_layout=True,figsize=set_size(PgWidthPt, fraction=fraction))#, dpi = dpi)
 # axs.plot(xRay,yRay)
@@ -907,71 +921,71 @@ plt.show()
 # plt.show()
 
 
-paramsRay, covs = scy.optimize.curve_fit(rayleigh,xRay,yRay, p0 = [np.sqrt(np.var(deltas))+10000, 800 ] )
-
-fig, axs = plt.subplots(1, 1,tight_layout=True,figsize=set_size(PgWidthPt, fraction=fraction))#, dpi = dpi)
-axs.plot(xRay,yRay)
-axs.plot(xRay, rayleigh(xRay, *paramsRay)  )
-plt.show()
-
-
-st = 0
-xNormal = deltBinEdges[int(st)::]-deltBinEdges[int(st)]
-yNormal = deltHist[int(st-1)::]/ np.sum(deltHist[int(st-1)::])
-
-paramsNormal, covs = scy.optimize.curve_fit(normal_dist, deltBinEdges[1::], deltHist/ np.sum(deltHist), p0 = [np.mean(deltas),  np.sqrt(np.var(deltas)), DMax ] )
-
-fig, axs = plt.subplots(1, 1,tight_layout=True,figsize=set_size(PgWidthPt, fraction=fraction))#, dpi = dpi)
-axs.plot(deltBinEdges[1::], deltHist/ np.sum(deltHist))
-axs.plot(xNormal,  normal_dist(xNormal,*paramsNormal ) )
-plt.show()
-
-
-#draw paramter samples
-paraSamp = 200#n_bins
-NewResults = np.zeros((paraSamp,len(theta)))
-NewNormRes = np.zeros(paraSamp)
-NewxTLxRes = np.zeros(paraSamp)
-SetGammas = new_gam[np.random.randint(low=0, high=len(new_gam), size=paraSamp)]
-SetDeltas  = np.random.normal(loc = paramsNormal[0], scale = paramsNormal[1], size = paraSamp)
-for p in range(paraSamp):
-    # SetLambda = new_lamb[np.random.randint(low=0, high=len(new_lamb), size=1)]
-    SetGamma = SetGammas[p] #minimum[0]
-    SetDelta  = SetDeltas[p] #minimum[1]
-    W = np.random.multivariate_normal(np.zeros(len(A)), np.eye(len(A)))
-    v_1 = np.sqrt(SetGamma) *  A.T @ W
-    W2 = np.random.multivariate_normal(np.zeros(len(L)), L)
-    v_2 = np.sqrt(SetDelta) * W2
-
-    SetB = SetGamma * ATA + SetDelta * L
-    RandX = (SetGamma * ATy[0::, 0] + v_1 + v_2)
-
-    # SetB_inv = np.zeros(np.shape(SetB))
-    # for i in range(len(SetB)):
-    #     e = np.zeros(len(SetB))
-    #     e[i] = 1
-    #     SetB_inv[:, i], exitCode = gmres(SetB, e, tol=tol, restart=25)
-    #     if exitCode != 0:x
-    #         print(exitCode)
-
-    B_inv_A_trans_y, exitCode = gmres(SetB, RandX, x0=B_inv_A_trans_y0, tol=tol, restart=25)
-
-    # B_inv_A_trans_y, exitCode = gmres(B, ATy[0::, 0], tol=tol, restart=25)
-    if exitCode != 0:
-        print(exitCode)
-
-    #CheckB_inv = np.matmul(SetB, SetB_inv)
-    #print(np.linalg.norm(np.eye(len(SetB)) - CheckB_inv) / np.linalg.norm(np.eye(len(SetB))) < tol)
-
-    NewResults[p, :] = B_inv_A_trans_y
-
-    NewNormRes[p] = np.linalg.norm( np.matmul(A,B_inv_A_trans_y) - y[0::,0])
-    NewxTLxRes[p] = np.sqrt(np.matmul(np.matmul(B_inv_A_trans_y.T, L), B_inv_A_trans_y))
-
-
-NewNormLTest = np.linalg.norm( np.matmul(A,np.mean(Results,0 )) - y[0::,0])
-NewxTLxCurveTest = np.sqrt(np.matmul(np.matmul(np.mean(Results,0 ).T, L), np.mean(Results,0 )))
-
+# paramsRay, covs = scy.optimize.curve_fit(rayleigh,xRay,yRay, p0 = [np.sqrt(np.var(deltas))+10000, 800 ] )
+#
+# fig, axs = plt.subplots(1, 1,tight_layout=True,figsize=set_size(PgWidthPt, fraction=fraction))#, dpi = dpi)
+# axs.plot(xRay,yRay)
+# axs.plot(xRay, rayleigh(xRay, *paramsRay)  )
+# plt.show()
+#
+#
+# st = 0
+# xNormal = deltBinEdges[int(st)::]-deltBinEdges[int(st)]
+# yNormal = deltHist[int(st-1)::]/ np.sum(deltHist[int(st-1)::])
+#
+# paramsNormal, covs = scy.optimize.curve_fit(normal_dist, deltBinEdges[1::], deltHist/ np.sum(deltHist), p0 = [np.mean(deltas),  np.sqrt(np.var(deltas)), DMax ] )
+#
+# fig, axs = plt.subplots(1, 1,tight_layout=True,figsize=set_size(PgWidthPt, fraction=fraction))#, dpi = dpi)
+# axs.plot(deltBinEdges[1::], deltHist/ np.sum(deltHist))
+# axs.plot(xNormal,  normal_dist(xNormal,*paramsNormal ) )
+# plt.show()
+#
+#
+# #draw paramter samples
+# paraSamp = 200#n_bins
+# NewResults = np.zeros((paraSamp,len(theta)))
+# NewNormRes = np.zeros(paraSamp)
+# NewxTLxRes = np.zeros(paraSamp)
+# SetGammas = new_gam[np.random.randint(low=0, high=len(new_gam), size=paraSamp)]
+# SetDeltas  = np.random.normal(loc = paramsNormal[0], scale = paramsNormal[1], size = paraSamp)
+# for p in range(paraSamp):
+#     # SetLambda = new_lamb[np.random.randint(low=0, high=len(new_lamb), size=1)]
+#     SetGamma = SetGammas[p] #minimum[0]
+#     SetDelta  = SetDeltas[p] #minimum[1]
+#     W = np.random.multivariate_normal(np.zeros(len(A)), np.eye(len(A)))
+#     v_1 = np.sqrt(SetGamma) *  A.T @ W
+#     W2 = np.random.multivariate_normal(np.zeros(len(L)), L)
+#     v_2 = np.sqrt(SetDelta) * W2
+#
+#     SetB = SetGamma * ATA + SetDelta * L
+#     RandX = (SetGamma * ATy[0::, 0] + v_1 + v_2)
+#
+#     # SetB_inv = np.zeros(np.shape(SetB))
+#     # for i in range(len(SetB)):
+#     #     e = np.zeros(len(SetB))
+#     #     e[i] = 1
+#     #     SetB_inv[:, i], exitCode = gmres(SetB, e, tol=tol, restart=25)
+#     #     if exitCode != 0:x
+#     #         print(exitCode)
+#
+#     B_inv_A_trans_y, exitCode = gmres(SetB, RandX, x0=B_inv_A_trans_y0, tol=tol, restart=25)
+#
+#     # B_inv_A_trans_y, exitCode = gmres(B, ATy[0::, 0], tol=tol, restart=25)
+#     if exitCode != 0:
+#         print(exitCode)
+#
+#     #CheckB_inv = np.matmul(SetB, SetB_inv)
+#     #print(np.linalg.norm(np.eye(len(SetB)) - CheckB_inv) / np.linalg.norm(np.eye(len(SetB))) < tol)
+#
+#     NewResults[p, :] = B_inv_A_trans_y
+#
+#     NewNormRes[p] = np.linalg.norm( np.matmul(A,B_inv_A_trans_y) - y[0::,0])
+#     NewxTLxRes[p] = np.sqrt(np.matmul(np.matmul(B_inv_A_trans_y.T, L), B_inv_A_trans_y))
+#
+#
+# NewNormLTest = np.linalg.norm( np.matmul(A,np.mean(Results,0 )) - y[0::,0])
+# NewxTLxCurveTest = np.sqrt(np.matmul(np.matmul(np.mean(Results,0 ).T, L), np.mean(Results,0 )))
+#
 
 
 

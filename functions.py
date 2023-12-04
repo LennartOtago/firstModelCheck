@@ -42,7 +42,7 @@ def generate_L(neigbours):
     L = np.zeros((siz, siz))
 
     for i in range(0, siz):
-        L[i, i] = 2
+        L[i, i] = neig
         for j in range(0, neig):
             if ~np.isnan(neigbours[i, j]):
                 L[i, int(neigbours[i, j])] = -1
