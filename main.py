@@ -54,8 +54,11 @@ betaD = 1e-7  # 1e-4
 pyTCol = [213/255,94/255, 0/255]
 #pyTCol = [240/255, 228/255, 66/255]
 MTCCol = 'k'
-#dataCol = [240/255, 228/255, 66/255]
-dataCol =[230/255,159/255, 0/255]
+dataCol = [225/255, 190/255, 106/255]
+#dataCol =[230/255,159/255, 0/255]
+regCol = [212/255, 17/255, 89/255]
+#MargCol = [86/255, 180/255, 233/255]
+MargCol = [255/255, 194/255, 10/255]
 defBack = mpl.get_backend()
 
 tol = 1e-6
@@ -1191,7 +1194,7 @@ axs[1].hist(new_delt,bins=BinSetDelt, color = 'k', zorder = 0)
 axs[1].xaxis.set_major_formatter(scientific_formatter)
 # for label in axs[1].xaxis.get_ticklabels()[::2]:
 #     label.set_visible(False)
-axs[1].set_ylim([0,250])
+axs[1].set_ylim([0,750])
 axs1 = axs[1].twinx()
 axs1.hist(deltasPyT[burnIn::math.ceil(IntAutoDeltaPyT)],bins=BinSetDelt,color = pyTCol, zorder = 1)
 axs1.set_ylim([0,100])
@@ -1449,8 +1452,8 @@ mpl.use(defBack)
 mpl.rcParams.update(mpl.rcParamsDefault)
 plt.rcParams.update({'font.size': 12})
 fCol = [0, 144/255, 178/255]
-gCol = [213/255, 94/255, 0]
-gCol = [240/255, 228/255, 66/255]
+gCol = [230/255, 159/255, 0]
+#gCol = [240/255, 228/255, 66/255]
 #gCol = [86/255, 180/255, 233/255]
 gmresCol = [204/255, 121/255, 167/255]
 fig,axs = plt.subplots(figsize=set_size(PgWidthPt, fraction=fraction))#, dpi = dpi)
@@ -1657,13 +1660,13 @@ for i in range(len(lamLCurveZoom)):
 
 np.savetxt('LCurve.txt', np.vstack((NormLCurveZoom, xTLxCurveZoom, lamLCurveZoom)).T, header = 'Norm ||Ax - y|| sqrt(x.T L x) lambdas', fmt = '%.15f \t %.15f \t %.15f')
 
-
-eng = matlab.engine.start_matlab()
-eng.run_l_corner(nargout=0)
-eng.quit()
-
-opt_norm , opt_regNorm, opt_ind  = np.loadtxt("l_curve_output.txt", skiprows=4, dtype='float')
-
+#
+# eng = matlab.engine.start_matlab()
+# eng.run_l_corner(nargout=0)
+# eng.quit()
+#
+# opt_norm , opt_regNorm, opt_ind  = np.loadtxt("l_curve_output.txt", skiprows=4, dtype='float')
+#
 
 #IntAutoLam, IntAutoGam , IntAutoDelt = np.loadtxt("auto_corr_dat.txt",userow = 1, skiprows=1, dtype='float'
 
@@ -1680,8 +1683,23 @@ opt_norm , opt_regNorm, opt_ind  = np.loadtxt("l_curve_output.txt", skiprows=4, 
 #
 #             break
 
-lam_opt = opt_ind#lamLCurve[int(opt_ind - 1)]
+#lam_opt = opt_ind#lamLCurve[int(opt_ind - 1)]
 #lam_opt = LamMean#sum(lambBinEdges[:-1]* lambHist[p]/sum(lambHist))
+
+##
+import kneed
+
+# calculate and show knee/elbow
+kneedle = kneed.KneeLocator(NormLCurveZoom, xTLxCurveZoom, S=0, curve="convex", direction="decreasing")
+knee_point = kneedle.knee
+#knee_point = kneedle.knee_y #elbow_point = kneedle.elbow
+print('Knee: ', knee_point) #print('Elbow: ', elbow_point)
+
+lam_opt = lamLCurveZoom[ np.where(NormLCurveZoom == knee_point)[0][0]]
+
+##
+
+
 
 
 B = (ATA + lam_opt * L)
@@ -1739,25 +1757,27 @@ mpl.rcParams.update({'font.size': 12})#,
 # mpl.rcParams['mathtext.bf'] = 'STIXGeneral:italic:bold'
 fig, axs = plt.subplots( tight_layout=True,figsize=set_size(245, fraction=fraction))
 axs.scatter(NormLCurve,xTLxCurve, zorder = 0, color = [0, 114/255, 178/255])
-axs.scatter(LNormOpt ,xTLxOpt, zorder = 10, color = 'red', label = 'Opt. Tikh. regularization ')
+#axs.scatter(LNormOpt ,xTLxOpt, zorder = 10, color = 'red', label = 'Opt. Tikh. regularization ')
 #axs.scatter(opt_norm ,opt_regNorm, zorder = 10, color = 'red')
-axs.scatter(NormRes, xTLxRes, color = MTCCol, label = 'MTC RTO method')#, marker = "." ,mfc = 'black' , markeredgecolor='r',markersize=10,linestyle = 'None')
+axs.scatter(NormRes, xTLxRes, color = MTCCol, s = 10)#, marker = "." ,mfc = 'black' , markeredgecolor='r',markersize=10,linestyle = 'None')
 #axs.scatter(NewNormRes, NewxTLxRes, color = 'red', label = 'MTC RTO method')#, marker = "." ,mfc = 'black' , markeredgecolor='r',markersize=10,linestyle = 'None')
 
 #axs.scatter(SampleNorm, SamplexTLx, color = 'green', marker = 's', s= 100)
-axs.scatter(NormMargRes, xTLxMargRes, color = MTCCol, marker = 's', s= 50, label = r'MTC E$_{\mathbf{x},\mathbf{\theta}| \mathbf{y}}[\mathbf{x}_{\lambda}]$')
-
+axs.scatter(NormMargRes, xTLxMargRes, color = MargCol, marker = 's', s= 50, label = r'MTC E$_{\mathbf{x},\mathbf{\theta}| \mathbf{y}}[\mathbf{x}_{\lambda}]$')
+#axs.axvline(x = knee_point)
+axs.scatter(knee_point, kneedle.knee_y, color = regCol, marker = 'X',label = 'Opt. Tikh. regularization', s= 50)
 #zoom in
 x1, x2, y1, y2 = NormLCurveZoom[0], NormLCurveZoom[-1], xTLxCurveZoom[0], xTLxCurveZoom[-1] # specify the limits
 axins = axs.inset_axes([0.1,0.05,0.7,0.5])
-axins.scatter(LNormOpt ,xTLxOpt, zorder = 10, color = 'red')
-axins.scatter(NormRes, xTLxRes, color = MTCCol)#, s = 15)
+#axins.scatter(LNormOpt ,xTLxOpt, zorder = 10, color = regCol)
+
+axins.scatter(NormRes, xTLxRes, color = MTCCol, label = 'MTC RTO method')#, s = 15)
 axins.scatter(NormLCurve,xTLxCurve, color = [0, 114/255, 178/255])
-axins.scatter(NormMargRes, xTLxMargRes, color = MTCCol, marker = 's', s= 50)
-# axins.scatter(LNormOpt, xTLxOpt, color = 'crimson', marker = "s", s =80)
+axins.scatter(NormMargRes, xTLxMargRes, color = MargCol, marker = 's', s= 50)
+# axins.scatter(LNormOpt, xTLxOpt, color = 'crimson', marker = "s", s =80)[240/255,228/255,66/255]
 #axins.annotate(r'E$_{\mathbf{x},\mathbf{\theta}| \mathbf{y}}[\lambda]$ = ' + str('{:.2f}'.format(lam_opt)), (LNormOpt+0.05,xTLxOpt))
 #axins.scatter(NewNormRes, NewxTLxRes, color = 'red', label = 'MTC RTO method', s = 10)#, marker = "." ,mfc = 'black' , markeredgecolor='r',markersize=10,linestyle = 'None')
-
+axins.scatter(knee_point, kneedle.knee_y, color = regCol, marker = 'X', s = 100)
 axins.set_xlim(x1-0.01, x2-1) # apply the x-limits
 #axins.set_ylim(y2,y1)
 axins.set_ylim(y2,max(xTLxRes)+0.001) # apply the y-limits (negative gradient)
@@ -1765,6 +1785,7 @@ axins.tick_params(axis = 'x', which = 'both', labelbottom=False, bottom = False)
 axins.tick_params(axis = 'y', which = 'both', labelleft=False, left = False)
 axins.set_xscale('log')
 axins.set_yscale('log')
+handles2, labels2 = axins.get_legend_handles_labels()
 axs.indicate_inset_zoom(axins, edgecolor="none")
 
 
@@ -1773,8 +1794,11 @@ axs.set_yscale('log')
 axs.set_ylabel(r'$ \sqrt{\mathbf{x}_\lambda^T \mathbf{L}\mathbf{x}_\lambda}$', style='italic')
 axs.set_xlabel(r'$|| \mathbf{Ax}_\lambda - \mathbf{y}||$')
 #axs.set_title('L-curve for m=' + str(SpecNumMeas))
-mark_inset(axs, axins, loc1=1, loc2=2, fc="none", ec="0.5")
-axs.legend(loc = 'upper right',  frameon =True)
+mark_inset(axs, axins, loc1=1, loc2=3, fc="none", ec="0.5")
+
+handles, labels = axs.get_legend_handles_labels()
+
+axs.legend(handles = [handles[0],handles[1],handles2[0]],loc = 'upper right',  frameon =True)
 plt.savefig('LCurve.png')
 #tikzplotlib.save("LCurve.tex")
 plt.show()
@@ -1802,36 +1826,36 @@ Sol= Results[2,:]/ (num_mole * S[ind,0]  * f_broad * 1e-4 * scalingConst)
 x = np.mean(Results,0 )/ (num_mole * S[ind,0]  * f_broad * 1e-4 * scalingConst)
 #xerr = np.sqrt(np.var(Results / (num_mole * S[ind, 0] * f_broad * 1e-4 * scalingConst), 0)) / 2
 xerr = np.sqrt(np.var(Results,0)/(num_mole *S[ind,0]  * f_broad * 1e-4 * scalingConst)**2)/2
-
+XOPT = x_opt /(num_mole * S[ind,0]  * f_broad * 1e-4 * scalingConst)
 MargX = MargInteg/ (num_mole * S[ind,0]  * f_broad * 1e-4 * scalingConst)
 mpl.use(defBack)
 #mpl.use("png") bbox_inches='tight'
 mpl.rcParams.update(mpl.rcParamsDefault)
 plt.rcParams.update({'font.size': 12})
 plt.rcParams["font.serif"] = "cmr"
-fig3, ax1 = plt.subplots(figsize=set_size(245, fraction=fraction))
+fig3, ax2 = plt.subplots(figsize=set_size(245, fraction=fraction))
+ # ax1 and ax2 share y-axis
+line3 = ax2.plot(y, tang_heights_lin, color = dataCol, label = r'data in \frac{W}{m^2 sr}\frac{1}{\frac{1}{cm}}',linewidth = 5, zorder = 0)
+
+ax1 = ax2.twiny()
 line1 = ax1.plot(VMR_O3,height_values, color = [0, 158/255, 115/255], linewidth = 7, label = 'True VMR of O$_3$', zorder=0)
-ax1.plot(Sol,height_values)
-line2 = ax1.errorbar(x,height_values,capsize=4, yerr = np.zeros(len(height_values)) ,color = MTCCol, fmt = '-o',label = 'MTC RTO method ')#, label = 'MC estimate')
-line3 = ax1.errorbar(MargX,height_values, color = 'red', capsize=4, yerr = np.zeros(len(height_values)), fmt = '-x', label = r'MTC E$_{\mathbf{x},\mathbf{\theta}| \mathbf{y}}[h(\mathbf{x})]$')
-line4 = ax1.errorbar(x, height_values,capsize=4, xerr = xerr,color = MTCCol, fmt = '-o')#, label = 'MC estimate')
-line5 = ax1.errorbar(MargX,height_values, color = 'red', capsize=4, xerr =MargXErr/2, zorder=5, fmt = '-x')
 
+line2 = ax1.errorbar(x,height_values,capsize=5, yerr = np.zeros(len(height_values)) ,color = MTCCol,zorder=5,markersize = 5, fmt = 'o',label = r'$\mathbf{x} \sim \pi(\mathbf{x} |\mathbf{y}, \mathbf{\theta} ) $')#, label = 'MC estimate')
+line3 = ax1.errorbar(MargX,height_values, color = MargCol, markeredgecolor = MargCol, capsize=5,  markersize = 6,zorder=4,yerr = np.zeros(len(height_values)), fmt = 's', label = r' E$_{\mathbf{x},\mathbf{\theta}| \mathbf{y}}[h(\mathbf{x})]$')
+line4 = ax1.errorbar(x, height_values,capsize=5, xerr = xerr,color = MTCCol, fmt = 'o', markersize = 5,zorder=5)#, label = 'MC estimate')
+line5 = ax1.errorbar(MargX,height_values, color = MargCol, markeredgecolor= MargCol, capsize=5, xerr =MargXErr/2, markersize = 6, zorder=4, fmt = 's')
+ax1.scatter(XOPT,height_values, color = regCol, marker = 'x', zorder = 1 , s = 100, label = 'Tikh. regularization')
 #line5 = ax1.plot(x_opt/(num_mole * S[ind,0] * f_broad * 1e-4 * scalingConst),height_values, color = 'crimson', linewidth = 7, label = 'reg. sol.', zorder=1)
-ax2 = ax1.twiny() # ax1 and ax2 share y-axis
-line3 = ax2.plot(y, tang_heights_lin, color = dataCol, label = r'data in \frac{W}{m^2 sr}\frac{1}{\frac{1}{cm}}',linewidth = 5)
 
-ax2.set_xlabel(r'Spectral Ozone radiance in $\frac{W}{m^2 sr} \times \frac{1}{\frac{1}{cm}}$',labelpad=10 )# color =dataCol,
-ax2.tick_params(colors = dataCol)
 ax1.set_xlabel(r'Ozone volume mixing ratio ')
 #multicolor_ylabel(ax1,('(Tangent)','Height in km'),('k', dataCol),axis='y')
-ax1.set_ylabel('(Tangent) Height in km')
+ax2.set_ylabel('(Tangent) Height in km')
 handles, labels = ax1.get_legend_handles_labels()
 handles2, labels2 = ax2.get_legend_handles_labels()
 # Handles = [handles[0], handles[1], handles[2]]
 # Labels =  [labels[0], labels[1], labels[2]]
 # LegendVertical(ax1, Handles, Labels, 90, XPad=-45, YPad=12)
-legend = ax1.legend(handles = [handles[0],handles[1],handles[2]], loc='upper right')#, bbox_to_anchor=(1.01, 1.01), frameon =True)
+legend = ax1.legend(handles = [handles[0],handles[1],handles[2],handles[3]], loc='upper right')#, bbox_to_anchor=(1.01, 1.01), frameon =True)
 
 #plt.ylabel('Height in km')
 ax1.set_ylim([heights[minInd-1], heights[maxInd+1]])
@@ -1839,6 +1863,12 @@ ax1.set_ylim([heights[minInd-1], heights[maxInd+1]])
 #ax1.set_xlim([min(x)-max(xerr)/2,max(x)+max(xerr)/2])
 
 
+ax2.set_xlabel(r'Spectral Ozone radiance in $\frac{W}{m^2 sr} \times \frac{1}{\frac{1}{cm}}$',labelpad=10)# color =dataCol,
+ax2.tick_params(colors = dataCol, axis = 'x')
+ax2.xaxis.set_ticks_position('top')
+ax2.xaxis.set_label_position('top')
+ax1.xaxis.set_ticks_position('bottom')
+ax1.xaxis.set_label_position('bottom')
 ax1.spines[:].set_visible(False)
 ax2.spines['top'].set_color(dataCol)
 
