@@ -48,7 +48,7 @@ PgWidthPt = 245
 n_bins = 20
 burnIn = 50
 betaG = 1e-4
-betaD = 1e-7  # 1e-4
+betaD = 1e-10  # 1e-4
 #Colors
 #pyTCol = [230/255,159/255, 0/255]
 pyTCol = [213/255,94/255, 0/255]
@@ -527,19 +527,23 @@ for i in range(len(B)):
 
 B_inv_L_2 = np.matmul(B_inv_L, B_inv_L)
 B_inv_L_3 = np.matmul(B_inv_L_2, B_inv_L)
-#B_inv_L_4 = np.matmul(B_inv_L_2, B_inv_L_2)
-#B_inv_L_5 = np.matmul(B_inv_L_4, B_inv_L)
+B_inv_L_4 = np.matmul(B_inv_L_2, B_inv_L_2)
+B_inv_L_5 = np.matmul(B_inv_L_4, B_inv_L)
 
 
 
 f_0_1 = np.matmul(np.matmul(ATy[0::, 0].T, B_inv_L), B_inv_A_trans_y)
-f_0_2 = -2 * np.matmul(np.matmul(ATy[0::, 0].T, B_inv_L_2), B_inv_A_trans_y)
-f_0_3 = 6 * np.matmul(np.matmul(ATy[0::, 0].T,B_inv_L_3) ,B_inv_A_trans_y)
+f_0_2 = -1 * np.matmul(np.matmul(ATy[0::, 0].T, B_inv_L_2), B_inv_A_trans_y)
+f_0_3 = 1 * np.matmul(np.matmul(ATy[0::, 0].T,B_inv_L_3) ,B_inv_A_trans_y)
+f_0_4 = -1 * np.matmul(np.matmul(ATy[0::, 0].T,B_inv_L_4) ,B_inv_A_trans_y)
+#f_0_5 = 120 * np.matmul(np.matmul(ATy[0::, 0].T,B_inv_L_4) ,B_inv_A_trans_y)
 
 
 g_0_1 = np.trace(B_inv_L)
 g_0_2 = -1 / 2 * np.trace(B_inv_L_2)
 g_0_3 = 1 /6 * np.trace(B_inv_L_3)
+g_0_4 = -1 /24 * np.trace(B_inv_L_4)
+g_0_5 = 1 /120 * np.trace(B_inv_L_5)
 
 
 
@@ -866,12 +870,12 @@ print('MTC Done in ' + str(elapsed) + ' s')
 
 ##
 "Fitting prob distr to hyperparameter histogram"
-# BinHist = 200#n_bins
-# deltHist, deltBinEdges = np.histogram(new_delt, bins= BinHist)#, density=True)
-# def HypPrior(x):
-#     beta = 1e-7
-#     return x**(0) * np.exp(-beta * x)
-#
+BinHist = 200#n_bins
+deltHist, deltBinEdges = np.histogram(new_gam, bins= BinHist)#, density=True)
+def HypPrior(x):
+    beta = 1e-7
+    return x**(0) * np.exp(-beta * x)
+
 # def normal_dist(x, mean, sd, c):
 #     prob_density = c * np.exp(-0.5*((x-mean)/sd)**2)
 #     return prob_density
@@ -891,13 +895,13 @@ print('MTC Done in ' + str(elapsed) + ' s')
 #     t = (x-mean) / w
 #     return 2.0 * w * scy.stats.norm.pdf(t) * scy.stats.norm.cdf(skewP*t) * scale
 #
-# mpl.use(defBack)
-# mpl.rcParams.update(mpl.rcParamsDefault)
-#
+mpl.use(defBack)
+mpl.rcParams.update(mpl.rcParamsDefault)
+
 #
 # DMax = np.max(deltHist/ np.sum(deltHist))
 #
-# #x = np.linspace(deltBinEdges[0],deltBinEdges[-1],100)
+x = np.linspace(deltBinEdges[0],deltBinEdges[-1],100)
 # st = 5
 # xRay = deltBinEdges[int(st)::]-deltBinEdges[int(st)]
 # yRay = deltHist[int(st-1)::]/ np.sum(deltHist[int(st-1)::])
@@ -907,14 +911,14 @@ print('MTC Done in ' + str(elapsed) + ' s')
 #
 # paramsSkew, covs = scy.optimize.curve_fit(skew_norm_pdf,xRay, yRay, p0 = [np.mean(new_delt)-40000,np.sqrt(np.var(deltas)),0.1, 0.000002] )
 #
-# fig, axs = plt.subplots(1, 1,tight_layout=True,figsize=set_size(PgWidthPt, fraction=fraction))#, dpi = dpi)
-# axs.plot(xRay, skew_norm_pdf(xRay, *paramsSkew)  )
-#
-# axs.plot(xRay,yRay)
-# plt.show()
-#
-#
-#
+fig, axs = plt.subplots(1, 1,tight_layout=True,figsize=set_size(PgWidthPt, fraction=fraction))#, dpi = dpi)
+axs.plot(x,  HypPrior(x))
+#axs.plot(deltBinEdges[1::],  deltHist)
+#axs.plot(xRay,yRay)
+plt.show()
+
+
+
 
 
 
@@ -1387,7 +1391,7 @@ if exitCode != 0:
     print(exitCode)
 f_min = f(ATy, y, B_min_inv_A_trans_y)
 
-B_max = ATA + (np.mean(lambdas) + 3*np.sqrt(np.var(lambdas))/2 ) * L
+B_max = ATA + (np.mean(lambdas) + np.sqrt(np.var(lambdas)) ) * L
 B_max_inv_A_trans_y, exitCode = gmres(B_max, ATy[0::, 0], tol=tol)
 if exitCode != 0:
     print(exitCode)
@@ -1408,11 +1412,11 @@ fig,axs = plt.subplots(figsize=set_size(PgWidthPt, fraction=fraction))#, dpi = d
 
 axs.plot(lam,f_func, color = fCol)
 
-axs.scatter(minimum[1],f_mode, color = gmresCol, s= 70, zorder=4, marker = 's')#
+#axs.scatter(minimum[1],f_mode, color = gmresCol, s= 70, zorder=4, marker = 's')#
 #axs.annotate('$\lambda_0$ mode of marginal posterior',(5.05e4,0.25), color = 'green', fontsize = 14.7)
-axs.scatter(np.mean(lambdas),f_MTC, color = MTCCol, zorder=6)#, s = 10)
+#axs.scatter(np.mean(lambdas),f_MTC, color = MTCCol, zorder=6)#, s = 10)
 #axs.annotate('MTC $\lambda$ sample mean',(5.05e4,0.375), color = 'red')
-axs.scatter(lamPyT,f_tW, color = pyTCol, zorder=5, marker = 'D')#s = 35
+#axs.scatter(lamPyT,f_tW, color = pyTCol, zorder=5, marker = 'D')#s = 35
 #axs.annotate('T-Walk $\lambda$ sample mean',(5.05e4,0.6), color = 'k')
 
 axs.set_yscale('log')
@@ -1422,9 +1426,9 @@ axs.tick_params(axis = 'y',  colors=fCol, which = 'both')
 
 ax2 = axs.twinx() # ax1 and ax2 share y-axis
 ax2.plot(lam,g_func, color = gCol)
-ax2.scatter(minimum[1],g(A, L, minimum[1]), color = gmresCol, s=70, zorder=4, marker = 's')
-ax2.scatter(np.mean(lambdas),g(A, L, np.mean(lambdas) ), color = MTCCol, zorder=5)
-ax2.scatter(lamPyT,g(A, L, lamPyT) , color = pyTCol, zorder=6, marker = 'D')
+#ax2.scatter(minimum[1],g(A, L, minimum[1]), color = gmresCol, s=70, zorder=4, marker = 's')
+#ax2.scatter(np.mean(lambdas),g(A, L, np.mean(lambdas) ), color = MTCCol, zorder=5)
+#ax2.scatter(lamPyT,g(A, L, lamPyT) , color = pyTCol, zorder=6, marker = 'D')
 #ax2.annotate('T-Walk $\lambda$ sample mean',(lamPyT+1e6,g(A_lin, L, lamPyT) +50), color = 'k')
 ax2.set_ylabel('$g(\lambda)$')#,color = gCol)
 ax2.tick_params(axis = 'y', colors= gCol)
@@ -1432,12 +1436,16 @@ axs.set_xscale('log')
 axins = axs.inset_axes([0.05,0.5,0.4,0.45])
 
 axins.plot(lam,f_func, color = fCol, zorder=1)
-axins.errorbar(np.mean(lambdas),f_MTC, color = MTCCol, zorder=3,xerr=np.sqrt(np.var(lambdas))/2,markersize = 15, fmt='o', label = r'\textbf{MwG}') #markersize = 15
-axins.errorbar(lamPyT,f_tW, xerr=np.sqrt(varPyT)/2, color = pyTCol, markersize = 10,zorder=5,fmt='D', label = 't-walk') #markersize = 10
-axins.add_patch(mpl.patches.Rectangle( (xpyT, f_pyT_min), np.sqrt(varPyT), f_pyT_max - f_pyT_min,edgecolor=pyTCol,facecolor='none', alpha = 1, zorder = 0, linewidth = 5))
-axins.add_patch(mpl.patches.Rectangle((xMTC, f_MTC_min), np.sqrt(np.var(lambdas)), f_MTC_max - f_MTC_min,edgecolor=MTCCol, facecolor='none',alpha =1,zorder = 0, linewidth = 5))
-axins.scatter(minimum[1],f_mode, color = gmresCol, s= 95, zorder=12, marker = 's', label = 'optimize.fmin ')
-axins.set_ylim(f_min,f_max)
+delta_lam = lambBinEdges - minimum[1]
+axins.plot(lambBinEdges,f_tayl(delta_lam, f_mode, f_0_1, f_0_2, f_0_3, f_0_4), color = 'k')
+#axins.scatter(,f_tayl(delta_lam, f_mode, f_0_1, f_0_2, f_0_3), color = 'k')
+#axins.errorbar(np.mean(lambdas),f_MTC, color = MTCCol, zorder=3,xerr=np.sqrt(np.var(lambdas))/2,markersize = 15, fmt='o', label = r'\textbf{MwG}') #markersize = 15
+#axins.errorbar(lamPyT,f_tW, xerr=np.sqrt(varPyT)/2, color = pyTCol, markersize = 10,zorder=5,fmt='D', label = 't-walk') #markersize = 10
+#axins.add_patch(mpl.patches.Rectangle( (xpyT, f_pyT_min), np.sqrt(varPyT), f_pyT_max - f_pyT_min,edgecolor=pyTCol,facecolor='none', alpha = 1, zorder = 0, linewidth = 5))
+#axins.add_patch(mpl.patches.Rectangle((xMTC, f_MTC_min), np.sqrt(np.var(lambdas)), f_MTC_max - f_MTC_min,edgecolor=MTCCol, facecolor='none',alpha =1,zorder = 0, linewidth = 5))
+axins.scatter(minimum[1],f_mode, color = gmresCol, s= 95, zorder=0, marker = 's', label = 'optimize.fmin ')
+axins.set_xlim(min(new_lamb),max(new_lamb))
+axins.set_ylim(4e8,7e8)
 axins.set_xlabel('$\lambda$')
 axins.set_xlim([np.mean(lambdas) -np.sqrt(np.var(lambdas)), 1.5*np.mean(lambdas) + np.sqrt(np.var(lambdas))])# apply the x-limits
 axins.set_yscale('log')
@@ -1465,25 +1473,32 @@ axin2.spines['left'].set_visible(False)
 axin2.tick_params(axis = 'y', which = 'both',labelright=False, right=False)
 axin2.tick_params(axis='y', which='both', length=0)
 # #axin2.set_xticks([np.mean(lambdas) -np.sqrt(np.var(lambdas)) , np.mean(lambdas), np.mean(lambdas) + np.sqrt(np.var(lambdas)) ] )
-axin2.plot(lam,g_func, color = gCol, zorder=0)
-# #axin2.add_patch(mpl.patches.Rectangle( (xpyT,g(A, L, lamPyT - np.sqrt(varPyT)/2)), np.sqrt(varPyT), g(A, L, lamPyT + np.sqrt(varPyT)/2) - g(A, L, lamPyT - np.sqrt(varPyT)/2),color="black", alpha = 0.5,  zorder = 0))
-axin2.set_ylim(403,430 )
-axin2.errorbar(lamPyT,g(A, L, lamPyT) , xerr=np.sqrt(varPyT)/2, color = pyTCol, zorder=1, fmt='D', markersize=10, capsize =0)#,markeredgewidth = 3)
-axin2.errorbar(np.mean(lambdas),g(A, L, np.mean(lambdas) ), xerr=np.sqrt(np.var(lambdas))/2, color = MTCCol, zorder=1, fmt='o',markersize=15, capsize =0)#,markeredgewidth = 3)
-axin2.errorbar(lamPyT,g(A, L, lamPyT) , xerr=0, color = pyTCol, zorder=1, fmt='D', markersize=10, capsize =0)#,markeredgewidth = 3)
-axin2.errorbar(np.mean(lambdas),g(A, L, np.mean(lambdas) ), xerr=0, color = MTCCol, zorder=1, fmt='o',markersize=15, capsize =0)#,markeredgewidth = 3)
-axin2.scatter(minimum[1],g(A, L, minimum[1]), color = gmresCol, s=95, zorder=14, marker = 's')
-axs.indicate_inset_zoom(axins, edgecolor="none", linewidth= 0.1)
+axin2.plot(lam,g_func, color = gCol, zorder=1)
 
-mark_inset(axs, axins, loc1=3, loc2=4, fc="none", ec="0.5")
+axin2.plot(lambBinEdges, g_tayl(delta_lam, g(A, L, minimum[1]) ,g_0_1, g_0_2, g_0_3, g_0_4,g_0_5 ) )
+
+# #axin2.add_patch(mpl.patches.Rectangle( (xpyT,g(A, L, lamPyT - np.sqrt(varPyT)/2)), np.sqrt(varPyT), g(A, L, lamPyT + np.sqrt(varPyT)/2) - g(A, L, lamPyT - np.sqrt(varPyT)/2),color="black", alpha = 0.5,  zorder = 0))
+
+#axin2.errorbar(lamPyT,g(A, L, lamPyT) , xerr=np.sqrt(varPyT)/2, color = pyTCol, zorder=1, fmt='D', markersize=10, capsize =0)#,markeredgewidth = 3)
+#axin2.errorbar(np.mean(lambdas),g(A, L, np.mean(lambdas) ), xerr=np.sqrt(np.var(lambdas))/2, color = MTCCol, zorder=1, fmt='o',markersize=15, capsize =0)#,markeredgewidth = 3)
+#axin2.errorbar(lamPyT,g(A, L, lamPyT) , xerr=0, color = pyTCol, zorder=1, fmt='D', markersize=10, capsize =0)#,markeredgewidth = 3)
+#axin2.errorbar(np.mean(lambdas),g(A, L, np.mean(lambdas) ), xerr=0, color = MTCCol, zorder=1, fmt='o',markersize=15, capsize =0)#,markeredgewidth = 3)
+axin2.scatter(minimum[1],g(A, L, minimum[1]), color = gmresCol, s=95, zorder=0, marker = 's')
+#axs.indicate_inset_zoom(axins, edgecolor="none", linewidth= 0.1)
+axin2.set_ylim(360,460)
+axin2.set_xlim(min(new_lamb),max(new_lamb))
+axin2.set_xscale('log')
+
+#mark_inset(axs, axins, loc1=3, loc2=4, fc="none", ec="0.5")
 
 lines, lab0 = axins.get_legend_handles_labels()
 #axs.spines['top'].set_visible(False)
 axs.spines['right'].set_visible(False)
-axs.spines['left'].set_color(fCol)
+#axs.spines['left'].set_color(fCol)
+axs.spines['left'].set_color('k')
 ax2.spines['top'].set_visible(False)
-
-ax2.spines['right'].set_color(gCol)
+ax2.spines['right'].set_color('k')
+#ax2.spines['right'].set_color(gCol)
 ax2.spines['bottom'].set_visible(False)
 ax2.spines['left'].set_visible(False)
 

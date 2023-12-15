@@ -231,23 +231,12 @@ def g(A, L, l):
     # np.log(np.prod(Bs))
     return np.sum(np.log(Bs))
 
-def f_tayl( delta_lam, B_inv_A_trans_y, ATy, B_inv_L, B_inv_L_2, B_inv_L_3, B_inv_L_4,B_inv_L_5):
+def f_tayl( delta_lam, f_0, f_1, f_2, f_3, f_4):
     """calculate taylor series for """
 
-    f_1 = np.matmul(np.matmul(ATy.T, B_inv_L), B_inv_A_trans_y)
 
-    f_2 = np.matmul(np.matmul(ATy.T, B_inv_L_2), B_inv_A_trans_y)
 
-    f_3 = np.matmul(ATy.T,np.matmul(B_inv_L_3,  B_inv_A_trans_y))
-
-    f_4 = np.matmul(ATy.T,np.matmul(B_inv_L_4, B_inv_A_trans_y))
-    #f_4 = 0
-    f_5 = np.matmul(ATy.T,np.matmul(B_inv_L_5, B_inv_A_trans_y))
-
-    #f_6 = np.matmul(ATy.T,np.matmul(np.matmul(np.matmul(np.matmul(np.matmul(np.matmul(B_inv_L, B_inv_L),B_inv_L), B_inv_L), B_inv_L), B_inv_L) , B_inv_A_trans_y))
-    #f_5 = 0
-
-    return f_1 * delta_lam -  f_2 * delta_lam**2 + f_3 * delta_lam**3 - f_4 * delta_lam**4 + f_5 * delta_lam**5 #- f_6 * delta_lam**6
+    return f_0 + f_1 * delta_lam + f_2 * delta_lam**2 + f_3 * delta_lam**3 + f_4 * delta_lam**4# + f_5 * delta_lam**5 #- f_6 * delta_lam**6
 
 def g_MC_log_det(B_inv_L, num_sam):
     # calc trace of B_inv_L with monte carlo estiamtion
@@ -260,7 +249,7 @@ def g_MC_log_det(B_inv_L, num_sam):
 
     return trace_Bs
 
-def g_tayl(delta_lam, B_inv_L, B_inv_L_2, B_inv_L_3, B_inv_L_4, B_inv_L_5):
+def g_tayl(delta_lam, g_0, trace_B_inv_L_1, trace_B_inv_L_2, trace_B_inv_L_3, trace_B_inv_L_4, trace_B_inv_L_5):
 
     # trace_B_inv_L_1 = np.mean(g_MC_log_det(B_inv_L, num_sam))
     # trace_B_inv_L_2 = np.mean(g_MC_log_det(np.matmul(B_inv_L, B_inv_L), num_sam))
@@ -272,11 +261,11 @@ def g_tayl(delta_lam, B_inv_L, B_inv_L_2, B_inv_L_3, B_inv_L_4, B_inv_L_5):
     # trace_B_inv_L_3 = np.matmul(np.matmul(B_inv_L, B_inv_L), B_inv_L)
     # trace_B_inv_L_4 = np.matmul(np.matmul(np.matmul(B_inv_L, B_inv_L), B_inv_L), B_inv_L)
     # trace_B_inv_L_5 = np.matmul(np.matmul(np.matmul(np.matmul(B_inv_L, B_inv_L), B_inv_L), B_inv_L), B_inv_L)
-    trace_B_inv_L_2 = np.trace(B_inv_L_2)
-    trace_B_inv_L_3 = np.trace(B_inv_L_3)
-    trace_B_inv_L_4 = np.trace(B_inv_L_4)
-    trace_B_inv_L_5 = np.trace(B_inv_L_5)
-    return np.trace(B_inv_L) * delta_lam - trace_B_inv_L_2/2 * delta_lam**2 + trace_B_inv_L_3/6 * delta_lam**3 - trace_B_inv_L_4/24 * delta_lam**4 + trace_B_inv_L_5/120 * delta_lam**5
+    # trace_B_inv_L_2 = np.trace(B_inv_L_2)
+    # trace_B_inv_L_3 = np.trace(B_inv_L_3)
+    # trace_B_inv_L_4 = np.trace(B_inv_L_4)
+    # trace_B_inv_L_5 = np.trace(B_inv_L_5)
+    return g_0 + trace_B_inv_L_1 * delta_lam + trace_B_inv_L_2 * delta_lam**2 + trace_B_inv_L_3 * delta_lam**3 + trace_B_inv_L_4 * delta_lam**4 + trace_B_inv_L_5 * delta_lam**5
 
 def multicolor_ylabel(ax,list_of_strings,list_of_colors,axis='x',anchorpad=0,**kw):
     """this function creates axes labels with multiple colors
