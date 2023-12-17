@@ -529,7 +529,7 @@ B_inv_L_2 = np.matmul(B_inv_L, B_inv_L)
 B_inv_L_3 = np.matmul(B_inv_L_2, B_inv_L)
 B_inv_L_4 = np.matmul(B_inv_L_2, B_inv_L_2)
 B_inv_L_5 = np.matmul(B_inv_L_4, B_inv_L)
-
+B_inv_L_6 = np.matmul(B_inv_L_4, B_inv_L_2)
 
 
 f_0_1 = np.matmul(np.matmul(ATy[0::, 0].T, B_inv_L), B_inv_A_trans_y)
@@ -544,6 +544,8 @@ g_0_2 = -1 / 2 * np.trace(B_inv_L_2)
 g_0_3 = 1 /6 * np.trace(B_inv_L_3)
 g_0_4 = -1 /24 * np.trace(B_inv_L_4)
 g_0_5 = 1 /120 * np.trace(B_inv_L_5)
+g_0_6 = 1 /720 * np.trace(B_inv_L_6)
+
 
 
 
@@ -1253,19 +1255,6 @@ mpl.rcParams.update(pgf_params)
 fig.savefig('AllHistoResultsPlus.pgf', bbox_inches='tight', dpi= dpi)
 
 
-## make scatter plot for results
-
-
-mpl.use(defBack)
-mpl.rcParams.update(mpl.rcParamsDefault)
-plt.rcParams.update({'font.size': 12})
-fig, axs = plt.subplots(1, 1,tight_layout=True,figsize=set_size(PgWidthPt, fraction=fraction))#, dpi = dpi)
-
-axs.scatter(gammas[burnIn::math.ceil(IntAutoLam)],lambdas[burnIn::math.ceil(IntAutoLam)], color = MTCCol)
-axs.scatter(SampParas[burnIn::44,0], SampParas[burnIn::44,1], color = pyTCol)
-
-
-plt.show()
 
 ##
 '''make figure for f and g including the best lambdas and taylor series'''
@@ -1410,9 +1399,9 @@ gCol = [230/255, 159/255, 0]
 gmresCol = [204/255, 121/255, 167/255]
 fig,axs = plt.subplots(figsize=set_size(PgWidthPt, fraction=fraction))#, dpi = dpi)
 
-axs.plot(lam,f_func, color = fCol)
+axs.plot(lam,f_func, color = fCol, zorder = 1)
 
-#axs.scatter(minimum[1],f_mode, color = gmresCol, s= 70, zorder=4, marker = 's')#
+axs.scatter(minimum[1],f_mode, color = gmresCol, zorder=0, marker = 's')#
 #axs.annotate('$\lambda_0$ mode of marginal posterior',(5.05e4,0.25), color = 'green', fontsize = 14.7)
 #axs.scatter(np.mean(lambdas),f_MTC, color = MTCCol, zorder=6)#, s = 10)
 #axs.annotate('MTC $\lambda$ sample mean',(5.05e4,0.375), color = 'red')
@@ -1425,8 +1414,8 @@ axs.set_ylabel('$f(\lambda)$')#, color = fCol)
 axs.tick_params(axis = 'y',  colors=fCol, which = 'both')
 
 ax2 = axs.twinx() # ax1 and ax2 share y-axis
-ax2.plot(lam,g_func, color = gCol)
-#ax2.scatter(minimum[1],g(A, L, minimum[1]), color = gmresCol, s=70, zorder=4, marker = 's')
+ax2.plot(lam,g_func, color = gCol, zorder = 1)
+ax2.scatter(minimum[1],g(A, L, minimum[1]), color = gmresCol, zorder=0, marker = 's')
 #ax2.scatter(np.mean(lambdas),g(A, L, np.mean(lambdas) ), color = MTCCol, zorder=5)
 #ax2.scatter(lamPyT,g(A, L, lamPyT) , color = pyTCol, zorder=6, marker = 'D')
 #ax2.annotate('T-Walk $\lambda$ sample mean',(lamPyT+1e6,g(A_lin, L, lamPyT) +50), color = 'k')
@@ -1435,9 +1424,9 @@ ax2.tick_params(axis = 'y', colors= gCol)
 axs.set_xscale('log')
 axins = axs.inset_axes([0.05,0.5,0.4,0.45])
 
-axins.plot(lam,f_func, color = fCol, zorder=1)
+axins.plot(lam,f_func, color = fCol, zorder=3)
 delta_lam = lambBinEdges - minimum[1]
-axins.plot(lambBinEdges,f_tayl(delta_lam, f_mode, f_0_1, f_0_2, f_0_3, f_0_4), color = 'k')
+axins.plot(lambBinEdges,f_tayl(delta_lam, f_mode, f_0_1, f_0_2, f_0_3, f_0_4), color = 'k', linestyle=  'dashed', linewidth = 3, zorder = 2, label = 'Taylor series')
 #axins.scatter(,f_tayl(delta_lam, f_mode, f_0_1, f_0_2, f_0_3), color = 'k')
 #axins.errorbar(np.mean(lambdas),f_MTC, color = MTCCol, zorder=3,xerr=np.sqrt(np.var(lambdas))/2,markersize = 15, fmt='o', label = r'\textbf{MwG}') #markersize = 15
 #axins.errorbar(lamPyT,f_tW, xerr=np.sqrt(varPyT)/2, color = pyTCol, markersize = 10,zorder=5,fmt='D', label = 't-walk') #markersize = 10
@@ -1445,7 +1434,7 @@ axins.plot(lambBinEdges,f_tayl(delta_lam, f_mode, f_0_1, f_0_2, f_0_3, f_0_4), c
 #axins.add_patch(mpl.patches.Rectangle((xMTC, f_MTC_min), np.sqrt(np.var(lambdas)), f_MTC_max - f_MTC_min,edgecolor=MTCCol, facecolor='none',alpha =1,zorder = 0, linewidth = 5))
 axins.scatter(minimum[1],f_mode, color = gmresCol, s= 95, zorder=0, marker = 's', label = 'optimize.fmin ')
 axins.set_xlim(min(new_lamb),max(new_lamb))
-axins.set_ylim(4e8,7e8)
+axins.set_ylim(6e8,12e8)
 axins.set_xlabel('$\lambda$')
 axins.set_xlim([np.mean(lambdas) -np.sqrt(np.var(lambdas)), 1.5*np.mean(lambdas) + np.sqrt(np.var(lambdas))])# apply the x-limits
 axins.set_yscale('log')
@@ -1473,9 +1462,9 @@ axin2.spines['left'].set_visible(False)
 axin2.tick_params(axis = 'y', which = 'both',labelright=False, right=False)
 axin2.tick_params(axis='y', which='both', length=0)
 # #axin2.set_xticks([np.mean(lambdas) -np.sqrt(np.var(lambdas)) , np.mean(lambdas), np.mean(lambdas) + np.sqrt(np.var(lambdas)) ] )
-axin2.plot(lam,g_func, color = gCol, zorder=1)
+axin2.plot(lam,g_func, color = gCol, zorder=3)
 
-axin2.plot(lambBinEdges, g_tayl(delta_lam, g(A, L, minimum[1]) ,g_0_1, g_0_2, g_0_3, g_0_4,g_0_5 ) )
+axin2.plot(lambBinEdges, g_tayl(delta_lam, g(A, L, minimum[1]) ,g_0_1, g_0_2, g_0_3, g_0_4,g_0_5, g_0_6), color = 'k', linestyle=  'dashed', linewidth = 3, zorder = 2 )
 
 # #axin2.add_patch(mpl.patches.Rectangle( (xpyT,g(A, L, lamPyT - np.sqrt(varPyT)/2)), np.sqrt(varPyT), g(A, L, lamPyT + np.sqrt(varPyT)/2) - g(A, L, lamPyT - np.sqrt(varPyT)/2),color="black", alpha = 0.5,  zorder = 0))
 
@@ -1502,7 +1491,13 @@ ax2.spines['right'].set_color('k')
 ax2.spines['bottom'].set_visible(False)
 ax2.spines['left'].set_visible(False)
 
+
+#handlesZoom, labels = axins.get_legend_handles_labels()
+
+#axs.legend(handles = [handles,],loc = 'lower right')
+
 axs.legend(lines, lab0, loc = 'lower right')
+
 
 #fig.savefig('f_and_g_paper.pgf', bbox_inches='tight')
 plt.savefig('f_and_g_paper.png',bbox_inches='tight')
@@ -1723,25 +1718,26 @@ fig, axs = plt.subplots( tight_layout=True,figsize=set_size(245, fraction=fracti
 axs.scatter(NormLCurve,xTLxCurve, zorder = 0, color = [0, 114/255, 178/255])
 #axs.scatter(LNormOpt ,xTLxOpt, zorder = 10, color = 'red', label = 'Opt. Tikh. regularization ')
 #axs.scatter(opt_norm ,opt_regNorm, zorder = 10, color = 'red')
-axs.scatter(NormRes, xTLxRes, color = MTCCol, s = 10)#, marker = "." ,mfc = 'black' , markeredgecolor='r',markersize=10,linestyle = 'None')
+axs.scatter(NormRes, xTLxRes, color = MTCCol, s = 5)#, marker = "." ,mfc = 'black' , markeredgecolor='r',markersize=10,linestyle = 'None')
 #axs.scatter(NewNormRes, NewxTLxRes, color = 'red', label = 'MTC RTO method')#, marker = "." ,mfc = 'black' , markeredgecolor='r',markersize=10,linestyle = 'None')
 
 #axs.scatter(SampleNorm, SamplexTLx, color = 'green', marker = 's', s= 100)
-axs.scatter(NormMargRes, xTLxMargRes, color = MargCol, marker = 's', s= 50, label = r'E$_{\mathbf{x},\mathbf{\theta}| \mathbf{y}}[\mathbf{x}_{\lambda}]$')
+axs.scatter(NormMargRes, xTLxMargRes, color = regCol, marker = 's', s= 50, label = 'posterior mean')
+#E$_{\mathbf{x},\mathbf{\theta}| \mathbf{y}}[\mathbf{x}_{\lambda}]$
 #axs.axvline(x = knee_point)
-axs.scatter(knee_point, kneedle.knee_y, color = regCol, marker = 'X',label = 'max. curvature  ', s= 50)
+axs.scatter(knee_point, kneedle.knee_y, color = MargCol, marker = 'X',label = 'max. curvature', s= 50)
 #zoom in
 x1, x2, y1, y2 = NormLCurveZoom[0], NormLCurveZoom[-1], xTLxCurveZoom[0], xTLxCurveZoom[-1] # specify the limits
 axins = axs.inset_axes([0.1,0.05,0.55,0.5])
 #axins.scatter(LNormOpt ,xTLxOpt, zorder = 10, color = regCol)
 
-axins.scatter(NormRes, xTLxRes, color = MTCCol, label = r'$\mathbf{x} \sim \pi (\mathbf{x}| \mathbf{y}, \mathbf{\theta})$')#, s = 15)
+axins.scatter(NormRes, xTLxRes, color = MTCCol, label = r'posterior samples ')#,$\mathbf{x} \sim \pi (\mathbf{x}| \mathbf{y}, \mathbf{\theta})$ s = 15)
 axins.scatter(NormLCurve,xTLxCurve, color = [0, 114/255, 178/255])
-axins.scatter(NormMargRes, xTLxMargRes, color = MargCol, marker = 's', s= 70)
+axins.scatter(NormMargRes, xTLxMargRes, color = regCol, marker = 's', s= 70)
 # axins.scatter(LNormOpt, xTLxOpt, color = 'crimson', marker = "s", s =80)[240/255,228/255,66/255]
 #axins.annotate(r'E$_{\mathbf{x},\mathbf{\theta}| \mathbf{y}}[\lambda]$ = ' + str('{:.2f}'.format(lam_opt)), (LNormOpt+0.05,xTLxOpt))
 #axins.scatter(NewNormRes, NewxTLxRes, color = 'red', label = 'MTC RTO method', s = 10)#, marker = "." ,mfc = 'black' , markeredgecolor='r',markersize=10,linestyle = 'None')
-axins.scatter(knee_point, kneedle.knee_y, color = regCol, marker = 'X', s = 120)
+axins.scatter(knee_point, kneedle.knee_y, color = MargCol, marker = 'X', s = 120)
 axins.set_xlim(x1-0.01, x2-1) # apply the x-limits
 #axins.set_ylim(y2,y1)
 axins.set_ylim(y2,max(xTLxRes)+0.001) # apply the y-limits (negative gradient)
@@ -1781,6 +1777,36 @@ mpl.use('pgf')
 mpl.rcParams.update(pgf_params)
 
 fig.savefig('LCurve.pgf', bbox_inches='tight')
+
+
+## make scatter plot for results
+
+
+mpl.use(defBack)
+mpl.rcParams.update(mpl.rcParamsDefault)
+plt.rcParams.update({'font.size': 12})
+fig, axs = plt.subplots(2, 1,tight_layout=True,figsize=set_size(PgWidthPt, fraction=fraction), gridspec_kw={'height_ratios': [3, 1]} )#, dpi = dpi)
+
+axs[0].scatter(gammas[burnIn::math.ceil(IntAutoLam)+5],deltas[burnIn::math.ceil(IntAutoLam)+5], marker = '.', color = MTCCol)
+axs[0].set_xlabel(r'the noise precision $\gamma$')
+axs[0].set_ylabel(r'the smoothnes parameter $\delta$')
+axs[1].hist(new_lamb,bins=BinSetLamb, color = MTCCol, zorder = 0)#10)
+
+axs[1].axvline( lam_opt, color = regCol,linewidth=2)
+
+axs[1].set_title(r'$\lambda =\delta / \gamma$, the regularization parameter', fontsize = 12)
+
+plt.savefig('ScatterplusHisto.png')
+plt.show()
+##
+
+
+mpl.use('pgf')
+mpl.rcParams.update(pgf_params)
+fig.savefig('ScatterplusHisto.pgf', bbox_inches='tight')
+# mpl.use(defBack)
+# mpl.rcParams.update(mpl.rcParamsDefault)
+
 
 
 
@@ -1866,20 +1892,22 @@ plt.rcParams.update({'font.size': 12})
 plt.rcParams["font.serif"] = "cmr"
 fig3, ax2 = plt.subplots(figsize=set_size(245, fraction=fraction))
  # ax1 and ax2 share y-axis
-line3 = ax2.plot(y, tang_heights_lin, color = dataCol, label = r'data in \frac{W}{m^2 sr}\frac{1}{\frac{1}{cm}}',linewidth = 5, zorder = 0)
+line3 = ax2.scatter(y, tang_heights_lin, color = pyTCol, label = r'data', zorder = 0, marker = '*')#,linewidth = 5
 
 ax1 = ax2.twiny()
-ax1.plot(VMR_O3,height_values, color = [0, 158/255, 115/255], linewidth = 5, label = 'ground truth', zorder=0)
-line1 = ax1.plot(VMR_O3,height_values, color = [0, 158/255, 115/255], linewidth = 10, zorder=0)
-for n in range(1,paraSamp,8):
+ax1.scatter(VMR_O3,height_values, color = [0, 158/255, 115/255], label = 'true profile', zorder=0, s =100)#linewidth = 5
+#line1 = ax1.plot(VMR_O3,height_values, color = [0, 158/255, 115/255], linewidth = 10, zorder=0)
+for n in range(1,paraSamp,10):
     Sol = Results[n, :] / (num_mole * S[ind, 0] * f_broad * 1e-4 * scalingConst)
-    ax1.plot(Sol,height_values, linewidth = 0.1, color = MTCCol,label = r'$\mathbf{x} \sim \pi(\mathbf{x} |\mathbf{y}, \mathbf{\theta} ) $', zorder = 1)
-
-ax1.scatter(XOPT, height_values, color=regCol, marker='X', zorder=2, s=100, label='regularized sol. ')
+    ax1.scatter(Sol,height_values,marker = '.', color = MTCCol,label = 'posterior samples ', zorder = 3)
+#$\mathbf{x} \sim \pi(\mathbf{x} |\mathbf{y}, \mathbf{\theta} ) $'
+ax1.scatter(XOPT, height_values, color=MargCol, marker='X', zorder=4, label='regularized sol. ')
 #line2 = ax1.errorbar(x,height_values,capsize=5, yerr = np.zeros(len(height_values)) ,color = MTCCol,zorder=5,markersize = 5, fmt = 'o',label = r'$\mathbf{x} \sim \pi(\mathbf{x} |\mathbf{y}, \mathbf{\theta} ) $')#, label = 'MC estimate')
-line3 = ax1.errorbar(MargX,height_values, color = MargCol, markeredgecolor = MargCol, capsize=2,  markersize = 6,zorder=3, fmt = 's', label = r' E$_{\mathbf{x},\mathbf{\theta}| \mathbf{y}}[h(\mathbf{x})]$')
+line3 = ax1.errorbar(MargX,height_values, color = regCol, markersize=7,zorder=2, fmt = 's', label = 'posterior mean ')
+#E$_{\mathbf{x},\mathbf{\theta}| \mathbf{y}}[h(\mathbf{x})]$
+# markersize = 6
 #line4 = ax1.errorbar(x, height_values,capsize=5, xerr = xerr,color = MTCCol, fmt = 'o', markersize = 5,zorder=5)#, label = 'MC estimate')
-line5 = ax1.errorbar(MargX,height_values, color = MargCol, markeredgecolor= MargCol, capsize=5,  markersize = 6, zorder=3, fmt = 's')
+#line5 = ax1.errorbar(MargX,height_values, color = MargCol, markeredgecolor= MargCol, capsize=5,  markersize = 6, zorder=3, fmt = 's')
 #xerr =MargXErr/2,yerr = np.zeros(len(height_values))
 
 
@@ -1895,7 +1923,7 @@ handles2, labels2 = ax2.get_legend_handles_labels()
 # Labels =  [labels[0], labels[1], labels[2]]
 # LegendVertical(ax1, Handles, Labels, 90, XPad=-45, YPad=12)
 
-legend = ax1.legend(handles = [handles[0],handles[1],handles[-2],handles[-1]], loc='upper right')#, bbox_to_anchor=(1.01, 1.01), frameon =True)
+legend = ax1.legend(handles = [handles2[0], handles[0],handles[1],handles[-2],handles[-1]], loc='lower right', frameon = True)#, bbox_to_anchor=(1.01, 1.01), frameon =True)
 
 #plt.ylabel('Height in km')
 ax1.set_ylim([heights[minInd-1], heights[maxInd+1]])
@@ -1904,13 +1932,13 @@ ax1.set_ylim([heights[minInd-1], heights[maxInd+1]])
 
 
 ax2.set_xlabel(r'Spectral Ozone radiance in $\frac{W}{m^2 sr} \times \frac{1}{\frac{1}{cm}}$',labelpad=10)# color =dataCol,
-ax2.tick_params(colors = dataCol, axis = 'x')
+ax2.tick_params(colors = pyTCol, axis = 'x')
 ax2.xaxis.set_ticks_position('top')
 ax2.xaxis.set_label_position('top')
 ax1.xaxis.set_ticks_position('bottom')
 ax1.xaxis.set_label_position('bottom')
 ax1.spines[:].set_visible(False)
-ax2.spines['top'].set_color(dataCol)
+ax2.spines['top'].set_color(pyTCol)
 
 
 fig3.savefig('FirstRecRes.png')#, dpi = dpi)
