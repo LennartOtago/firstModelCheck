@@ -39,8 +39,7 @@ pgf_params = { "pgf.texsystem": "pdflatex",
     'text.usetex': True,
     'pgf.rcfonts': False,
 'axes.labelsize': 12,  # -> axis labels
-'legend.fontsize': 12
-               }
+'legend.fontsize': 12}
 
 dpi = 300
 
@@ -116,9 +115,9 @@ meas_ang = np.linspace(MinAng, MaxAng, SpecNumMeas)
 A_lin, tang_heights_lin, extraHeight = gen_forward_map(meas_ang,height_values,ObsHeight,R)
 
 
-fig, axs = plt.subplots(tight_layout=True)
-plt.scatter(range(len(tang_heights_lin)),tang_heights_lin)
-plt.show()
+# fig, axs = plt.subplots(tight_layout=True)
+# plt.scatter(range(len(tang_heights_lin)),tang_heights_lin)
+# #plt.show()
 
 ATA_lin = np.matmul(A_lin.T,A_lin)
 #condition number for A
@@ -301,35 +300,35 @@ theta = num_mole* w_cross.reshape((SpecNumLayers,1)) * scalingConst * S[ind,0]
 
 """ plot forward model values """
 numDensO3 =  N_A * press * 1e2 * O3 / (R * temp_values[0,:]) * 1e-6
-fig, axs = plt.subplots(tight_layout=True)
-plt.plot(press ,heights,color = [0, 205/255, 127/255])
-#plt.plot((1/ temp_values) ,heights,color ='k')
-axs.set_ylabel('Height in km')
-axs.set_xlabel('Number density of Ozone in cm$^{-3}$')
-plt.savefig('theta.png')
-plt.show()
+# fig, axs = plt.subplots(tight_layout=True)
+# plt.plot(press ,heights,color = [0, 205/255, 127/255])
+# #plt.plot((1/ temp_values) ,heights,color ='k')
+# axs.set_ylabel('Height in km')
+# axs.set_xlabel('Number density of Ozone in cm$^{-3}$')
+# plt.savefig('theta.png')
+# plt.show()
 
 
 
-fig, axs = plt.subplots(tight_layout=True, figsize=set_size(PgWidthPt, fraction=fraction))
-#plt.plot(press/1013.25,heights, label = 'pressure in hPa/' + str(np.around(max(press),3)) )
-#plt.plot(Source/max(Source),height_values, label = r'Source in $\frac{W}{m^2 sr}\frac{1}{\frac{1}{cm}}$/' + str(np.around(max(Source[0]),5)) )
-plt.plot(temperature,heights, color = 'darkred')# label = r'Source in K/' + str(np.around(max(temperature[0]),3)) )
-#plt.plot(LineInt,heights[minInd:maxInd], color = 'darkred')# label = r'Source in K/' + str(np.around(max(temperature[0]),3)) )
-#axs.legend()
-axs.tick_params(axis = 'x', labelcolor="darkred")
-ax2 = axs.twiny() # ax1 and ax2 share y-axis
-line3 = ax2.plot(press[minInd:maxInd],heights[minInd:maxInd], color = 'blue') #, label = 'pressure in hPa/' + str(np.around(max(press),3)) )
-ax2.spines['top'].set_color('blue')
-ax2.tick_params(labelcolor="blue")
-ax2.set_xlabel('Pressure in hPa')
-axs.set_ylabel('Height in km')
-axs.set_xlabel('Temperature in K')
-#axs.set_xlabel('Line intensity in cm / molecule')
-#axs.set_title()
-plt.savefig('PandQ.png')
-plt.show()
-
+# fig, axs = plt.subplots(tight_layout=True, figsize=set_size(PgWidthPt, fraction=fraction))
+# #plt.plot(press/1013.25,heights, label = 'pressure in hPa/' + str(np.around(max(press),3)) )
+# #plt.plot(Source/max(Source),height_values, label = r'Source in $\frac{W}{m^2 sr}\frac{1}{\frac{1}{cm}}$/' + str(np.around(max(Source[0]),5)) )
+# plt.plot(temperature,heights, color = 'darkred')# label = r'Source in K/' + str(np.around(max(temperature[0]),3)) )
+# #plt.plot(LineInt,heights[minInd:maxInd], color = 'darkred')# label = r'Source in K/' + str(np.around(max(temperature[0]),3)) )
+# #axs.legend()
+# axs.tick_params(axis = 'x', labelcolor="darkred")
+# ax2 = axs.twiny() # ax1 and ax2 share y-axis
+# line3 = ax2.plot(press[minInd:maxInd],heights[minInd:maxInd], color = 'blue') #, label = 'pressure in hPa/' + str(np.around(max(press),3)) )
+# ax2.spines['top'].set_color('blue')
+# ax2.tick_params(labelcolor="blue")
+# ax2.set_xlabel('Pressure in hPa')
+# axs.set_ylabel('Height in km')
+# axs.set_xlabel('Temperature in K')
+# #axs.set_xlabel('Line intensity in cm / molecule')
+# #axs.set_title()
+# plt.savefig('PandQ.png')
+# plt.show()
+#
 
 A = A_lin * A_scal.T
 ATA = np.matmul(A.T,A)
@@ -345,12 +344,15 @@ print("Condition Number A^T A: " + str(orderOfMagnitude(cond_ATA)))
 Ax = np.matmul(A, theta)
 
 #convolve measurements and add noise
-y = add_noise(Ax, 0.01)
+#y = add_noise(Ax, 0.01)
 #y[y<=0] = 0
+
+y = np.loadtxt('dataY.txt').reshape((SpecNumMeas,1))
+
 
 ATy = np.matmul(A.T, y)
 
-np.savetxt('dataY.txt', y, header = 'Data y including noise', fmt = '%.15f')
+#np.savetxt('dataY.txt', y, header = 'Data y including noise', fmt = '%.15f')
 np.savetxt('ForWardMatrix.txt', A, header = 'Forward Matrix A', fmt = '%.15f', delimiter= '\t')
 
 
@@ -714,21 +716,19 @@ TrMTC = np.zeros(number_samples)
 for i,sam in enumerate(MTCMargSamp):
     TrMTC[i] = MinLogMargPost(sam)
 
-fig, axs = plt.subplots(3, 1,tight_layout=True)
-
-
-# We can set the number of bins with the *bins* keyword argument.
-axs[0].hist(new_gam,bins=n_bins, color = 'k')#int(n_bins/math.ceil(IntAutoGam)))
-#axs[0].set_title(str(len(new_gam)) + ' effective $\gamma$ samples')
-axs[0].set_title(str(len(new_gam)) + r' $\gamma$ samples, the noise precision')
-axs[1].hist(new_delt,bins=n_bins, color = 'k')#int(n_bins/math.ceil(IntAutoDelt)))
-axs[1].set_title(str(len(new_delt)) + ' $\delta$ samples, the prior precision')
-axs[2].hist(new_lamb,bins=n_bins, color = 'k')#10)
-#axs[2].xaxis.set_major_formatter(scientific_formatter)
-#axs[2].set_title(str(len(new_lamb)) + ' effective $\lambda =\delta / \gamma$ samples')
-axs[2].set_title(str(len(new_lamb)) + ' $\lambda$ samples, the regularization parameter')
-plt.savefig('HistoResults.png')
-plt.show()
+# fig, axs = plt.subplots(3, 1,tight_layout=True)
+# # We can set the number of bins with the *bins* keyword argument.
+# axs[0].hist(new_gam,bins=n_bins, color = 'k')#int(n_bins/math.ceil(IntAutoGam)))
+# #axs[0].set_title(str(len(new_gam)) + ' effective $\gamma$ samples')
+# axs[0].set_title(str(len(new_gam)) + r' $\gamma$ samples, the noise precision')
+# axs[1].hist(new_delt,bins=n_bins, color = 'k')#int(n_bins/math.ceil(IntAutoDelt)))
+# axs[1].set_title(str(len(new_delt)) + ' $\delta$ samples, the prior precision')
+# axs[2].hist(new_lamb,bins=n_bins, color = 'k')#10)
+# #axs[2].xaxis.set_major_formatter(scientific_formatter)
+# #axs[2].set_title(str(len(new_lamb)) + ' effective $\lambda =\delta / \gamma$ samples')
+# axs[2].set_title(str(len(new_lamb)) + ' $\lambda$ samples, the regularization parameter')
+# plt.savefig('HistoResults.png')
+# plt.show()
 
 
 ##
@@ -872,12 +872,12 @@ print('MTC Done in ' + str(elapsed) + ' s')
 
 ##
 "Fitting prob distr to hyperparameter histogram"
-BinHist = 200#n_bins
-deltHist, deltBinEdges = np.histogram(new_gam, bins= BinHist)#, density=True)
-def HypPrior(x):
-    beta = 1e-7
-    return x**(0) * np.exp(-beta * x)
-
+# BinHist = 150#n_bins
+# lambHist, lambBinEdges = np.histogram(new_lamb, bins= BinHist)#, density=True)
+# def HypPrior(x):
+#     beta = 1e-7
+#     return x**(0) * np.exp(-beta * x)
+#
 # def normal_dist(x, mean, sd, c):
 #     prob_density = c * np.exp(-0.5*((x-mean)/sd)**2)
 #     return prob_density
@@ -886,40 +886,43 @@ def HypPrior(x):
 #     prob_density = x/sd**2 * np.exp(-0.5*(x**2 + b**2/ sd**2 ) ) * c
 #     return prob_density * scy.special.i0(x * b / sd**2)
 #
-#
-# def rayleigh(x, sd, c ):
-#     prob_density = x/sd**2 * np.exp(-0.5*(x**2 / sd**2 ) ) * c
-#     return prob_density
-#
-# def skew_norm_pdf(x,mean=0,w=1,skewP=0, scale = 0.1):
-#     # adapated from:
-#     # http://stackoverflow.com/questions/5884768/skew-normal-distribution-in-scipy
-#     t = (x-mean) / w
-#     return 2.0 * w * scy.stats.norm.pdf(t) * scy.stats.norm.cdf(skewP*t) * scale
-#
-mpl.use(defBack)
-mpl.rcParams.update(mpl.rcParamsDefault)
+# #
+# # def rayleigh(x, sd, c ):
+# #     prob_density = x/sd**2 * np.exp(-0.5*(x**2 / sd**2 ) ) * c
+# #     return prob_density
+# #
+def skew_norm_pdf(x,mean=0,w=1,skewP=0, scale = 0.1):
+    # adapated from:
+    # http://stackoverflow.com/questions/5884768/skew-normal-distribution-in-scipy
+    t = (x-mean) / w
+    return 2.0 * w * scy.stats.norm.pdf(t) * scy.stats.norm.cdf(skewP*t) * scale
 
+# mpl.use(defBack)
+# mpl.rcParams.update(mpl.rcParamsDefault)
 #
-# DMax = np.max(deltHist/ np.sum(deltHist))
+# #
 #
-x = np.linspace(deltBinEdges[0],deltBinEdges[-1],100)
-# st = 5
-# xRay = deltBinEdges[int(st)::]-deltBinEdges[int(st)]
-# yRay = deltHist[int(st-1)::]/ np.sum(deltHist[int(st-1)::])
+# #
+# #x = np.linspace(deltBinEdges[0],deltBinEdges[-1],100)
+# st = 1
+# xRay = lambBinEdges[int(st)::]-lambBinEdges[int(st)]
+# yRay = lambHist[int(st-1)::]/ np.sum(lambHist[int(st-1)::])
+# #
+# # xtest = np.linspace(-5,20,100)
+# #
+# #
+# paramsSkew, covs = scy.optimize.curve_fit(skew_norm_pdf,lambBinEdges[1::], lambHist/ np.sum(lambHist), p0 = [np.mean(new_lamb)+1e3,np.sqrt(np.var(lambdas)),0.1, 1] )
 #
-# xtest = np.linspace(-5,20,100)
+#
+# #
+# fig, axs = plt.subplots(1, 1,tight_layout=True,figsize=set_size(PgWidthPt, fraction=fraction))#, dpi = dpi)
+# #axs.plot(x,  HypPrior(x))
+# axs.plot(lambBinEdges,  skew_norm_pdf(lambBinEdges, *paramsSkew ))
+# axs.plot(lambBinEdges[1::],  lambHist/np.sum(lambHist))
+# #axs.plot(xRay,yRay)
+# plt.show()
 #
 #
-# paramsSkew, covs = scy.optimize.curve_fit(skew_norm_pdf,xRay, yRay, p0 = [np.mean(new_delt)-40000,np.sqrt(np.var(deltas)),0.1, 0.000002] )
-#
-fig, axs = plt.subplots(1, 1,tight_layout=True,figsize=set_size(PgWidthPt, fraction=fraction))#, dpi = dpi)
-axs.plot(x,  HypPrior(x))
-#axs.plot(deltBinEdges[1::],  deltHist)
-#axs.plot(xRay,yRay)
-plt.show()
-
-
 
 
 
@@ -933,25 +936,25 @@ plt.show()
 # plt.show()
 
 
-# paramsRay, covs = scy.optimize.curve_fit(rayleigh,xRay,yRay, p0 = [np.sqrt(np.var(deltas))+10000, 800 ] )
+# paramsRic, covs = scy.optimize.curve_fit(rician,xRay,yRay, p0 = [np.sqrt(np.var(lambdas)),np.mean(lambdas), 0.5] )
 #
 # fig, axs = plt.subplots(1, 1,tight_layout=True,figsize=set_size(PgWidthPt, fraction=fraction))#, dpi = dpi)
-# axs.plot(xRay,yRay)
-# axs.plot(xRay, rayleigh(xRay, *paramsRay)  )
+# #axs.plot(lambBinEdges[1::],  lambHist/np.sum(lambHist))
+# axs.plot(xRay, rician(xRay, np.sqrt(np.var(lambdas)),np.mean(lambdas), 1e-5)  )
 # plt.show()
-#
-#
+# #
+# #
 # st = 0
-# xNormal = deltBinEdges[int(st)::]-deltBinEdges[int(st)]
-# yNormal = deltHist[int(st-1)::]/ np.sum(deltHist[int(st-1)::])
-#
-# paramsNormal, covs = scy.optimize.curve_fit(normal_dist, deltBinEdges[1::], deltHist/ np.sum(deltHist), p0 = [np.mean(deltas),  np.sqrt(np.var(deltas)), DMax ] )
+# xNormal = lambBinEdges[int(st)::]-lambBinEdges[int(st)]
+# yNormal = lambHist[int(st-1)::]/ np.sum(lambHist[int(st-1)::])
+# DMax = np.max(lambHist/ np.sum(lambHist))
+# paramsNormal, covs = scy.optimize.curve_fit(normal_dist, lambBinEdges[1::], lambHist/ np.sum(lambHist), p0 = [np.mean(lambdas),  np.sqrt(np.var(lambdas)), DMax ] )
 #
 # fig, axs = plt.subplots(1, 1,tight_layout=True,figsize=set_size(PgWidthPt, fraction=fraction))#, dpi = dpi)
-# axs.plot(deltBinEdges[1::], deltHist/ np.sum(deltHist))
+# axs.plot(lambBinEdges[1::], lambHist/ np.sum(lambHist))
 # axs.plot(xNormal,  normal_dist(xNormal,*paramsNormal ) )
 # plt.show()
-#
+# #
 #
 # #draw paramter samples
 # paraSamp = 200#n_bins
@@ -1432,9 +1435,9 @@ axins.plot(lambBinEdges,f_tayl(delta_lam, f_mode, f_0_1, f_0_2, f_0_3, f_0_4), c
 #axins.errorbar(lamPyT,f_tW, xerr=np.sqrt(varPyT)/2, color = pyTCol, markersize = 10,zorder=5,fmt='D', label = 't-walk') #markersize = 10
 #axins.add_patch(mpl.patches.Rectangle( (xpyT, f_pyT_min), np.sqrt(varPyT), f_pyT_max - f_pyT_min,edgecolor=pyTCol,facecolor='none', alpha = 1, zorder = 0, linewidth = 5))
 #axins.add_patch(mpl.patches.Rectangle((xMTC, f_MTC_min), np.sqrt(np.var(lambdas)), f_MTC_max - f_MTC_min,edgecolor=MTCCol, facecolor='none',alpha =1,zorder = 0, linewidth = 5))
-axins.scatter(minimum[1],f_mode, color = gmresCol, s= 95, zorder=0, marker = 's', label = 'optimize.fmin ')
+axins.scatter(minimum[1],f_mode, color = gmresCol, s= 95, zorder=0, marker = 's', label = 'optimize.fmin() ')
 axins.set_xlim(min(new_lamb),max(new_lamb))
-axins.set_ylim(6e8,12e8)
+axins.set_ylim(4e8,9e8)
 axins.set_xlabel('$\lambda$')
 axins.set_xlim([np.mean(lambdas) -np.sqrt(np.var(lambdas)), 1.5*np.mean(lambdas) + np.sqrt(np.var(lambdas))])# apply the x-limits
 axins.set_yscale('log')
@@ -1715,17 +1718,17 @@ mpl.rcParams.update({'font.size': 12})#,
 # mpl.rcParams['mathtext.it'] = 'STIXGeneral:italic'
 # mpl.rcParams['mathtext.bf'] = 'STIXGeneral:italic:bold'
 fig, axs = plt.subplots( tight_layout=True,figsize=set_size(245, fraction=fraction))
-axs.scatter(NormLCurve,xTLxCurve, zorder = 0, color = [0, 114/255, 178/255])
+axs.scatter(NormLCurve,xTLxCurve, zorder = 0, color = [0, 114/255, 178/255], s = 5)
 #axs.scatter(LNormOpt ,xTLxOpt, zorder = 10, color = 'red', label = 'Opt. Tikh. regularization ')
 #axs.scatter(opt_norm ,opt_regNorm, zorder = 10, color = 'red')
-axs.scatter(NormRes, xTLxRes, color = MTCCol, s = 5)#, marker = "." ,mfc = 'black' , markeredgecolor='r',markersize=10,linestyle = 'None')
+axs.scatter(NormRes, xTLxRes, color = MTCCol, s = 2)#, marker = "." ,mfc = 'black' , markeredgecolor='r',markersize=10,linestyle = 'None')
 #axs.scatter(NewNormRes, NewxTLxRes, color = 'red', label = 'MTC RTO method')#, marker = "." ,mfc = 'black' , markeredgecolor='r',markersize=10,linestyle = 'None')
 
 #axs.scatter(SampleNorm, SamplexTLx, color = 'green', marker = 's', s= 100)
-axs.scatter(NormMargRes, xTLxMargRes, color = regCol, marker = 's', s= 50, label = 'posterior mean')
+axs.scatter(NormMargRes, xTLxMargRes, color = MargCol, marker = 's', s= 25, label = 'posterior mean')
 #E$_{\mathbf{x},\mathbf{\theta}| \mathbf{y}}[\mathbf{x}_{\lambda}]$
 #axs.axvline(x = knee_point)
-axs.scatter(knee_point, kneedle.knee_y, color = MargCol, marker = 'X',label = 'max. curvature', s= 50)
+axs.scatter(knee_point, kneedle.knee_y, color = 'r', marker = 'v',label = 'max. curvature', s= 25)
 #zoom in
 x1, x2, y1, y2 = NormLCurveZoom[0], NormLCurveZoom[-1], xTLxCurveZoom[0], xTLxCurveZoom[-1] # specify the limits
 axins = axs.inset_axes([0.1,0.05,0.55,0.5])
@@ -1733,11 +1736,11 @@ axins = axs.inset_axes([0.1,0.05,0.55,0.5])
 
 axins.scatter(NormRes, xTLxRes, color = MTCCol, label = r'posterior samples ')#,$\mathbf{x} \sim \pi (\mathbf{x}| \mathbf{y}, \mathbf{\theta})$ s = 15)
 axins.scatter(NormLCurve,xTLxCurve, color = [0, 114/255, 178/255])
-axins.scatter(NormMargRes, xTLxMargRes, color = regCol, marker = 's', s= 70)
+axins.scatter(NormMargRes, xTLxMargRes, color = MargCol, marker = 's', s= 70)
 # axins.scatter(LNormOpt, xTLxOpt, color = 'crimson', marker = "s", s =80)[240/255,228/255,66/255]
 #axins.annotate(r'E$_{\mathbf{x},\mathbf{\theta}| \mathbf{y}}[\lambda]$ = ' + str('{:.2f}'.format(lam_opt)), (LNormOpt+0.05,xTLxOpt))
 #axins.scatter(NewNormRes, NewxTLxRes, color = 'red', label = 'MTC RTO method', s = 10)#, marker = "." ,mfc = 'black' , markeredgecolor='r',markersize=10,linestyle = 'None')
-axins.scatter(knee_point, kneedle.knee_y, color = MargCol, marker = 'X', s = 120)
+axins.scatter(knee_point, kneedle.knee_y, color = 'r', marker = 'v', s = 120)
 axins.set_xlim(x1-0.01, x2-1) # apply the x-limits
 #axins.set_ylim(y2,y1)
 axins.set_ylim(y2,max(xTLxRes)+0.001) # apply the y-limits (negative gradient)
@@ -1781,6 +1784,10 @@ fig.savefig('LCurve.pgf', bbox_inches='tight')
 
 ## make scatter plot for results
 
+BinHist = 30#n_bins
+lambHist, lambBinEdges = np.histogram(new_lamb, bins= BinHist, density= True)
+paramsSkew, covs = scy.optimize.curve_fit(skew_norm_pdf,lambBinEdges[1::], lambHist/ np.sum(lambHist), p0 = [np.mean(new_lamb)+1e3,np.sqrt(np.var(lambdas)),0.1, 1] )
+
 
 mpl.use(defBack)
 mpl.rcParams.update(mpl.rcParamsDefault)
@@ -1790,8 +1797,10 @@ fig, axs = plt.subplots(2, 1,tight_layout=True,figsize=set_size(PgWidthPt, fract
 axs[0].scatter(gammas[burnIn::math.ceil(IntAutoLam)+5],deltas[burnIn::math.ceil(IntAutoLam)+5], marker = '.', color = MTCCol)
 axs[0].set_xlabel(r'the noise precision $\gamma$')
 axs[0].set_ylabel(r'the smoothnes parameter $\delta$')
-axs[1].hist(new_lamb,bins=BinSetLamb, color = MTCCol, zorder = 0)#10)
+#axs[1].hist(new_lamb,bins=BinHist, color = MTCCol, zorder = 0, density = True)#10)
+axs[1].bar(lambBinEdges[1::],lambHist*np.diff(lambBinEdges)[0], color = MTCCol, zorder = 0,width = np.diff(lambBinEdges)[0])#10)
 
+axs[1].plot(lambBinEdges[1::],  skew_norm_pdf(lambBinEdges[1::], *paramsSkew )/np.sum(skew_norm_pdf(lambBinEdges[1::], *paramsSkew )), zorder = 1, color = MargCol)
 axs[1].axvline( lam_opt, color = regCol,linewidth=2)
 
 axs[1].set_title(r'$\lambda =\delta / \gamma$, the regularization parameter', fontsize = 12)
@@ -1890,20 +1899,23 @@ mpl.use(defBack)
 mpl.rcParams.update(mpl.rcParamsDefault)
 plt.rcParams.update({'font.size': 12})
 plt.rcParams["font.serif"] = "cmr"
-fig3, ax2 = plt.subplots(figsize=set_size(245, fraction=fraction))
+fig3, ax2 = plt.subplots(figsize=set_size(1.3*245, fraction=fraction))
  # ax1 and ax2 share y-axis
-line3 = ax2.scatter(y, tang_heights_lin, color = pyTCol, label = r'data', zorder = 0, marker = '*')#,linewidth = 5
+line3 = ax2.scatter(y, tang_heights_lin, label = r'data', zorder = 0, marker = '*', color ="#d62728" )#,linewidth = 5
 
 ax1 = ax2.twiny()
-ax1.scatter(VMR_O3,height_values, color = [0, 158/255, 115/255], label = 'true profile', zorder=0, s =100)#linewidth = 5
+ax1.scatter(VMR_O3,height_values,marker = 'o', facecolor = 'None', color = "#009E73", label = 'true profile', zorder=1, s =12)#,linewidth = 5)
+ax1.plot(VMR_O3,height_values, color = "#009E73", label = 'true profile', zorder=1)#,linewidth = 5)
+
+# edgecolor = [0, 158/255, 115/255]
 #line1 = ax1.plot(VMR_O3,height_values, color = [0, 158/255, 115/255], linewidth = 10, zorder=0)
-for n in range(1,paraSamp,10):
+for n in range(1,paraSamp,25):
     Sol = Results[n, :] / (num_mole * S[ind, 0] * f_broad * 1e-4 * scalingConst)
-    ax1.scatter(Sol,height_values,marker = '.', color = MTCCol,label = 'posterior samples ', zorder = 3)
+    ax1.plot(Sol,height_values,marker= '.',color = 'k',label = 'posterior samples ', zorder = 0, linewidth = 0.5)
 #$\mathbf{x} \sim \pi(\mathbf{x} |\mathbf{y}, \mathbf{\theta} ) $'
-ax1.scatter(XOPT, height_values, color=MargCol, marker='X', zorder=4, label='regularized sol. ')
+ax1.plot(XOPT, height_values, color="#D55E00",  markeredgecolor="#D55E00", marker='v', markerfacecolor = 'none', zorder=4, label='regularized sol. ', markersize =12)
 #line2 = ax1.errorbar(x,height_values,capsize=5, yerr = np.zeros(len(height_values)) ,color = MTCCol,zorder=5,markersize = 5, fmt = 'o',label = r'$\mathbf{x} \sim \pi(\mathbf{x} |\mathbf{y}, \mathbf{\theta} ) $')#, label = 'MC estimate')
-line3 = ax1.errorbar(MargX,height_values, color = regCol, markersize=7,zorder=2, fmt = 's', label = 'posterior mean ')
+line3 = ax1.plot(MargX,height_values, markerfacecolor = 'none', color ="#0072B2" ,zorder=3, marker = 's', label = 'posterior mean ', markersize =12)
 #E$_{\mathbf{x},\mathbf{\theta}| \mathbf{y}}[h(\mathbf{x})]$
 # markersize = 6
 #line4 = ax1.errorbar(x, height_values,capsize=5, xerr = xerr,color = MTCCol, fmt = 'o', markersize = 5,zorder=5)#, label = 'MC estimate')
@@ -1923,7 +1935,7 @@ handles2, labels2 = ax2.get_legend_handles_labels()
 # Labels =  [labels[0], labels[1], labels[2]]
 # LegendVertical(ax1, Handles, Labels, 90, XPad=-45, YPad=12)
 
-legend = ax1.legend(handles = [handles2[0], handles[0],handles[1],handles[-2],handles[-1]], loc='lower right', frameon = True)#, bbox_to_anchor=(1.01, 1.01), frameon =True)
+legend = ax1.legend(handles = [handles[-3], handles2[0], handles[0],handles[-2],handles[-1]], loc='lower right', framealpha = 0.2,fancybox=True)#, bbox_to_anchor=(1.01, 1.01), frameon =True)
 
 #plt.ylabel('Height in km')
 ax1.set_ylim([heights[minInd-1], heights[maxInd+1]])
@@ -1932,13 +1944,13 @@ ax1.set_ylim([heights[minInd-1], heights[maxInd+1]])
 
 
 ax2.set_xlabel(r'Spectral Ozone radiance in $\frac{W}{m^2 sr} \times \frac{1}{\frac{1}{cm}}$',labelpad=10)# color =dataCol,
-ax2.tick_params(colors = pyTCol, axis = 'x')
+ax2.tick_params(colors = 'blue', axis = 'x')
 ax2.xaxis.set_ticks_position('top')
 ax2.xaxis.set_label_position('top')
 ax1.xaxis.set_ticks_position('bottom')
 ax1.xaxis.set_label_position('bottom')
 ax1.spines[:].set_visible(False)
-ax2.spines['top'].set_color(pyTCol)
+#ax2.spines['top'].set_color(pyTCol)
 
 
 fig3.savefig('FirstRecRes.png')#, dpi = dpi)
