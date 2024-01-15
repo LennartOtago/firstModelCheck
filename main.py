@@ -148,7 +148,7 @@ print('Distance through layers check: ' + str(np.allclose( sum(A_lin.T), tot_r))
 
 # graph Laplacian
 # direchlet boundary condition
-NOfNeigh = 2
+NOfNeigh = 2#4
 neigbours = np.zeros((len(height_values),NOfNeigh))
 # neigbours[0] = np.nan, np.nan, 1, 2
 # neigbours[-1] = len(height_values)-2, len(height_values)-3, np.nan, np.nan
@@ -156,15 +156,18 @@ neigbours = np.zeros((len(height_values),NOfNeigh))
 # neigbours[-1] = len(height_values)-2, np.nan
 for i in range(0,len(height_values)):
     neigbours[i] = i-1, i+1
-    #neigbours[i] = i-3, i-2, i-1, i+1, i+2, i+3
+    #neigbours[i] = i-2, i-1, i+1, i+2#, i+3 i-3,
 
 
 neigbours[neigbours >= len(height_values)] = np.nan
 neigbours[neigbours < 0] = np.nan
 
 L = generate_L(neigbours)
-# L[15::, 15::] = L[15::, 15::] * 4
-# L[15, 15] = 10
+startInd = 17
+L[startInd::, startInd::] = L[startInd::, startInd::] * 50
+L[startInd, startInd] = -L[startInd, startInd-1] - L[startInd, startInd+1] #-L[startInd, startInd-2] - L[startInd, startInd+2]
+
+#L[startInd+1, startInd+1] = -L[startInd+1, startInd+1-1] - L[startInd+1,startInd+1+1] -L[startInd+1, startInd+1-2] - L[startInd+1, startInd+1+2]
 # L[16, 16] = 13
 
 np.savetxt('GraphLaplacian.txt', L, header = 'Graph Lalplacian', fmt = '%.15f', delimiter= '\t')
@@ -406,7 +409,7 @@ print(minimum)
 """ finally calc f and g with a linear solver adn certain lambdas
  using the gmres"""
 
-lam= np.logspace(-7,15,500)
+lam= np.logspace(-5,15,500)
 f_func = np.zeros(len(lam))
 g_func = np.zeros(len(lam))
 
@@ -545,8 +548,8 @@ g_0_1 = np.trace(B_inv_L)
 g_0_2 = -1 / 2 * np.trace(B_inv_L_2)
 g_0_3 = 1 /6 * np.trace(B_inv_L_3)
 g_0_4 = -1 /24 * np.trace(B_inv_L_4)
-g_0_5 = 1 /120 * np.trace(B_inv_L_5)
-g_0_6 = 1 /720 * np.trace(B_inv_L_6)
+g_0_5 = 0#1 /120 * np.trace(B_inv_L_5)
+g_0_6 = 0#1 /720 * np.trace(B_inv_L_6)
 
 
 
@@ -588,7 +591,7 @@ f_new = f(ATy, y,  B_inv_A_trans_y0)
 #g_old = g(A, L,  lambdas[0])
 
 def MHwG(number_samples, burnIn, lambda0, gamma0):
-    wLam = 2e3
+    wLam = 7e1#2e3
 
     alphaG = 1
     alphaD = 1
@@ -858,15 +861,16 @@ MargX =  MargInteg/ (num_mole * S[ind,0]  * f_broad * 1e-4 * scalingConst)
 MargXErr = np.sqrt( (MargIntegSq - MargInteg**2 )/ (num_mole * S[ind,0]  * f_broad * 1e-4 * scalingConst)**2 )
 
 #MargX  = np.sum(np.sum(MargResults, axis = 0), axis = 0) /(num_mole * S[ind,0]  * f_broad * 1e-4 * scalingConst)
-mpl.use(defBack)
-mpl.rcParams.update(mpl.rcParamsDefault)
-plt.rcParams.update({'font.size': 12})
-fig2, ax = plt.subplots()
-ax.plot(MargX,height_values)
-ax.errorbar( MargX,height_values, xerr = MargXErr/2,fmt = '-o',capsize=4)
-plt.plot(VMR_O3,height_values, color = [0, 158/255, 115/255], linewidth = 11, label = 'VMR O$_3$', zorder=0)
 
-plt.show()
+# mpl.use(defBack)
+# mpl.rcParams.update(mpl.rcParamsDefault)
+# plt.rcParams.update({'font.size': 12})
+# fig2, ax = plt.subplots()
+# ax.plot(MargX,height_values)
+# ax.errorbar( MargX,height_values, xerr = MargXErr/2,fmt = '-o',capsize=4)
+# plt.plot(VMR_O3,height_values, color = [0, 158/255, 115/255], linewidth = 11, label = 'VMR O$_3$', zorder=0)
+#
+# plt.show()
 
 print('MTC Done in ' + str(elapsed) + ' s')
 
@@ -1125,17 +1129,17 @@ deltasPyT = SampParas[:,1]*SampParas[:,0]
 
 
 #plot trace
-fig, axs = plt.subplots( 2,1, tight_layout=True)
-axs[0].plot(range(len(gammas)), neg_log_likehood(gammas,y, Ax).T)
-axs[0].set_xlabel('mtc samples')
-axs[0].set_ylabel('neg-log-likelihood')
-axs[1].plot(range(len(SampParas[:,0])), neg_log_likehood(SampParas[:,0],y, Ax).T)
-axs[1].set_xlabel('t-walk samples')
-axs[1].set_ylabel('-log $\pi(y |  x ,\gamma)$')
-with open('TraceMC.pickle', 'wb') as filID: # should be 'wb' rather than 'w'
-    pl.dump(fig, filID)
-#plt.savefig('TraceMC.png')
-plt.show()
+# fig, axs = plt.subplots( 2,1, tight_layout=True)
+# axs[0].plot(range(len(gammas)), neg_log_likehood(gammas,y, Ax).T)
+# axs[0].set_xlabel('mtc samples')
+# axs[0].set_ylabel('neg-log-likelihood')
+# axs[1].plot(range(len(SampParas[:,0])), neg_log_likehood(SampParas[:,0],y, Ax).T)
+# axs[1].set_xlabel('t-walk samples')
+# axs[1].set_ylabel('-log $\pi(y |  x ,\gamma)$')
+# with open('TraceMC.pickle', 'wb') as filID: # should be 'wb' rather than 'w'
+#     pl.dump(fig, filID)
+# #plt.savefig('TraceMC.png')
+# plt.show()
 
 #plot para traces for MTC
 fig, axs = plt.subplots( 3,1,  tight_layout=True, figsize=(7, 8))
@@ -1204,58 +1208,58 @@ plt.show()
 
 
 ##
-mpl.use(defBack)
-mpl.rcParams.update(mpl.rcParamsDefault)
-plt.rcParams.update({'font.size': 12})
-fig, axs = plt.subplots(3, 1,tight_layout=True,figsize=set_size(PgWidthPt, fraction=fraction))#, dpi = dpi)
-n_bins = n_bins
-BinSetLamb = np.arange(min(new_lamb),max(new_lamb),(max(new_lamb)-min(new_lamb))/n_bins)
-BinSetGam = np.arange(min(new_gam),max(new_gam),(max(new_gam)-min(new_gam))/n_bins)
-BinSetDelt = np.arange(min(new_delt),max(new_delt),(max(new_delt)-min(new_delt))/n_bins)
-
-
-axs[0].hist(new_gam,bins=BinSetGam, color = MTCCol, zorder = 0, label = 'MTC')
-#axs[0].set_ylim([0,400])
-axs0 = axs[0].twinx()
-axs0.hist(GPYT,bins=BinSetGam,color = pyTCol, zorder = 1, label = 't-walk')
-axs0.set_ylim([0,100])
-axs0.tick_params(axis = 'y', colors=pyTCol, which = 'both')
-
-hist0, lab0 = axs[0].get_legend_handles_labels()
-hist00, lab00 = axs0.get_legend_handles_labels()
-axs[0].legend(labels = lab0 + lab00, handles = hist0+hist00 , labelcolor = [MTCCol, pyTCol] ,loc='upper right',frameon=True, fontsize = 12)#,bbox_to_anchor=(1.05, 1.15))
-axs[0].spines[:].set_visible(False)
-axs0.spines['right'].set_color(pyTCol)
-axs[1].hist(new_lamb,bins=BinSetLamb, color = MTCCol, zorder = 0)#10)
-#axs[2].set_ylim([0,200])
-axs1 = axs[1].twinx()
-axs1.hist(LPYT,bins=BinSetLamb,color = pyTCol, zorder = 1)
-axs1.set_ylim([0,100])
-axs1.tick_params(axis = 'y', colors=pyTCol, which = 'both')
-axs[1].spines[:].set_visible(False)
-axs1.spines['right'].set_color(pyTCol)
-
-axs[0].set_title(r'$\gamma$, the noise precision', fontsize = 12)
-axs[1].set_title(r'$\lambda =\delta / \gamma$, the regularization parameter', fontsize = 12)
-axs[2].plot(range(len(SampParas[burnIn::,2])), TrMTC ,color = MTCCol, linewidth = 1.2)
-axs[2].set_xlim([0,number_samples])
-axs[2].set_title('trace of the neg-log of the marginal posterior $-\log \, \pi( \lambda, \gamma | \mathbf{y})$', fontsize = 12)
-#axs[2].set_ylabel(r'$-log \pi( \gamma, \lambda | \mathbf{y})$')
-axs[2].set_xlabel('iterations')
-axs[2].yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.f'))
-#axs[2].tick_params(axis = 'y', which = 'both', labelleft=False, left=False)
-axs2 = axs[2].twinx()
-axs2.plot(range(len(SampParas[burnIn::,2])), SampParas[burnIn::,2],color = pyTCol, linewidth = 0.6)
-axs2.tick_params(axis = 'y', which = 'both', labelright=False, right=False, labelleft=False, left=False)
-axs[2].spines[:].set_visible(False)
-
-plt.savefig('AllHistoResultsPlus.png')
-plt.show()
-
-##
-mpl.use('pgf')
-mpl.rcParams.update(pgf_params)
-fig.savefig('AllHistoResultsPlus.pgf', bbox_inches='tight', dpi= dpi)
+# mpl.use(defBack)
+# mpl.rcParams.update(mpl.rcParamsDefault)
+# plt.rcParams.update({'font.size': 12})
+# fig, axs = plt.subplots(3, 1,tight_layout=True,figsize=set_size(PgWidthPt, fraction=fraction))#, dpi = dpi)
+# n_bins = n_bins
+# BinSetLamb = np.arange(min(new_lamb),max(new_lamb),(max(new_lamb)-min(new_lamb))/n_bins)
+# BinSetGam = np.arange(min(new_gam),max(new_gam),(max(new_gam)-min(new_gam))/n_bins)
+# BinSetDelt = np.arange(min(new_delt),max(new_delt),(max(new_delt)-min(new_delt))/n_bins)
+#
+#
+# axs[0].hist(new_gam,bins=BinSetGam, color = MTCCol, zorder = 0, label = 'MTC')
+# #axs[0].set_ylim([0,400])
+# axs0 = axs[0].twinx()
+# axs0.hist(GPYT,bins=BinSetGam,color = pyTCol, zorder = 1, label = 't-walk')
+# axs0.set_ylim([0,100])
+# axs0.tick_params(axis = 'y', colors=pyTCol, which = 'both')
+#
+# hist0, lab0 = axs[0].get_legend_handles_labels()
+# hist00, lab00 = axs0.get_legend_handles_labels()
+# axs[0].legend(labels = lab0 + lab00, handles = hist0+hist00 , labelcolor = [MTCCol, pyTCol] ,loc='upper right',frameon=True, fontsize = 12)#,bbox_to_anchor=(1.05, 1.15))
+# axs[0].spines[:].set_visible(False)
+# axs0.spines['right'].set_color(pyTCol)
+# axs[1].hist(new_lamb,bins=BinSetLamb, color = MTCCol, zorder = 0)#10)
+# #axs[2].set_ylim([0,200])
+# axs1 = axs[1].twinx()
+# axs1.hist(LPYT,bins=BinSetLamb,color = pyTCol, zorder = 1)
+# axs1.set_ylim([0,100])
+# axs1.tick_params(axis = 'y', colors=pyTCol, which = 'both')
+# axs[1].spines[:].set_visible(False)
+# axs1.spines['right'].set_color(pyTCol)
+#
+# axs[0].set_title(r'$\gamma$, the noise precision', fontsize = 12)
+# axs[1].set_title(r'$\lambda =\delta / \gamma$, the regularization parameter', fontsize = 12)
+# axs[2].plot(range(len(SampParas[burnIn::,2])), TrMTC ,color = MTCCol, linewidth = 1.2)
+# axs[2].set_xlim([0,number_samples])
+# axs[2].set_title('trace of the neg-log of the marginal posterior $-\log \, \pi( \lambda, \gamma | \mathbf{y})$', fontsize = 12)
+# #axs[2].set_ylabel(r'$-log \pi( \gamma, \lambda | \mathbf{y})$')
+# axs[2].set_xlabel('iterations')
+# axs[2].yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.f'))
+# #axs[2].tick_params(axis = 'y', which = 'both', labelleft=False, left=False)
+# axs2 = axs[2].twinx()
+# axs2.plot(range(len(SampParas[burnIn::,2])), SampParas[burnIn::,2],color = pyTCol, linewidth = 0.6)
+# axs2.tick_params(axis = 'y', which = 'both', labelright=False, right=False, labelleft=False, left=False)
+# axs[2].spines[:].set_visible(False)
+#
+# plt.savefig('AllHistoResultsPlus.png')
+# plt.show()
+#
+# ##
+# mpl.use('pgf')
+# mpl.rcParams.update(pgf_params)
+# fig.savefig('AllHistoResultsPlus.pgf', bbox_inches='tight', dpi= dpi)
 
 
 
@@ -1435,9 +1439,9 @@ axins.plot(lambBinEdges,f_tayl(delta_lam, f_mode, f_0_1, f_0_2, f_0_3, f_0_4), c
 #axins.errorbar(lamPyT,f_tW, xerr=np.sqrt(varPyT)/2, color = pyTCol, markersize = 10,zorder=5,fmt='D', label = 't-walk') #markersize = 10
 #axins.add_patch(mpl.patches.Rectangle( (xpyT, f_pyT_min), np.sqrt(varPyT), f_pyT_max - f_pyT_min,edgecolor=pyTCol,facecolor='none', alpha = 1, zorder = 0, linewidth = 5))
 #axins.add_patch(mpl.patches.Rectangle((xMTC, f_MTC_min), np.sqrt(np.var(lambdas)), f_MTC_max - f_MTC_min,edgecolor=MTCCol, facecolor='none',alpha =1,zorder = 0, linewidth = 5))
-axins.scatter(minimum[1],f_mode, color = gmresCol, s= 95, zorder=0, marker = 's', label = 'optimize.fmin() ')
+axins.scatter(minimum[1],f_mode, color = gmresCol, s= 95, zorder=0, marker = 's', label = r'\texttt{optimize.fmin()}')
 axins.set_xlim(min(new_lamb),max(new_lamb))
-axins.set_ylim(4e8,9e8)
+axins.set_ylim(4.5e8,9e8)
 axins.set_xlabel('$\lambda$')
 axins.set_xlim([np.mean(lambdas) -np.sqrt(np.var(lambdas)), 1.5*np.mean(lambdas) + np.sqrt(np.var(lambdas))])# apply the x-limits
 axins.set_yscale('log')
@@ -1546,8 +1550,8 @@ for i in range(len(lamLCurve)):
         #xTLxCurve[i] = np.linalg.norm(x)#, ord = 2)
         #xTLxCurve[i] = np.sqrt(x.T @ x)
 
-
-lamLCurveZoom = np.logspace(2,5.5,200)
+startTime  = time.time()
+lamLCurveZoom = np.logspace(0,5,200)
 NormLCurveZoom = np.zeros(len(lamLCurve))
 xTLxCurveZoom = np.zeros(len(lamLCurve))
 for i in range(len(lamLCurveZoom)):
@@ -1620,7 +1624,7 @@ for i in range(len(lamLCurveZoom)):
 # plt.show()
 
 
-np.savetxt('LCurve.txt', np.vstack((NormLCurveZoom, xTLxCurveZoom, lamLCurveZoom)).T, header = 'Norm ||Ax - y|| sqrt(x.T L x) lambdas', fmt = '%.15f \t %.15f \t %.15f')
+#np.savetxt('LCurve.txt', np.vstack((NormLCurveZoom, xTLxCurveZoom, lamLCurveZoom)).T, header = 'Norm ||Ax - y|| sqrt(x.T L x) lambdas', fmt = '%.15f \t %.15f \t %.15f')
 
 #
 # eng = matlab.engine.start_matlab()
@@ -1647,13 +1651,16 @@ np.savetxt('LCurve.txt', np.vstack((NormLCurveZoom, xTLxCurveZoom, lamLCurveZoom
 
 #lam_opt = opt_ind#lamLCurve[int(opt_ind - 1)]
 #lam_opt = LamMean#sum(lambBinEdges[:-1]* lambHist[p]/sum(lambHist))
-
+elapsedtRegTime = time.time() - startTime
 
 import kneed
 
 # calculate and show knee/elbow
 kneedle = kneed.KneeLocator(NormLCurveZoom, xTLxCurveZoom, S=0, curve="convex", direction="decreasing")
 knee_point = kneedle.knee
+
+
+print('Elapsed Time to find oprimal Reg Para: ' + str(elapsedtRegTime))
 #knee_point = kneedle.knee_y #elbow_point = kneedle.elbow
 print('Knee: ', knee_point) #print('Elbow: ', elbow_point)
 
@@ -1716,31 +1723,31 @@ mpl.rcParams.update({'font.size': 12})#,
 # {'text.usetex': True})
 # mpl.rcParams['mathtext.fontset'] = 'custom'
 # mpl.rcParams['mathtext.it'] = 'STIXGeneral:italic'
-# mpl.rcParams['mathtext.bf'] = 'STIXGeneral:italic:bold'
+# mpl.rcParams['mathtext.bf'] = 'STIXGeneral:italic:bold'[0, 114/255, 178/255]
 fig, axs = plt.subplots( tight_layout=True,figsize=set_size(245, fraction=fraction))
-axs.scatter(NormLCurve,xTLxCurve, zorder = 0, color = [0, 114/255, 178/255], s = 5)
+axs.scatter(NormLCurve,xTLxCurve, zorder = 0, color =  "#009E73", s = 5)
 #axs.scatter(LNormOpt ,xTLxOpt, zorder = 10, color = 'red', label = 'Opt. Tikh. regularization ')
 #axs.scatter(opt_norm ,opt_regNorm, zorder = 10, color = 'red')
-axs.scatter(NormRes, xTLxRes, color = MTCCol, s = 2)#, marker = "." ,mfc = 'black' , markeredgecolor='r',markersize=10,linestyle = 'None')
+axs.scatter(NormRes, xTLxRes, color = MTCCol, s = 1.5, marker = ".")# ,mfc = 'black' , markeredgecolor='r',markersize=10,linestyle = 'None')
 #axs.scatter(NewNormRes, NewxTLxRes, color = 'red', label = 'MTC RTO method')#, marker = "." ,mfc = 'black' , markeredgecolor='r',markersize=10,linestyle = 'None')
 
 #axs.scatter(SampleNorm, SamplexTLx, color = 'green', marker = 's', s= 100)
-axs.scatter(NormMargRes, xTLxMargRes, color = MargCol, marker = 's', s= 25, label = 'posterior mean')
+axs.scatter(NormMargRes, xTLxMargRes, color = "#0072B2", marker = 's', s= 25, label = 'posterior mean')
 #E$_{\mathbf{x},\mathbf{\theta}| \mathbf{y}}[\mathbf{x}_{\lambda}]$
 #axs.axvline(x = knee_point)
-axs.scatter(knee_point, kneedle.knee_y, color = 'r', marker = 'v',label = 'max. curvature', s= 25)
+axs.scatter(knee_point, kneedle.knee_y, color = "#D55E00", marker = 'v',label = 'max. curvature', s= 25)
 #zoom in
 x1, x2, y1, y2 = NormLCurveZoom[0], NormLCurveZoom[-1], xTLxCurveZoom[0], xTLxCurveZoom[-1] # specify the limits
 axins = axs.inset_axes([0.1,0.05,0.55,0.5])
 #axins.scatter(LNormOpt ,xTLxOpt, zorder = 10, color = regCol)
 
-axins.scatter(NormRes, xTLxRes, color = MTCCol, label = r'posterior samples ')#,$\mathbf{x} \sim \pi (\mathbf{x}| \mathbf{y}, \mathbf{\theta})$ s = 15)
-axins.scatter(NormLCurve,xTLxCurve, color = [0, 114/255, 178/255])
-axins.scatter(NormMargRes, xTLxMargRes, color = MargCol, marker = 's', s= 70)
+axins.scatter(NormRes, xTLxRes, color = MTCCol, label = r'posterior samples ',marker = '.')#,$\mathbf{x} \sim \pi (\mathbf{x}| \mathbf{y}, \mathbf{\theta})$ s = 15)
+axins.scatter(NormLCurve,xTLxCurve, color =  "#009E73")
+axins.scatter(NormMargRes, xTLxMargRes, color = "#0072B2", marker = 's', s= 70)
 # axins.scatter(LNormOpt, xTLxOpt, color = 'crimson', marker = "s", s =80)[240/255,228/255,66/255]
 #axins.annotate(r'E$_{\mathbf{x},\mathbf{\theta}| \mathbf{y}}[\lambda]$ = ' + str('{:.2f}'.format(lam_opt)), (LNormOpt+0.05,xTLxOpt))
 #axins.scatter(NewNormRes, NewxTLxRes, color = 'red', label = 'MTC RTO method', s = 10)#, marker = "." ,mfc = 'black' , markeredgecolor='r',markersize=10,linestyle = 'None')
-axins.scatter(knee_point, kneedle.knee_y, color = 'r', marker = 'v', s = 120)
+axins.scatter(knee_point, kneedle.knee_y, color = "#D55E00", marker = 'v', s = 120)
 axins.set_xlim(x1-0.01, x2-1) # apply the x-limits
 #axins.set_ylim(y2,y1)
 axins.set_ylim(y2,max(xTLxRes)+0.001) # apply the y-limits (negative gradient)
@@ -1786,7 +1793,7 @@ fig.savefig('LCurve.pgf', bbox_inches='tight')
 
 BinHist = 30#n_bins
 lambHist, lambBinEdges = np.histogram(new_lamb, bins= BinHist, density= True)
-paramsSkew, covs = scy.optimize.curve_fit(skew_norm_pdf,lambBinEdges[1::], lambHist/ np.sum(lambHist), p0 = [np.mean(new_lamb)+1e3,np.sqrt(np.var(lambdas)),0.1, 1] )
+paramsSkew, covs = scy.optimize.curve_fit(skew_norm_pdf,lambBinEdges[1::], lambHist/ np.sum(lambHist), p0 = [np.mean(new_lamb),np.sqrt(np.var(lambdas)),0.1, 1] )#np.mean(new_lamb)+1e3
 
 
 mpl.use(defBack)
@@ -1800,8 +1807,8 @@ axs[0].set_ylabel(r'the smoothnes parameter $\delta$')
 #axs[1].hist(new_lamb,bins=BinHist, color = MTCCol, zorder = 0, density = True)#10)
 axs[1].bar(lambBinEdges[1::],lambHist*np.diff(lambBinEdges)[0], color = MTCCol, zorder = 0,width = np.diff(lambBinEdges)[0])#10)
 
-axs[1].plot(lambBinEdges[1::],  skew_norm_pdf(lambBinEdges[1::], *paramsSkew )/np.sum(skew_norm_pdf(lambBinEdges[1::], *paramsSkew )), zorder = 1, color = MargCol)
-axs[1].axvline( lam_opt, color = regCol,linewidth=2)
+axs[1].plot(lambBinEdges[1::],  skew_norm_pdf(lambBinEdges[1::], *paramsSkew )/np.sum(skew_norm_pdf(lambBinEdges[1::], *paramsSkew )), zorder = 1, color =  gmresCol)#"#009E73")
+axs[1].axvline( lam_opt, color = "#D55E00",linewidth=2)
 
 axs[1].set_title(r'$\lambda =\delta / \gamma$, the regularization parameter', fontsize = 12)
 
@@ -1860,7 +1867,7 @@ axs[2].hist(new_lamb,bins=BinSetLamb, color = MTCCol, zorder = 0)#10)
 axs2 = axs[2].twinx()
 LPYT = SampParas[burnIn::math.ceil(IntAutoLamPyT),1]
 axs2.hist(SampParas[burnIn::math.ceil(IntAutoLamPyT),1] ,bins=BinSetLamb,color = pyTCol, zorder = 1)
-axs[2].axvline( lam_opt, color = regCol,linewidth=7.0)
+axs[2].axvline( lam_opt, color = "#D55E00",linewidth=7.0)
 #axs[2].set_xlim([0, lam_opt+50])
 axs2.set_ylim([0,100])
 axs2.tick_params(axis = 'y', colors=pyTCol, which = 'both')
@@ -1899,23 +1906,23 @@ mpl.use(defBack)
 mpl.rcParams.update(mpl.rcParamsDefault)
 plt.rcParams.update({'font.size': 12})
 plt.rcParams["font.serif"] = "cmr"
-fig3, ax2 = plt.subplots(figsize=set_size(1.3*245, fraction=fraction))
+fig3, ax2 = plt.subplots(figsize=set_size(245, fraction=fraction))
  # ax1 and ax2 share y-axis
 line3 = ax2.scatter(y, tang_heights_lin, label = r'data', zorder = 0, marker = '*', color ="#d62728" )#,linewidth = 5
 
 ax1 = ax2.twiny()
-ax1.scatter(VMR_O3,height_values,marker = 'o', facecolor = 'None', color = "#009E73", label = 'true profile', zorder=1, s =12)#,linewidth = 5)
-ax1.plot(VMR_O3,height_values, color = "#009E73", label = 'true profile', zorder=1)#,linewidth = 5)
+#ax1.scatter(VMR_O3,height_values,marker = 'o', facecolor = 'None', color = "#009E73", label = 'true profile', zorder=1, s =12)#,linewidth = 5)
+ax1.plot(VMR_O3,height_values,marker = 'o', color = "#009E73", label = 'true profile', zorder=4)#,linewidth = 5)
 
 # edgecolor = [0, 158/255, 115/255]
 #line1 = ax1.plot(VMR_O3,height_values, color = [0, 158/255, 115/255], linewidth = 10, zorder=0)
-for n in range(1,paraSamp,25):
+for n in range(1,paraSamp,15):
     Sol = Results[n, :] / (num_mole * S[ind, 0] * f_broad * 1e-4 * scalingConst)
     ax1.plot(Sol,height_values,marker= '.',color = 'k',label = 'posterior samples ', zorder = 0, linewidth = 0.5)
-#$\mathbf{x} \sim \pi(\mathbf{x} |\mathbf{y}, \mathbf{\theta} ) $'
-ax1.plot(XOPT, height_values, color="#D55E00",  markeredgecolor="#D55E00", marker='v', markerfacecolor = 'none', zorder=4, label='regularized sol. ', markersize =12)
+#$\mathbf{x} \sim \pi(\mathbf{x} |\mathbf{y}, \mathbf{\theta} ) $' , markerfacecolor = 'none'
+ax1.plot(XOPT, height_values, color="#D55E00",  markeredgecolor="#D55E00", marker='v', zorder=3, label='regularized sol. ', markersize =9)
 #line2 = ax1.errorbar(x,height_values,capsize=5, yerr = np.zeros(len(height_values)) ,color = MTCCol,zorder=5,markersize = 5, fmt = 'o',label = r'$\mathbf{x} \sim \pi(\mathbf{x} |\mathbf{y}, \mathbf{\theta} ) $')#, label = 'MC estimate')
-line3 = ax1.plot(MargX,height_values, markerfacecolor = 'none', color ="#0072B2" ,zorder=3, marker = 's', label = 'posterior mean ', markersize =12)
+line3 = ax1.plot(MargX,height_values, color ="#0072B2" ,zorder=2, marker = 's', label = 'posterior mean ', markersize =9)
 #E$_{\mathbf{x},\mathbf{\theta}| \mathbf{y}}[h(\mathbf{x})]$
 # markersize = 6
 #line4 = ax1.errorbar(x, height_values,capsize=5, xerr = xerr,color = MTCCol, fmt = 'o', markersize = 5,zorder=5)#, label = 'MC estimate')
@@ -1935,7 +1942,7 @@ handles2, labels2 = ax2.get_legend_handles_labels()
 # Labels =  [labels[0], labels[1], labels[2]]
 # LegendVertical(ax1, Handles, Labels, 90, XPad=-45, YPad=12)
 
-legend = ax1.legend(handles = [handles[-3], handles2[0], handles[0],handles[-2],handles[-1]], loc='lower right', framealpha = 0.2,fancybox=True)#, bbox_to_anchor=(1.01, 1.01), frameon =True)
+#legend = ax1.legend(handles = [handles[-3], handles2[0], handles[0],handles[-2],handles[-1]], loc='lower right', framealpha = 0.2,fancybox=True)#, bbox_to_anchor=(1.01, 1.01), frameon =True)
 
 #plt.ylabel('Height in km')
 ax1.set_ylim([heights[minInd-1], heights[maxInd+1]])
@@ -1944,7 +1951,7 @@ ax1.set_ylim([heights[minInd-1], heights[maxInd+1]])
 
 
 ax2.set_xlabel(r'Spectral Ozone radiance in $\frac{W}{m^2 sr} \times \frac{1}{\frac{1}{cm}}$',labelpad=10)# color =dataCol,
-ax2.tick_params(colors = 'blue', axis = 'x')
+ax2.tick_params(colors = "#d62728", axis = 'x')
 ax2.xaxis.set_ticks_position('top')
 ax2.xaxis.set_label_position('top')
 ax1.xaxis.set_ticks_position('bottom')
