@@ -164,7 +164,7 @@ neigbours[neigbours < 0] = np.nan
 
 L = generate_L(neigbours)
 startInd = 17
-L[startInd::, startInd::] = L[startInd::, startInd::] * 50
+L[startInd::, startInd::] = L[startInd::, startInd::] #* 50
 L[startInd, startInd] = -L[startInd, startInd-1] - L[startInd, startInd+1] #-L[startInd, startInd-2] - L[startInd, startInd+2]
 
 #L[startInd+1, startInd+1] = -L[startInd+1, startInd+1-1] - L[startInd+1,startInd+1+1] -L[startInd+1, startInd+1-2] - L[startInd+1, startInd+1+2]
@@ -293,7 +293,7 @@ AscalConstKmToCm = 1e3
 A_scal = pressure_values.reshape((SpecNumLayers,1)) * 1e2 * LineIntScal * Source * AscalConstKmToCm/ ( temp_values)
 scalingConst = 1e11
 #theta =(num_mole * w_cross.reshape((SpecNumLayers,1)) * Source * scalingConst )
-theta = num_mole* w_cross.reshape((SpecNumLayers,1)) * scalingConst * S[ind,0]
+theta = num_mole * w_cross.reshape((SpecNumLayers,1)) * scalingConst * S[ind,0]
 
 # A_scal = pressure_values.reshape((SpecNumLayers,1)) / ( temp_values)
 # scalingConst_old = 1e16
@@ -591,7 +591,7 @@ f_new = f(ATy, y,  B_inv_A_trans_y0)
 #g_old = g(A, L,  lambdas[0])
 
 def MHwG(number_samples, burnIn, lambda0, gamma0):
-    wLam = 7e1#2e3
+    wLam = 2e3#7e1
 
     alphaG = 1
     alphaD = 1
@@ -780,6 +780,8 @@ for p in range(paraSamp):
 
 elapsedX = time.time() - startTimeX
 print('Time to solve for x ' + str(elapsedX/paraSamp))
+
+
 NormLTest = np.linalg.norm( np.matmul(A,np.mean(Results,0 )) - y[0::,0])
 xTLxCurveTest = np.sqrt(np.matmul(np.matmul(np.mean(Results,0 ).T, L), np.mean(Results,0 )))
 
@@ -1551,7 +1553,7 @@ for i in range(len(lamLCurve)):
         #xTLxCurve[i] = np.sqrt(x.T @ x)
 
 startTime  = time.time()
-lamLCurveZoom = np.logspace(0,5,200)
+lamLCurveZoom = np.logspace(1,6,200)
 NormLCurveZoom = np.zeros(len(lamLCurve))
 xTLxCurveZoom = np.zeros(len(lamLCurve))
 for i in range(len(lamLCurveZoom)):
@@ -1793,7 +1795,7 @@ fig.savefig('LCurve.pgf', bbox_inches='tight')
 
 BinHist = 30#n_bins
 lambHist, lambBinEdges = np.histogram(new_lamb, bins= BinHist, density= True)
-paramsSkew, covs = scy.optimize.curve_fit(skew_norm_pdf,lambBinEdges[1::], lambHist/ np.sum(lambHist), p0 = [np.mean(new_lamb),np.sqrt(np.var(lambdas)),0.1, 1] )#np.mean(new_lamb)+1e3
+paramsSkew, covs = scy.optimize.curve_fit(skew_norm_pdf,lambBinEdges[1::], lambHist/ np.sum(lambHist), p0 = [np.mean(lambBinEdges[1::]),np.sqrt(np.var(lambdas)),0.1, 1] )#np.mean(new_lamb)+1e3
 
 
 mpl.use(defBack)
