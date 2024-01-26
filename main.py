@@ -163,8 +163,8 @@ neigbours[neigbours >= len(height_values)] = np.nan
 neigbours[neigbours < 0] = np.nan
 
 L = generate_L(neigbours)
-startInd = 17
-L[startInd::, startInd::] = L[startInd::, startInd::] #* 50
+startInd = 23
+L[startInd::, startInd::] = L[startInd::, startInd::] * 5
 L[startInd, startInd] = -L[startInd, startInd-1] - L[startInd, startInd+1] #-L[startInd, startInd-2] - L[startInd, startInd+2]
 
 #L[startInd+1, startInd+1] = -L[startInd+1, startInd+1-1] - L[startInd+1,startInd+1+1] -L[startInd+1, startInd+1-2] - L[startInd+1, startInd+1+2]
@@ -1906,7 +1906,7 @@ MargX = MargInteg/ (num_mole * S[ind,0]  * f_broad * 1e-4 * scalingConst)
 mpl.use(defBack)
 #mpl.use("png") bbox_inches='tight'
 mpl.rcParams.update(mpl.rcParamsDefault)
-plt.rcParams.update({'font.size': 12})
+plt.rcParams.update({'font.size': 10})
 plt.rcParams["font.serif"] = "cmr"
 fig3, ax2 = plt.subplots(figsize=set_size(245, fraction=fraction))
  # ax1 and ax2 share y-axis
@@ -1914,17 +1914,17 @@ line3 = ax2.scatter(y, tang_heights_lin, label = r'data', zorder = 0, marker = '
 
 ax1 = ax2.twiny()
 #ax1.scatter(VMR_O3,height_values,marker = 'o', facecolor = 'None', color = "#009E73", label = 'true profile', zorder=1, s =12)#,linewidth = 5)
-ax1.plot(VMR_O3,height_values,marker = 'o', color = "#009E73", label = 'true profile', zorder=4)#,linewidth = 5)
+ax1.plot(VMR_O3,height_values,marker = 'o',markerfacecolor = 'none', color = "#009E73", label = 'true profile', zorder=4 ,linewidth = 3)
 
 # edgecolor = [0, 158/255, 115/255]
 #line1 = ax1.plot(VMR_O3,height_values, color = [0, 158/255, 115/255], linewidth = 10, zorder=0)
 for n in range(1,paraSamp,15):
     Sol = Results[n, :] / (num_mole * S[ind, 0] * f_broad * 1e-4 * scalingConst)
-    ax1.plot(Sol,height_values,marker= '.',color = 'k',label = 'posterior samples ', zorder = 0, linewidth = 0.5)
+    ax1.plot(Sol,height_values,marker= '+',color = 'k',label = 'posterior samples ', zorder = 0, linewidth = 0.5, markersize = 4)
 #$\mathbf{x} \sim \pi(\mathbf{x} |\mathbf{y}, \mathbf{\theta} ) $' , markerfacecolor = 'none'
-ax1.plot(XOPT, height_values, color="#D55E00",  markeredgecolor="#D55E00", marker='v', zorder=3, label='regularized sol. ', markersize =9)
+ax1.plot(XOPT, height_values, markerfacecolor = 'none', markeredgecolor="#D55E00", color ="#D55E00" ,marker='v', zorder=3, label='regularized sol. ', markersize =9, linewidth = 3 )# color="#D55E00"
 #line2 = ax1.errorbar(x,height_values,capsize=5, yerr = np.zeros(len(height_values)) ,color = MTCCol,zorder=5,markersize = 5, fmt = 'o',label = r'$\mathbf{x} \sim \pi(\mathbf{x} |\mathbf{y}, \mathbf{\theta} ) $')#, label = 'MC estimate')
-line3 = ax1.plot(MargX,height_values, color ="#0072B2" ,zorder=2, marker = 's', label = 'posterior mean ', markersize =9)
+line3 = ax1.plot(MargX,height_values, markerfacecolor = 'none', markeredgecolor ="#0072B2", color = "#0072B2" ,zorder=2, marker = 's', label = 'posterior mean ', markersize =9, linewidth = 3)
 #E$_{\mathbf{x},\mathbf{\theta}| \mathbf{y}}[h(\mathbf{x})]$
 # markersize = 6
 #line4 = ax1.errorbar(x, height_values,capsize=5, xerr = xerr,color = MTCCol, fmt = 'o', markersize = 5,zorder=5)#, label = 'MC estimate')
@@ -1949,10 +1949,10 @@ handles2, labels2 = ax2.get_legend_handles_labels()
 #plt.ylabel('Height in km')
 ax1.set_ylim([heights[minInd-1], heights[maxInd+1]])
 #ax2.set_xlim([min(y),max(y)])
-#ax1.set_xlim([min(x)-max(xerr)/2,max(x)+max(xerr)/2])
+#ax1.set_xlim([min(x)-max(xerr)/2,max(x)+max(xerr)/2]) Ozone
 
 
-ax2.set_xlabel(r'Spectral Ozone radiance in $\frac{W}{m^2 sr} \times \frac{1}{\frac{1}{cm}}$',labelpad=10)# color =dataCol,
+ax2.set_xlabel(r'Spectral radiance in $\frac{W}{m^2 sr} \times \frac{1}{\frac{1}{cm}}$',labelpad=10)# color =dataCol,
 ax2.tick_params(colors = "#d62728", axis = 'x')
 ax2.xaxis.set_ticks_position('top')
 ax2.xaxis.set_label_position('top')
@@ -1962,9 +1962,14 @@ ax1.spines[:].set_visible(False)
 #ax2.spines['top'].set_color(pyTCol)
 
 
+plt.show()
+import tikzplotlib
+
+tikzplotlib.save("FirstRecRes.pgf")
+
+##
 fig3.savefig('FirstRecRes.png')#, dpi = dpi)
 
-plt.show()
 ##
 
 # pgf_params = { "pgf.texsystem": "pdflatex",
@@ -1972,9 +1977,13 @@ plt.show()
 #     'pgf.rcfonts': False,
 # 'axes.labelsize': 12,  # -> axis labels
 # 'legend.fontsize': 12,
-# "font.serif": "cmr"
-#                }
+# "font.serif": "cmr"}
 
+
+
+
+
+##
 
 mpl.use('pgf')
 mpl.rcParams.update(pgf_params)
