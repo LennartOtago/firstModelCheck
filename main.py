@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib as mpl
+
 from importetFunctions import *
 import time
 import pickle as pl
@@ -16,7 +17,7 @@ from numpy.random import uniform, normal, gamma
 import scipy as scy
 from matplotlib.ticker import FuncFormatter
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes, mark_inset
-
+import tikzplotlib
 #mpl.rc('text.latex', preamble=r"\boldmath")
 
 """ for plotting figures,
@@ -59,6 +60,13 @@ regCol = [212/255, 17/255, 89/255]
 #MargCol = [86/255, 180/255, 233/255]
 MargCol = [255/255, 194/255, 10/255]
 defBack = mpl.get_backend()
+
+
+ResCol = "#1E88E5"#"#0072B2"
+MeanCol = "#FFC107"#"#d62728"
+RegCol = "#D81B60"#"#D55E00"
+TrueCol = "#004D40" #'k'
+DatCol = 'k'#"#332288"#"#009E73"
 
 tol = 1e-6
 
@@ -577,7 +585,7 @@ cond_B =  np.max(Bs)/np.min(Bs)
 print("Condition number B: " + str(orderOfMagnitude(cond_B)))
 
 
-wLam = 2e2#5.5e2
+#wLam = 2e2#5.5e2
 #wgam = 1e-5
 #wdelt = 1e-1
 
@@ -591,7 +599,7 @@ f_new = f(ATy, y,  B_inv_A_trans_y0)
 #g_old = g(A, L,  lambdas[0])
 
 def MHwG(number_samples, burnIn, lambda0, gamma0):
-    wLam = 2e3#7e1
+    wLam = 1e3#7e1
 
     alphaG = 1
     alphaD = 1
@@ -1511,7 +1519,9 @@ axs.legend(lines, lab0, loc = 'lower right')
 #fig.savefig('f_and_g_paper.pgf', bbox_inches='tight')
 plt.savefig('f_and_g_paper.png',bbox_inches='tight')
 plt.show()
-
+#for legend
+tikzplotlib_fix_ncols(fig)
+tikzplotlib.save("f_and_g_paper.pgf")
 
 ##
 plt.close()
@@ -1658,20 +1668,21 @@ elapsedtRegTime = time.time() - startTime
 import kneed
 
 # calculate and show knee/elbow
-kneedle = kneed.KneeLocator(NormLCurveZoom, xTLxCurveZoom, S=0, curve="convex", direction="decreasing")
+kneedle = kneed.KneeLocator(NormLCurveZoom, xTLxCurveZoom, curve='convex', direction='decreasing', online = True, S = 0, interp_method="interp1d")
 knee_point = kneedle.knee
 
 
 print('Elapsed Time to find oprimal Reg Para: ' + str(elapsedtRegTime))
-#knee_point = kneedle.knee_y #elbow_point = kneedle.elbow
-print('Knee: ', knee_point) #print('Elbow: ', elbow_point)
+#knee_point = kneedle.knee_y #
 
 lam_opt = lamLCurveZoom[ np.where(NormLCurveZoom == knee_point)[0][0]]
+print('Knee: ', lam_opt) #print('Elbow: ', elbow_point)
 
+elbow_point = kneedle.elbow
 
+lam_opt_elbow = lamLCurveZoom[ np.where(NormLCurveZoom == knee_point)[0][0]]
 
-
-
+print('Elbow: ', lam_opt_elbow)
 
 B = (ATA + lam_opt * L)
 x_opt, exitCode = gmres(B, ATy[0::, 0], tol=tol, restart=25)
@@ -1727,29 +1738,29 @@ mpl.rcParams.update({'font.size': 12})#,
 # mpl.rcParams['mathtext.it'] = 'STIXGeneral:italic'
 # mpl.rcParams['mathtext.bf'] = 'STIXGeneral:italic:bold'[0, 114/255, 178/255]
 fig, axs = plt.subplots( tight_layout=True,figsize=set_size(245, fraction=fraction))
-axs.scatter(NormLCurve,xTLxCurve, zorder = 0, color =  "#009E73", s = 5)
+axs.scatter(NormLCurve,xTLxCurve, zorder = 0, color =  "k", s = 5)
 #axs.scatter(LNormOpt ,xTLxOpt, zorder = 10, color = 'red', label = 'Opt. Tikh. regularization ')
 #axs.scatter(opt_norm ,opt_regNorm, zorder = 10, color = 'red')
-axs.scatter(NormRes, xTLxRes, color = MTCCol, s = 1.5, marker = ".")# ,mfc = 'black' , markeredgecolor='r',markersize=10,linestyle = 'None')
+axs.scatter(NormRes, xTLxRes, color = ResCol, s = 1.5, marker = "+")# ,mfc = 'black' , markeredgecolor='r',markersize=10,linestyle = 'None')
 #axs.scatter(NewNormRes, NewxTLxRes, color = 'red', label = 'MTC RTO method')#, marker = "." ,mfc = 'black' , markeredgecolor='r',markersize=10,linestyle = 'None')
 
 #axs.scatter(SampleNorm, SamplexTLx, color = 'green', marker = 's', s= 100)
-axs.scatter(NormMargRes, xTLxMargRes, color = "#0072B2", marker = 's', s= 25, label = 'posterior mean')
+axs.scatter(NormMargRes, xTLxMargRes, color = MeanCol, marker = 's', s= 25, label = 'posterior mean')
 #E$_{\mathbf{x},\mathbf{\theta}| \mathbf{y}}[\mathbf{x}_{\lambda}]$
 #axs.axvline(x = knee_point)
-axs.scatter(knee_point, kneedle.knee_y, color = "#D55E00", marker = 'v',label = 'max. curvature', s= 25)
+axs.scatter(knee_point, kneedle.knee_y, color = regCol, marker = 'v',label = 'max. curvature', s= 25)
 #zoom in
 x1, x2, y1, y2 = NormLCurveZoom[0], NormLCurveZoom[-1], xTLxCurveZoom[0], xTLxCurveZoom[-1] # specify the limits
 axins = axs.inset_axes([0.1,0.05,0.55,0.5])
 #axins.scatter(LNormOpt ,xTLxOpt, zorder = 10, color = regCol)
 
-axins.scatter(NormRes, xTLxRes, color = MTCCol, label = r'posterior samples ',marker = '.')#,$\mathbf{x} \sim \pi (\mathbf{x}| \mathbf{y}, \mathbf{\theta})$ s = 15)
-axins.scatter(NormLCurve,xTLxCurve, color =  "#009E73")
-axins.scatter(NormMargRes, xTLxMargRes, color = "#0072B2", marker = 's', s= 70)
+axins.scatter(NormRes, xTLxRes, color = ResCol, label = r'posterior samples ',marker = '+')#,$\mathbf{x} \sim \pi (\mathbf{x}| \mathbf{y}, \mathbf{\theta})$ s = 15)
+axins.scatter(NormLCurve,xTLxCurve, color =  'k')
+axins.scatter(NormMargRes, xTLxMargRes, color = MeanCol, marker = 's', s= 70)
 # axins.scatter(LNormOpt, xTLxOpt, color = 'crimson', marker = "s", s =80)[240/255,228/255,66/255]
 #axins.annotate(r'E$_{\mathbf{x},\mathbf{\theta}| \mathbf{y}}[\lambda]$ = ' + str('{:.2f}'.format(lam_opt)), (LNormOpt+0.05,xTLxOpt))
 #axins.scatter(NewNormRes, NewxTLxRes, color = 'red', label = 'MTC RTO method', s = 10)#, marker = "." ,mfc = 'black' , markeredgecolor='r',markersize=10,linestyle = 'None')
-axins.scatter(knee_point, kneedle.knee_y, color = "#D55E00", marker = 'v', s = 120)
+axins.scatter(knee_point, kneedle.knee_y, color = RegCol, marker = 'v', s = 120)
 axins.set_xlim(x1-0.01, x2-1) # apply the x-limits
 #axins.set_ylim(y2,y1)
 axins.set_ylim(y2,max(xTLxRes)+0.001) # apply the y-limits (negative gradient)
@@ -1774,6 +1785,10 @@ axs.legend(handles = [handles[0],handles[1],handles2[0]],loc = 'upper right',  f
 plt.savefig('LCurve.png')
 #tikzplotlib.save("LCurve.tex")
 plt.show()
+
+
+tikzplotlib_fix_ncols(fig)
+tikzplotlib.save("LCurve.pgf")
 print('bla')
 ##
 
@@ -1810,12 +1825,16 @@ axs[0].set_ylabel(r'the smoothnes parameter $\delta$')
 axs[1].bar(lambBinEdges[1::],lambHist*np.diff(lambBinEdges)[0], color = MTCCol, zorder = 0,width = np.diff(lambBinEdges)[0])#10)
 
 axs[1].plot(lambBinEdges[1::],  skew_norm_pdf(lambBinEdges[1::], *paramsSkew )/np.sum(skew_norm_pdf(lambBinEdges[1::], *paramsSkew )), zorder = 1, color =  gmresCol)#"#009E73")
-axs[1].axvline( lam_opt, color = "#D55E00",linewidth=2)
+axs[1].axvline( lam_opt, color = RegCol,linewidth=2)
 
 axs[1].set_title(r'$\lambda =\delta / \gamma$, the regularization parameter', fontsize = 12)
 
 plt.savefig('ScatterplusHisto.png')
 plt.show()
+
+
+
+#tikzplotlib.save("ScatterplusHisto.pgf")
 ##
 
 
@@ -1882,6 +1901,7 @@ axs[2].set_title(r'$\lambda =\delta / \gamma$, the regularization parameter', fo
 #fig.savefig('AllHistoResults.pgf', bbox_inches='tight')
 plt.savefig('AllHistoResults.png')
 plt.show()
+
 ##
 
 
@@ -1897,6 +1917,8 @@ fig.savefig('AllHistoResults.pgf', bbox_inches='tight')
 
 ###
 plt.close('all')
+
+
 Sol= Results[2,:]/ (num_mole * S[ind,0]  * f_broad * 1e-4 * scalingConst)
 x = np.mean(Results,0 )/ (num_mole * S[ind,0]  * f_broad * 1e-4 * scalingConst)
 #xerr = np.sqrt(np.var(Results / (num_mole * S[ind, 0] * f_broad * 1e-4 * scalingConst), 0)) / 2
@@ -1910,21 +1932,29 @@ plt.rcParams.update({'font.size': 10})
 plt.rcParams["font.serif"] = "cmr"
 fig3, ax2 = plt.subplots(figsize=set_size(245, fraction=fraction))
  # ax1 and ax2 share y-axis
-line3 = ax2.scatter(y, tang_heights_lin, label = r'data', zorder = 0, marker = '*', color ="#d62728" )#,linewidth = 5
+line3 = ax2.scatter(y, tang_heights_lin, label = r'data', zorder = 0, marker = '*', color =DatCol )#,linewidth = 5
 
 ax1 = ax2.twiny()
 #ax1.scatter(VMR_O3,height_values,marker = 'o', facecolor = 'None', color = "#009E73", label = 'true profile', zorder=1, s =12)#,linewidth = 5)
-ax1.plot(VMR_O3,height_values,marker = 'o',markerfacecolor = 'none', color = "#009E73", label = 'true profile', zorder=4 ,linewidth = 3)
+ax1.plot(VMR_O3,height_values,marker = 'o',markerfacecolor = 'none', color = TrueCol , label = 'true profile', zorder=2 ,linewidth = 1.5, markersize =5)
 
 # edgecolor = [0, 158/255, 115/255]
 #line1 = ax1.plot(VMR_O3,height_values, color = [0, 158/255, 115/255], linewidth = 10, zorder=0)
-for n in range(1,paraSamp,15):
+for n in range(0,paraSamp,15):
     Sol = Results[n, :] / (num_mole * S[ind, 0] * f_broad * 1e-4 * scalingConst)
-    ax1.plot(Sol,height_values,marker= '+',color = 'k',label = 'posterior samples ', zorder = 0, linewidth = 0.5, markersize = 4)
+
+    ax1.plot(Sol,height_values,marker= '+',color = ResCol,label = 'posterior samples ', zorder = 0, linewidth = 0.5, markersize = 2)
+    with open('Samp' + str(n) +'.txt', 'w') as f:
+        for k in range(0, len(Sol)):
+            f.write('(' + str(Sol[k]) + ' , ' + str(height_values[k]) + ')')
+            f.write('\n')
+
+# ax1.plot(Sol, height_values, marker='+', color=ResCol, label='posterior samples ', zorder=4, linewidth=0.5,
+# markersize=2, linestyle = 'none')
 #$\mathbf{x} \sim \pi(\mathbf{x} |\mathbf{y}, \mathbf{\theta} ) $' , markerfacecolor = 'none'
-ax1.plot(XOPT, height_values, markerfacecolor = 'none', markeredgecolor="#D55E00", color ="#D55E00" ,marker='v', zorder=3, label='regularized sol. ', markersize =9, linewidth = 3 )# color="#D55E00"
+ax1.plot(XOPT, height_values, markerfacecolor = 'none', markeredgecolor = RegCol, color = RegCol ,marker='v', zorder=1, label='regularized sol. ', markersize =8, linewidth = 2 )# color="#D55E00"
 #line2 = ax1.errorbar(x,height_values,capsize=5, yerr = np.zeros(len(height_values)) ,color = MTCCol,zorder=5,markersize = 5, fmt = 'o',label = r'$\mathbf{x} \sim \pi(\mathbf{x} |\mathbf{y}, \mathbf{\theta} ) $')#, label = 'MC estimate')
-line3 = ax1.plot(MargX,height_values, markerfacecolor = 'none', markeredgecolor ="#0072B2", color = "#0072B2" ,zorder=2, marker = 's', label = 'posterior mean ', markersize =9, linewidth = 3)
+line3 = ax1.plot(MargX,height_values, markeredgecolor =MeanCol, color = MeanCol ,zorder=3, marker = 's', label = 'posterior mean ', markersize =3, linewidth =1)#, markerfacecolor = 'none'
 #E$_{\mathbf{x},\mathbf{\theta}| \mathbf{y}}[h(\mathbf{x})]$
 # markersize = 6
 #line4 = ax1.errorbar(x, height_values,capsize=5, xerr = xerr,color = MTCCol, fmt = 'o', markersize = 5,zorder=5)#, label = 'MC estimate')
@@ -1953,7 +1983,7 @@ ax1.set_ylim([heights[minInd-1], heights[maxInd+1]])
 
 
 ax2.set_xlabel(r'Spectral radiance in $\frac{W}{m^2 sr} \times \frac{1}{\frac{1}{cm}}$',labelpad=10)# color =dataCol,
-ax2.tick_params(colors = "#d62728", axis = 'x')
+ax2.tick_params(colors = DatCol, axis = 'x')
 ax2.xaxis.set_ticks_position('top')
 ax2.xaxis.set_label_position('top')
 ax1.xaxis.set_ticks_position('bottom')
@@ -1966,6 +1996,35 @@ plt.show()
 import tikzplotlib
 
 tikzplotlib.save("FirstRecRes.pgf")
+
+Samp = Results[::15,:] / (num_mole * S[ind, 0] * f_broad * 1e-4 * scalingConst)
+
+np.savetxt('14Samples.txt', Samp, fmt = '%.15f', delimiter= '\t')
+#np.savetxt('GroundTruth.txt',VMR_O3, fmt = '%.15f', delimiter= '\t')
+#np.savetxt('RegSolution.txt', XOPT, fmt = '%.15f', delimiter= '\t')
+#np.savetxt('PosteriorMean.txt', MargX, fmt = '%.15f', delimiter= '\t')
+#np.savetxt('HeigthValues.txt', height_values, fmt = '%.15f', delimiter= '\t')
+
+##
+with open('RegSolution.txt', 'w') as f:
+    for n in range(0,len(XOPT)):
+        f.write('(' + str(XOPT[n]) + ' , ' + str(height_values[n]) + ')')
+        f.write('\n')
+
+with open('GroundTruth.txt', 'w') as f:
+    for n in range(0,len(VMR_O3)):
+        f.write('(' + str(VMR_O3[n]) + ' , ' + str(height_values[n]) + ')')
+        f.write('\n')
+
+with open('PosteriorMean.txt', 'w') as f:
+    for n in range(0,len(MargX)):
+        f.write('(' + str(MargX[n]) + ' , ' + str(height_values[n]) + ')')
+        f.write('\n')
+
+with open('SimData.txt', 'w') as f:
+    for n in range(0,len(y)):
+        f.write('(' + str(y[n,0]) + ' , ' + str(tang_heights_lin[n]) + ')')
+        f.write('\n')
 
 ##
 fig3.savefig('FirstRecRes.png')#, dpi = dpi)
