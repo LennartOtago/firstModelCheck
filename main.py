@@ -63,10 +63,11 @@ defBack = mpl.get_backend()
 
 
 ResCol = "#1E88E5"#"#0072B2"
-MeanCol = "#FFC107"#"#d62728"
+MeanCol = 'k'#"#FFC107"#"#d62728"
 RegCol = "#D81B60"#"#D55E00"
-TrueCol = "#004D40" #'k'
-DatCol = 'k'#"#332288"#"#009E73"
+TrueCol = 'brightgreen' # "#004D40" #'k'
+DatCol =  'gray' # 'k'"#332288"#"#009E73"
+
 
 tol = 1e-6
 
@@ -344,7 +345,7 @@ numDensO3 =  N_A * press * 1e2 * O3 / (R * temp_values[0,:]) * 1e-6
 A = A_lin * A_scal.T
 ATA = np.matmul(A.T,A)
 Au, As, Avh = np.linalg.svd(A)
-cond_A =  np.max(A_lins)/np.min(As)
+cond_A =  np.max(As)/np.min(As)
 print("normal: " + str(orderOfMagnitude(cond_A)))
 
 ATAu, ATAs, ATAvh = np.linalg.svd(ATA)
@@ -1738,25 +1739,25 @@ mpl.rcParams.update({'font.size': 12})#,
 # mpl.rcParams['mathtext.it'] = 'STIXGeneral:italic'
 # mpl.rcParams['mathtext.bf'] = 'STIXGeneral:italic:bold'[0, 114/255, 178/255]
 fig, axs = plt.subplots( tight_layout=True,figsize=set_size(245, fraction=fraction))
-axs.scatter(NormLCurve,xTLxCurve, zorder = 0, color =  "k", s = 5)
+axs.scatter(NormLCurve,xTLxCurve, zorder = 0, color =  DatCol, s = 1, marker ='s')
 #axs.scatter(LNormOpt ,xTLxOpt, zorder = 10, color = 'red', label = 'Opt. Tikh. regularization ')
 #axs.scatter(opt_norm ,opt_regNorm, zorder = 10, color = 'red')
 axs.scatter(NormRes, xTLxRes, color = ResCol, s = 1.5, marker = "+")# ,mfc = 'black' , markeredgecolor='r',markersize=10,linestyle = 'None')
 #axs.scatter(NewNormRes, NewxTLxRes, color = 'red', label = 'MTC RTO method')#, marker = "." ,mfc = 'black' , markeredgecolor='r',markersize=10,linestyle = 'None')
 
 #axs.scatter(SampleNorm, SamplexTLx, color = 'green', marker = 's', s= 100)
-axs.scatter(NormMargRes, xTLxMargRes, color = MeanCol, marker = 's', s= 25, label = 'posterior mean')
+axs.scatter(NormMargRes, xTLxMargRes, color = MeanCol, marker = '.', s= 25, label = 'posterior mean')
 #E$_{\mathbf{x},\mathbf{\theta}| \mathbf{y}}[\mathbf{x}_{\lambda}]$
 #axs.axvline(x = knee_point)
 axs.scatter(knee_point, kneedle.knee_y, color = regCol, marker = 'v',label = 'max. curvature', s= 25)
 #zoom in
-x1, x2, y1, y2 = NormLCurveZoom[0], NormLCurveZoom[-1], xTLxCurveZoom[0], xTLxCurveZoom[-1] # specify the limits
-axins = axs.inset_axes([0.1,0.05,0.55,0.5])
+x1, x2, y1, y2 = NormLCurveZoom[0], NormLCurveZoom[-31], xTLxCurveZoom[0], xTLxCurveZoom[-1] # specify the limits
+axins = axs.inset_axes([0.1,0.05,0.55,0.45])
 #axins.scatter(LNormOpt ,xTLxOpt, zorder = 10, color = regCol)
 
 axins.scatter(NormRes, xTLxRes, color = ResCol, label = r'posterior samples ',marker = '+')#,$\mathbf{x} \sim \pi (\mathbf{x}| \mathbf{y}, \mathbf{\theta})$ s = 15)
-axins.scatter(NormLCurve,xTLxCurve, color =  'k')
-axins.scatter(NormMargRes, xTLxMargRes, color = MeanCol, marker = 's', s= 70)
+axins.scatter(NormLCurve,xTLxCurve, color =  DatCol,marker = 's', s= 10)
+axins.scatter(NormMargRes, xTLxMargRes, color = MeanCol, marker = '.', s= 100)
 # axins.scatter(LNormOpt, xTLxOpt, color = 'crimson', marker = "s", s =80)[240/255,228/255,66/255]
 #axins.annotate(r'E$_{\mathbf{x},\mathbf{\theta}| \mathbf{y}}[\lambda]$ = ' + str('{:.2f}'.format(lam_opt)), (LNormOpt+0.05,xTLxOpt))
 #axins.scatter(NewNormRes, NewxTLxRes, color = 'red', label = 'MTC RTO method', s = 10)#, marker = "." ,mfc = 'black' , markeredgecolor='r',markersize=10,linestyle = 'None')
@@ -1918,7 +1919,7 @@ fig.savefig('AllHistoResults.pgf', bbox_inches='tight')
 ###
 plt.close('all')
 
-
+TrueCol = 'limegreen'
 Sol= Results[2,:]/ (num_mole * S[ind,0]  * f_broad * 1e-4 * scalingConst)
 x = np.mean(Results,0 )/ (num_mole * S[ind,0]  * f_broad * 1e-4 * scalingConst)
 #xerr = np.sqrt(np.var(Results / (num_mole * S[ind, 0] * f_broad * 1e-4 * scalingConst), 0)) / 2
@@ -1936,14 +1937,14 @@ line3 = ax2.scatter(y, tang_heights_lin, label = r'data', zorder = 0, marker = '
 
 ax1 = ax2.twiny()
 #ax1.scatter(VMR_O3,height_values,marker = 'o', facecolor = 'None', color = "#009E73", label = 'true profile', zorder=1, s =12)#,linewidth = 5)
-ax1.plot(VMR_O3,height_values,marker = 'o',markerfacecolor = 'none', color = TrueCol , label = 'true profile', zorder=2 ,linewidth = 1.5, markersize =5)
+ax1.plot(VMR_O3,height_values,marker = 'o',markerfacecolor = TrueCol, color = TrueCol , label = 'true profile', zorder=0 ,linewidth = 1.5, markersize =9)
 
 # edgecolor = [0, 158/255, 115/255]
 #line1 = ax1.plot(VMR_O3,height_values, color = [0, 158/255, 115/255], linewidth = 10, zorder=0)
 for n in range(0,paraSamp,15):
     Sol = Results[n, :] / (num_mole * S[ind, 0] * f_broad * 1e-4 * scalingConst)
 
-    ax1.plot(Sol,height_values,marker= '+',color = ResCol,label = 'posterior samples ', zorder = 0, linewidth = 0.5, markersize = 2)
+    ax1.plot(Sol,height_values,marker= '+',color = ResCol,label = 'posterior samples ', zorder = 1, linewidth = 0.5, markersize = 5)
     with open('Samp' + str(n) +'.txt', 'w') as f:
         for k in range(0, len(Sol)):
             f.write('(' + str(Sol[k]) + ' , ' + str(height_values[k]) + ')')
@@ -1954,7 +1955,7 @@ for n in range(0,paraSamp,15):
 #$\mathbf{x} \sim \pi(\mathbf{x} |\mathbf{y}, \mathbf{\theta} ) $' , markerfacecolor = 'none'
 ax1.plot(XOPT, height_values, markerfacecolor = 'none', markeredgecolor = RegCol, color = RegCol ,marker='v', zorder=1, label='regularized sol. ', markersize =8, linewidth = 2 )# color="#D55E00"
 #line2 = ax1.errorbar(x,height_values,capsize=5, yerr = np.zeros(len(height_values)) ,color = MTCCol,zorder=5,markersize = 5, fmt = 'o',label = r'$\mathbf{x} \sim \pi(\mathbf{x} |\mathbf{y}, \mathbf{\theta} ) $')#, label = 'MC estimate')
-line3 = ax1.plot(MargX,height_values, markeredgecolor =MeanCol, color = MeanCol ,zorder=3, marker = 's', label = 'posterior mean ', markersize =3, linewidth =1)#, markerfacecolor = 'none'
+line3 = ax1.plot(MargX,height_values, markeredgecolor =MeanCol, color = MeanCol ,zorder=3, marker = '.', label = 'posterior mean ', markersize =3, linewidth =1)#, markerfacecolor = 'none'
 #E$_{\mathbf{x},\mathbf{\theta}| \mathbf{y}}[h(\mathbf{x})]$
 # markersize = 6
 #line4 = ax1.errorbar(x, height_values,capsize=5, xerr = xerr,color = MTCCol, fmt = 'o', markersize = 5,zorder=5)#, label = 'MC estimate')
