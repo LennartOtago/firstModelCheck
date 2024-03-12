@@ -65,7 +65,7 @@ defBack = mpl.get_backend()
 ResCol = "#1E88E5"#"#0072B2"
 MeanCol = 'k'#"#FFC107"#"#d62728"
 RegCol = "#D81B60"#"#D55E00"
-TrueCol = 'brightgreen' # "#004D40" #'k'
+TrueCol = 'green' # "#004D40" #'k'
 DatCol =  'gray' # 'k'"#332288"#"#009E73"
 
 
@@ -839,7 +839,7 @@ MargResults = np.zeros((BinHist,len(theta)))
 MargVarResults = np.zeros((BinHist,len(theta)))
 #MargResults = np.zeros((BinHist,BinHist,len(theta)))
 #LamMean = 0
-
+startTime  = time.time()
 for p in range(BinHist):
     #DLambda = ( lambBinEdges[p+1] - lambBinEdges[p])/2
     SetLambda =  lambBinEdges[p]
@@ -870,7 +870,8 @@ xTLxMargRes = np.sqrt(np.matmul(np.matmul(MargInteg.T, L),MargInteg))
 
 MargX =  MargInteg/ (num_mole * S[ind,0]  * f_broad * 1e-4 * scalingConst)
 MargXErr = np.sqrt( (MargIntegSq - MargInteg**2 )/ (num_mole * S[ind,0]  * f_broad * 1e-4 * scalingConst)**2 )
-
+MargTime = time.time() - startTime
+print('Post Mean in ' + str(MargTime) + ' s')
 #MargX  = np.sum(np.sum(MargResults, axis = 0), axis = 0) /(num_mole * S[ind,0]  * f_broad * 1e-4 * scalingConst)
 
 # mpl.use(defBack)
@@ -1417,7 +1418,7 @@ gCol = [230/255, 159/255, 0]
 gmresCol = [204/255, 121/255, 167/255]
 fig,axs = plt.subplots(figsize=set_size(PgWidthPt, fraction=fraction))#, dpi = dpi)
 
-axs.plot(lam,f_func, color = fCol, zorder = 1)
+axs.plot(lam,f_func, color = fCol, zorder = 2, linestyle=  'dotted')
 
 axs.scatter(minimum[1],f_mode, color = gmresCol, zorder=0, marker = 's')#
 #axs.annotate('$\lambda_0$ mode of marginal posterior',(5.05e4,0.25), color = 'green', fontsize = 14.7)
@@ -1432,7 +1433,7 @@ axs.set_ylabel('$f(\lambda)$')#, color = fCol)
 axs.tick_params(axis = 'y',  colors=fCol, which = 'both')
 
 ax2 = axs.twinx() # ax1 and ax2 share y-axis
-ax2.plot(lam,g_func, color = gCol, zorder = 1)
+ax2.plot(lam,g_func, color = gCol, zorder = 2, linestyle=  'dashed')
 ax2.scatter(minimum[1],g(A, L, minimum[1]), color = gmresCol, zorder=0, marker = 's')
 #ax2.scatter(np.mean(lambdas),g(A, L, np.mean(lambdas) ), color = MTCCol, zorder=5)
 #ax2.scatter(lamPyT,g(A, L, lamPyT) , color = pyTCol, zorder=6, marker = 'D')
@@ -1442,9 +1443,11 @@ ax2.tick_params(axis = 'y', colors= gCol)
 axs.set_xscale('log')
 axins = axs.inset_axes([0.05,0.5,0.4,0.45])
 
-axins.plot(lam,f_func, color = fCol, zorder=3)
+axins.plot(lam,f_func, color = fCol, zorder=3, linestyle=  'dotted', linewidth = 3)
 delta_lam = lambBinEdges - minimum[1]
-axins.plot(lambBinEdges,f_tayl(delta_lam, f_mode, f_0_1, f_0_2, f_0_3, f_0_4), color = 'k', linestyle=  'dashed', linewidth = 3, zorder = 2, label = 'Taylor series')
+axins.plot(lambBinEdges,f_tayl(delta_lam, f_mode, f_0_1, f_0_2, f_0_3, f_0_4), color = 'k', linewidth = 1, zorder = 1, label = 'Taylor series' )
+axs.plot(lambBinEdges,f_tayl(delta_lam, f_mode, f_0_1, f_0_2, f_0_3, f_0_4), color = 'k', linewidth = 1, zorder = 2, label = 'Taylor series' )
+
 #axins.scatter(,f_tayl(delta_lam, f_mode, f_0_1, f_0_2, f_0_3), color = 'k')
 #axins.errorbar(np.mean(lambdas),f_MTC, color = MTCCol, zorder=3,xerr=np.sqrt(np.var(lambdas))/2,markersize = 15, fmt='o', label = r'\textbf{MwG}') #markersize = 15
 #axins.errorbar(lamPyT,f_tW, xerr=np.sqrt(varPyT)/2, color = pyTCol, markersize = 10,zorder=5,fmt='D', label = 't-walk') #markersize = 10
@@ -1480,9 +1483,10 @@ axin2.spines['left'].set_visible(False)
 axin2.tick_params(axis = 'y', which = 'both',labelright=False, right=False)
 axin2.tick_params(axis='y', which='both', length=0)
 # #axin2.set_xticks([np.mean(lambdas) -np.sqrt(np.var(lambdas)) , np.mean(lambdas), np.mean(lambdas) + np.sqrt(np.var(lambdas)) ] )
-axin2.plot(lam,g_func, color = gCol, zorder=3)
+axin2.plot(lam,g_func, color = gCol, zorder=3, linestyle=  'dashed', linewidth = 3)
 
-axin2.plot(lambBinEdges, g_tayl(delta_lam, g(A, L, minimum[1]) ,g_0_1, g_0_2, g_0_3, g_0_4,g_0_5, g_0_6), color = 'k', linestyle=  'dashed', linewidth = 3, zorder = 2 )
+axin2.plot(lambBinEdges, g_tayl(delta_lam, g(A, L, minimum[1]) ,g_0_1, g_0_2, g_0_3, g_0_4,g_0_5, g_0_6), color = 'k', linewidth = 1, zorder = 2 )
+ax2.plot(lambBinEdges, g_tayl(delta_lam, g(A, L, minimum[1]) ,g_0_1, g_0_2, g_0_3, g_0_4,g_0_5, g_0_6), color = 'k', linewidth = 1, zorder = 1)
 
 # #axin2.add_patch(mpl.patches.Rectangle( (xpyT,g(A, L, lamPyT - np.sqrt(varPyT)/2)), np.sqrt(varPyT), g(A, L, lamPyT + np.sqrt(varPyT)/2) - g(A, L, lamPyT - np.sqrt(varPyT)/2),color="black", alpha = 0.5,  zorder = 0))
 
@@ -1521,8 +1525,8 @@ axs.legend(lines, lab0, loc = 'lower right')
 plt.savefig('f_and_g_paper.png',bbox_inches='tight')
 plt.show()
 #for legend
-tikzplotlib_fix_ncols(fig)
-tikzplotlib.save("f_and_g_paper.pgf")
+# tikzplotlib_fix_ncols(fig)
+# tikzplotlib.save("f_and_g_paper.pgf")
 
 ##
 plt.close()
@@ -1664,7 +1668,7 @@ for i in range(len(lamLCurveZoom)):
 
 #lam_opt = opt_ind#lamLCurve[int(opt_ind - 1)]
 #lam_opt = LamMean#sum(lambBinEdges[:-1]* lambHist[p]/sum(lambHist))
-elapsedtRegTime = time.time() - startTime
+
 
 import kneed
 
@@ -1672,7 +1676,7 @@ import kneed
 kneedle = kneed.KneeLocator(NormLCurveZoom, xTLxCurveZoom, curve='convex', direction='decreasing', online = True, S = 0, interp_method="interp1d")
 knee_point = kneedle.knee
 
-
+elapsedtRegTime = time.time() - startTime
 print('Elapsed Time to find oprimal Reg Para: ' + str(elapsedtRegTime))
 #knee_point = kneedle.knee_y #
 
@@ -1919,7 +1923,7 @@ fig.savefig('AllHistoResults.pgf', bbox_inches='tight')
 ###
 plt.close('all')
 
-TrueCol = 'limegreen'
+TrueCol = [50/255,220/255, 0/255]#'#02ab2e'
 Sol= Results[2,:]/ (num_mole * S[ind,0]  * f_broad * 1e-4 * scalingConst)
 x = np.mean(Results,0 )/ (num_mole * S[ind,0]  * f_broad * 1e-4 * scalingConst)
 #xerr = np.sqrt(np.var(Results / (num_mole * S[ind, 0] * f_broad * 1e-4 * scalingConst), 0)) / 2
@@ -1937,11 +1941,11 @@ line3 = ax2.scatter(y, tang_heights_lin, label = r'data', zorder = 0, marker = '
 
 ax1 = ax2.twiny()
 #ax1.scatter(VMR_O3,height_values,marker = 'o', facecolor = 'None', color = "#009E73", label = 'true profile', zorder=1, s =12)#,linewidth = 5)
-ax1.plot(VMR_O3,height_values,marker = 'o',markerfacecolor = TrueCol, color = TrueCol , label = 'true profile', zorder=0 ,linewidth = 1.5, markersize =9)
+ax1.plot(VMR_O3,height_values,marker = 'o',markerfacecolor = TrueCol, color = TrueCol , label = 'true profile', zorder=0 ,linewidth = 1.5, markersize =7)
 
 # edgecolor = [0, 158/255, 115/255]
 #line1 = ax1.plot(VMR_O3,height_values, color = [0, 158/255, 115/255], linewidth = 10, zorder=0)
-for n in range(0,paraSamp,15):
+for n in range(0,paraSamp,35):
     Sol = Results[n, :] / (num_mole * S[ind, 0] * f_broad * 1e-4 * scalingConst)
 
     ax1.plot(Sol,height_values,marker= '+',color = ResCol,label = 'posterior samples ', zorder = 1, linewidth = 0.5, markersize = 5)
@@ -1983,7 +1987,7 @@ ax1.set_ylim([heights[minInd-1], heights[maxInd+1]])
 #ax1.set_xlim([min(x)-max(xerr)/2,max(x)+max(xerr)/2]) Ozone
 
 
-ax2.set_xlabel(r'Spectral radiance in $\frac{W}{m^2 sr} \times \frac{1}{\frac{1}{cm}}$',labelpad=10)# color =dataCol,
+ax2.set_xlabel(r'Spectral radiance in $\frac{\text{W } \text{cm}}{\text{m}^2 \text{ sr}} $',labelpad=10)# color =dataCol,
 ax2.tick_params(colors = DatCol, axis = 'x')
 ax2.xaxis.set_ticks_position('top')
 ax2.xaxis.set_label_position('top')
@@ -1993,7 +1997,7 @@ ax1.spines[:].set_visible(False)
 #ax2.spines['top'].set_color(pyTCol)
 
 
-plt.show()
+#plt.show()
 import tikzplotlib
 
 tikzplotlib.save("FirstRecRes.pgf")
