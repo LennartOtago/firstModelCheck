@@ -172,9 +172,9 @@ neigbours[neigbours >= len(height_values)] = np.nan
 neigbours[neigbours < 0] = np.nan
 
 L = generate_L(neigbours)
-startInd = 23
-L[startInd::, startInd::] = L[startInd::, startInd::] * 5
-L[startInd, startInd] = -L[startInd, startInd-1] - L[startInd, startInd+1] #-L[startInd, startInd-2] - L[startInd, startInd+2]
+# startInd = 23
+# L[startInd::, startInd::] = L[startInd::, startInd::] * 5
+# L[startInd, startInd] = -L[startInd, startInd-1] - L[startInd, startInd+1] #-L[startInd, startInd-2] - L[startInd, startInd+2]
 
 #L[startInd+1, startInd+1] = -L[startInd+1, startInd+1-1] - L[startInd+1,startInd+1+1] -L[startInd+1, startInd+1-2] - L[startInd+1, startInd+1+2]
 # L[16, 16] = 13
@@ -1815,7 +1815,7 @@ fig.savefig('LCurve.pgf', bbox_inches='tight')
 
 BinHist = 30#n_bins
 lambHist, lambBinEdges = np.histogram(new_lamb, bins= BinHist, density= True)
-paramsSkew, covs = scy.optimize.curve_fit(skew_norm_pdf,lambBinEdges[1::], lambHist/ np.sum(lambHist), p0 = [np.mean(lambBinEdges[1::]),np.sqrt(np.var(lambdas)),0.1, 1] )#np.mean(new_lamb)+1e3
+paramsSkew, covs = scy.optimize.curve_fit(skew_norm_pdf,lambBinEdges[1::], lambHist/ np.sum(lambHist), p0 = [lam0,np.sqrt(np.var(lambdas)),0.1, 1] )#np.mean(new_lamb)+1e3
 
 
 mpl.use(defBack)
@@ -1840,9 +1840,33 @@ plt.show()
 
 
 #tikzplotlib.save("ScatterplusHisto.pgf")
+
 ##
 
+fig, axs2 = plt.subplots( )
+axs2.plot(gammas[burnIn::math.ceil(IntAutoLam)+5],deltas[burnIn::math.ceil(IntAutoLam)+5], marker = '.', markersize = 2, linestyle = 'none',color = MTCCol)
+axs2.set_xlabel(r'the noise precision $\gamma$')
+axs2.set_ylabel(r'the smoothness parameter $\delta$')
+tikzplotlib.save("HistoResults1.tex",axis_height='5.7cm', axis_width='8.1cm')
+##
+from matplotlib.ticker import FormatStrFormatter
+mpl.use(defBack)
+mpl.rcParams.update(mpl.rcParamsDefault)
+plt.rcParams.update({'font.size': 12})
 
+fig, axs = plt.subplots( )
+axs.bar(lambBinEdges[1::],lambHist*np.diff(lambBinEdges)[0], color = MTCCol, zorder = 0,width = np.diff(lambBinEdges)[0])#10)
+axs.plot(lambBinEdges[1::],  skew_norm_pdf(lambBinEdges[1::], *paramsSkew )/np.sum(skew_norm_pdf(lambBinEdges[1::], *paramsSkew )), zorder = 1, color =  gmresCol)#"#009E73")
+axs.axvline( lam_opt, color = RegCol,linewidth=2)
+labels = axs.get_yticks()
+for label in labels[::2]:
+    label = '\emtpy'
+axs.set_yticks(labels)
+axs.set_xlabel(r'$\lambda =\delta / \gamma$, the regularization parameter', fontsize = 12)
+tikzplotlib.save("HistoResults2.tex",axis_height='3cm', axis_width='8.1cm')
+
+
+##
 mpl.use('pgf')
 mpl.rcParams.update(pgf_params)
 fig.savefig('ScatterplusHisto.pgf', bbox_inches='tight')
@@ -1935,6 +1959,7 @@ mpl.use(defBack)
 mpl.rcParams.update(mpl.rcParamsDefault)
 plt.rcParams.update({'font.size': 10})
 plt.rcParams["font.serif"] = "cmr"
+mpl.rcParams['text.usetex'] = True
 fig3, ax2 = plt.subplots(figsize=set_size(245, fraction=fraction))
  # ax1 and ax2 share y-axis
 line3 = ax2.scatter(y, tang_heights_lin, label = r'data', zorder = 0, marker = '*', color =DatCol )#,linewidth = 5
@@ -1987,7 +2012,7 @@ ax1.set_ylim([heights[minInd-1], heights[maxInd+1]])
 #ax1.set_xlim([min(x)-max(xerr)/2,max(x)+max(xerr)/2]) Ozone
 
 
-ax2.set_xlabel(r'Spectral radiance in $\frac{\text{W } \text{cm}}{\text{m}^2 \text{ sr}} $',labelpad=10)# color =dataCol,
+ax2.set_xlabel(r'Spectral radiance in $\frac{\mathrm{W } \mathrm{cm}}{\mathrm{m}^2 \mathrm{ sr}} $',labelpad=10)# color =dataCol,
 ax2.tick_params(colors = DatCol, axis = 'x')
 ax2.xaxis.set_ticks_position('top')
 ax2.xaxis.set_label_position('top')
@@ -1996,11 +2021,10 @@ ax1.xaxis.set_label_position('bottom')
 ax1.spines[:].set_visible(False)
 #ax2.spines['top'].set_color(pyTCol)
 
-
 #plt.show()
 import tikzplotlib
-
-tikzplotlib.save("FirstRecRes.pgf")
+tikzplotlib_fix_ncols(fig)
+tikzplotlib.save("FirstRecRes2.pgf")
 
 Samp = Results[::15,:] / (num_mole * S[ind, 0] * f_broad * 1e-4 * scalingConst)
 
