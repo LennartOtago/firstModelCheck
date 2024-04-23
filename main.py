@@ -2022,9 +2022,10 @@ ax1.spines[:].set_visible(False)
 #ax2.spines['top'].set_color(pyTCol)
 
 #plt.show()
+#fig3.savefig('NonWeightedRes.png')
 import tikzplotlib
 tikzplotlib_fix_ncols(fig)
-tikzplotlib.save("FirstRecRes2.pgf")
+tikzplotlib.save("NonWeightedRes.pgf")
 
 Samp = Results[::15,:] / (num_mole * S[ind, 0] * f_broad * 1e-4 * scalingConst)
 
