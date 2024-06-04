@@ -365,6 +365,7 @@ y, gamma = add_noise(Ax, 40)
 
 ATy = np.matmul(A.T, y)
 
+
 np.savetxt('dataY.txt', y, header = 'Data y including noise', fmt = '%.15f')
 np.savetxt('ForWardMatrix.txt', A, header = 'Forward Matrix A', fmt = '%.15f', delimiter= '\t')
 np.savetxt('height_values.txt', height_values, fmt = '%.15f', delimiter= '\t')
