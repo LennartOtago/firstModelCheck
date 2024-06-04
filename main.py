@@ -322,25 +322,25 @@ numDensO3 =  N_A * press * 1e2 * O3 / (R * temp_values[0,:]) * 1e-6
 
 
 
-# fig, axs = plt.subplots(tight_layout=True, figsize=set_size(PgWidthPt, fraction=fraction))
-# #plt.plot(press/1013.25,heights, label = 'pressure in hPa/' + str(np.around(max(press),3)) )
-# #plt.plot(Source/max(Source),height_values, label = r'Source in $\frac{W}{m^2 sr}\frac{1}{\frac{1}{cm}}$/' + str(np.around(max(Source[0]),5)) )
-# plt.plot(temperature,heights, color = 'darkred')# label = r'Source in K/' + str(np.around(max(temperature[0]),3)) )
-# #plt.plot(LineInt,heights[minInd:maxInd], color = 'darkred')# label = r'Source in K/' + str(np.around(max(temperature[0]),3)) )
-# #axs.legend()
-# axs.tick_params(axis = 'x', labelcolor="darkred")
-# ax2 = axs.twiny() # ax1 and ax2 share y-axis
-# line3 = ax2.plot(press[minInd:maxInd],heights[minInd:maxInd], color = 'blue') #, label = 'pressure in hPa/' + str(np.around(max(press),3)) )
-# ax2.spines['top'].set_color('blue')
-# ax2.tick_params(labelcolor="blue")
-# ax2.set_xlabel('Pressure in hPa')
-# axs.set_ylabel('Height in km')
-# axs.set_xlabel('Temperature in K')
-# #axs.set_xlabel('Line intensity in cm / molecule')
-# #axs.set_title()
-# plt.savefig('PandQ.png')
-# plt.show()
-#
+fig, axs = plt.subplots(tight_layout=True, figsize=set_size(PgWidthPt, fraction=fraction))
+#plt.plot(press/1013.25,heights, label = 'pressure in hPa/' + str(np.around(max(press),3)) )
+#plt.plot(Source/max(Source),height_values, label = r'Source in $\frac{W}{m^2 sr}\frac{1}{\frac{1}{cm}}$/' + str(np.around(max(Source[0]),5)) )
+plt.plot(temperature,heights, color = 'darkred')# label = r'Source in K/' + str(np.around(max(temperature[0]),3)) )
+#plt.plot(LineInt,heights[minInd:maxInd], color = 'darkred')# label = r'Source in K/' + str(np.around(max(temperature[0]),3)) )
+#axs.legend()
+axs.tick_params(axis = 'x', labelcolor="darkred")
+ax2 = axs.twiny() # ax1 and ax2 share y-axis
+line3 = ax2.plot(press[minInd:maxInd],heights[minInd:maxInd], color = 'blue') #, label = 'pressure in hPa/' + str(np.around(max(press),3)) )
+ax2.spines['top'].set_color('blue')
+ax2.tick_params(labelcolor="blue")
+ax2.set_xlabel('Pressure in hPa')
+axs.set_ylabel('Height in km')
+axs.set_xlabel('Temperature in K')
+#axs.set_xlabel('Line intensity in cm / molecule')
+#axs.set_title()
+plt.savefig('PandQ.png')
+plt.show()
+
 
 A = A_lin * A_scal.T
 ATA = np.matmul(A.T,A)
@@ -359,14 +359,19 @@ Ax = np.matmul(A, theta)
 #y = add_noise(Ax, 0.01)
 #y[y<=0] = 0
 
-y = np.loadtxt('dataY.txt').reshape((SpecNumMeas,1))
+y, gamma = add_noise(Ax, 40)
+#y = np.loadtxt('dataY.txt').reshape((SpecNumMeas,1))
 
 
 ATy = np.matmul(A.T, y)
 
-#np.savetxt('dataY.txt', y, header = 'Data y including noise', fmt = '%.15f')
+np.savetxt('dataY.txt', y, header = 'Data y including noise', fmt = '%.15f')
 np.savetxt('ForWardMatrix.txt', A, header = 'Forward Matrix A', fmt = '%.15f', delimiter= '\t')
+np.savetxt('height_values.txt', height_values, fmt = '%.15f', delimiter= '\t')
+np.savetxt('tan_height_values.txt', tang_heights_lin, fmt = '%.15f', delimiter= '\t')
 
+np.savetxt('pressure_values.txt', pressure_values, fmt = '%.15f', delimiter= '\t')
+np.savetxt('VMR_O3.txt', VMR_O3, fmt = '%.15f', delimiter= '\t')
 
 
 
@@ -600,7 +605,7 @@ f_new = f(ATy, y,  B_inv_A_trans_y0)
 #g_old = g(A, L,  lambdas[0])
 
 def MHwG(number_samples, burnIn, lambda0, gamma0):
-    wLam = 1e3#7e1
+    wLam = 6e4#1e3#7e1
 
     alphaG = 1
     alphaD = 1
@@ -793,6 +798,10 @@ print('Time to solve for x ' + str(elapsedX/paraSamp))
 
 NormLTest = np.linalg.norm( np.matmul(A,np.mean(Results,0 )) - y[0::,0])
 xTLxCurveTest = np.sqrt(np.matmul(np.matmul(np.mean(Results,0 ).T, L), np.mean(Results,0 )))
+
+
+np.savetxt('O3Res.txt', Results/(num_mole * S[ind, 0] * f_broad * 1e-4 * scalingConst), fmt = '%.15f', delimiter= '\t')
+
 
 
 # fig4, ax1 = plt.subplots()
@@ -1568,7 +1577,7 @@ for i in range(len(lamLCurve)):
         #xTLxCurve[i] = np.sqrt(x.T @ x)
 
 startTime  = time.time()
-lamLCurveZoom = np.logspace(1,6,200)
+lamLCurveZoom = np.logspace(1,8.5,200)
 NormLCurveZoom = np.zeros(len(lamLCurve))
 xTLxCurveZoom = np.zeros(len(lamLCurve))
 for i in range(len(lamLCurveZoom)):
@@ -1795,6 +1804,8 @@ plt.show()
 tikzplotlib_fix_ncols(fig)
 tikzplotlib.save("LCurve.pgf")
 print('bla')
+
+np.savetxt('RegSol.txt',x_opt /(num_mole * S[ind,0]  * f_broad * 1e-4 * scalingConst), fmt = '%.15f', delimiter= '\t')
 ##
 
 #
@@ -1987,7 +1998,7 @@ ax1.set_ylim([heights[minInd-1], heights[maxInd+1]])
 #ax1.set_xlim([min(x)-max(xerr)/2,max(x)+max(xerr)/2]) Ozone
 
 
-ax2.set_xlabel(r'Spectral radiance in $\frac{\text{W } \text{cm}}{\text{m}^2 \text{ sr}} $',labelpad=10)# color =dataCol,
+#ax2.set_xlabel(r'Spectral radiance in $\frac{\text{W } \text{cm}}{\text{m}^2 \text{ sr}} $',labelpad=10)# color =dataCol,
 ax2.tick_params(colors = DatCol, axis = 'x')
 ax2.xaxis.set_ticks_position('top')
 ax2.xaxis.set_label_position('top')
@@ -1997,7 +2008,7 @@ ax1.spines[:].set_visible(False)
 #ax2.spines['top'].set_color(pyTCol)
 
 
-#plt.show()
+plt.show()
 import tikzplotlib
 
 tikzplotlib.save("FirstRecRes.pgf")
@@ -2032,7 +2043,7 @@ with open('SimData.txt', 'w') as f:
         f.write('\n')
 
 ##
-fig3.savefig('FirstRecRes.png')#, dpi = dpi)
+#fig3.savefig('FirstRecRes.png')#, dpi = dpi)
 
 ##
 
@@ -2081,7 +2092,7 @@ line4 = ax1.errorbar(x, height_values,capsize=4, xerr = xerr,color = MTCCol, fmt
 ax2 = ax1.twiny() # ax1 and ax2 share y-axis
 line3 = ax2.plot(y, tang_heights_lin, color = dataCol, label = r'Data',linewidth = 5, zorder = 0)
 
-ax2.set_xlabel(r'Spectral Ozone radiance in $\frac{W}{m^2 sr} \times \frac{1}{\frac{1}{cm}}$',labelpad=10 )# color =dataCol,
+#ax2.set_xlabel(r'Spectral Ozone radiance in $\frac{W}{m^2 sr} \times \frac{1}{\frac{1}{cm}}$',labelpad=10 )# color =dataCol,
 #ax2.tick_params(colors = dataCol)
 ax1.set_xlabel(r'Ozone volume mixing ratio ')
 #multicolor_ylabel(ax1,('(Tangent)','Height in km'),('k', dataCol),axis='y')
