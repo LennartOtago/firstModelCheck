@@ -359,7 +359,7 @@ Ax = np.matmul(A, theta)
 #y = add_noise(Ax, 0.01)
 #y[y<=0] = 0
 
-y, gamma = add_noise(Ax, 40)
+y, gamma = add_noise(Ax, 60)
 #y = np.loadtxt('dataY.txt').reshape((SpecNumMeas,1))
 
 
@@ -1827,7 +1827,7 @@ fig.savefig('LCurve.pgf', bbox_inches='tight')
 
 BinHist = 30#n_bins
 lambHist, lambBinEdges = np.histogram(new_lamb, bins= BinHist, density= True)
-paramsSkew, covs = scy.optimize.curve_fit(skew_norm_pdf,lambBinEdges[1::], lambHist/ np.sum(lambHist), p0 = [np.mean(lambBinEdges[1::]),np.sqrt(np.var(lambdas)),0.1, 1] )#np.mean(new_lamb)+1e3
+paramsSkew, covs = scy.optimize.curve_fit(skew_norm_pdf,lambBinEdges[1::], lambHist/ np.sum(lambHist), p0 = [np.mean(lambBinEdges[1::]),np.sqrt(np.var(lambdas)),0.01, 1] )#np.mean(new_lamb)+1e3
 
 
 mpl.use(defBack)
