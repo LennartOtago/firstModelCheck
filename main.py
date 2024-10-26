@@ -17,7 +17,7 @@ from numpy.random import uniform, normal, gamma
 import scipy as scy
 from matplotlib.ticker import FuncFormatter
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes, mark_inset
-import tikzplotlib
+#import tikzplotlib
 #mpl.rc('text.latex', preamble=r"\boldmath")
 
 """ for plotting figures,
@@ -847,6 +847,7 @@ lambHist, lambBinEdges = np.histogram(new_lamb, bins= BinHist, density =True)
 
 MargResults = np.zeros((BinHist,len(theta)))
 MargVarResults = np.zeros((BinHist,len(theta)))
+B_inv_Res = np.zeros((BinHist,len(theta)))
 #MargResults = np.zeros((BinHist,BinHist,len(theta)))
 #LamMean = 0
 startTime  = time.time()
@@ -863,8 +864,8 @@ for p in range(BinHist):
         print(exitCode)
 
     MargResults[p, :] = B_inv_A_trans_y * lambHist[p]/ np.sum(lambHist)
-    MargVarResults[p, :] = (B_inv_A_trans_y)**2 * lambHist[p]/ np.sum(lambHist)
-
+    MargVarResults[p, :] = B_inv_A_trans_y**2 * lambHist[p]/ np.sum(lambHist)
+    B_inv_Res[p, :] = B_inv_A_trans_y
 
 trapezMat = 2 * np.ones(MargResults.shape)
 trapezMat[:,0] = 1
@@ -872,11 +873,21 @@ trapezMat[:,-1] = 1
 MargInteg = 0.5 * np.sum(MargResults * trapezMat , 0) #* (lambBinEdges[1]- lambBinEdges[0] )
 #MargInteg = 0.5 * ( MargResults[1::] + MargResults[0:-1] ) * (lambBinEdges[1]- lambBinEdges[0] )
 
+
 MargIntegSq = 0.5 * np.sum(MargVarResults * trapezMat , 0)
 #lambBinEdges[1::]- lambBinEdges[0:-1]
 NormMargRes = np.linalg.norm( np.matmul(A,MargInteg) - y[0::,0])
 xTLxMargRes = np.sqrt(np.matmul(np.matmul(MargInteg.T, L),MargInteg))
-#
+##
+fristVar = np.zeros((BinHist,len(theta)))
+for p in range(paraSamp):
+
+     fristVar = (MargInteg - B_inv_Res[p, :])**2  * lambHist[p]/ np.sum(lambHist)
+
+otherVar = 0.5 * np.sum( fristVar * trapezMat , 0)/(num_mole * S[ind,0]  * f_broad * 1e-4 * scalingConst)
+
+
+##
 
 MargX =  MargInteg/ (num_mole * S[ind,0]  * f_broad * 1e-4 * scalingConst)
 MargXErr = np.sqrt( (MargIntegSq - MargInteg**2 )/ (num_mole * S[ind,0]  * f_broad * 1e-4 * scalingConst)**2 )
@@ -1095,7 +1106,7 @@ tWalkSampNum= 10000
 MargPost.Run( T=tWalkSampNum+ burnIn, x0=minimum, xp0=np.array([normal(minimum[0], minimum[0]/4), normal((minimum[1]),(minimum[1])/4)]) )
 elapsedtWalkTime = time.time() - startTime
 print('Elapsed Time for t-walk: ' + str(elapsedtWalkTime))
-MargPost.Ana()
+#MargPost.Ana()
 #MargPost.TS()
 
 #MargPost.Hist( par=0 )
@@ -1802,8 +1813,8 @@ plt.savefig('LCurve.png')
 plt.show()
 
 
-tikzplotlib_fix_ncols(fig)
-tikzplotlib.save("LCurve.pgf")
+#tikzplotlib_fix_ncols(fig)
+#tikzplotlib.save("LCurve.pgf")
 print('bla')
 
 np.savetxt('RegSol.txt',x_opt /(num_mole * S[ind,0]  * f_broad * 1e-4 * scalingConst), fmt = '%.15f', delimiter= '\t')
@@ -1971,7 +1982,10 @@ for n in range(0,paraSamp,35):
 #$\mathbf{x} \sim \pi(\mathbf{x} |\mathbf{y}, \mathbf{\theta} ) $' , markerfacecolor = 'none'
 ax1.plot(XOPT, height_values, markerfacecolor = 'none', markeredgecolor = RegCol, color = RegCol ,marker='v', zorder=1, label='regularized sol. ', markersize =8, linewidth = 2 )# color="#D55E00"
 #line2 = ax1.errorbar(x,height_values,capsize=5, yerr = np.zeros(len(height_values)) ,color = MTCCol,zorder=5,markersize = 5, fmt = 'o',label = r'$\mathbf{x} \sim \pi(\mathbf{x} |\mathbf{y}, \mathbf{\theta} ) $')#, label = 'MC estimate')
-line3 = ax1.plot(MargX,height_values, markeredgecolor =MeanCol, color = MeanCol ,zorder=3, marker = '.', label = 'posterior mean ', markersize =3, linewidth =1)#, markerfacecolor = 'none'
+
+#line3 = ax1.plot(MargX,height_values, markeredgecolor =MeanCol, color = MeanCol ,zorder=3, marker = '.', label = 'posterior mean ', markersize =3, linewidth =1)#, markerfacecolor = 'none'
+line3 = ax1.errorbar(MargX,height_values,yerr = np.sqrt(otherVar)/2 , markeredgecolor =MeanCol, color = MeanCol ,zorder=3, marker = '.', label = 'posterior mean ', markersize =3, linewidth =1)#, markerfacecolor = 'none'
+
 #E$_{\mathbf{x},\mathbf{\theta}| \mathbf{y}}[h(\mathbf{x})]$
 # markersize = 6
 #line4 = ax1.errorbar(x, height_values,capsize=5, xerr = xerr,color = MTCCol, fmt = 'o', markersize = 5,zorder=5)#, label = 'MC estimate')
@@ -2008,11 +2022,12 @@ ax1.xaxis.set_label_position('bottom')
 ax1.spines[:].set_visible(False)
 #ax2.spines['top'].set_color(pyTCol)
 
-
+fig3.savefig('FirstRecRes.png')
 plt.show()
-import tikzplotlib
 
-tikzplotlib.save("FirstRecRes.pgf")
+#import tikzplotlib
+
+#tikzplotlib.save("FirstRecRes.pgf")
 
 Samp = Results[::15,:] / (num_mole * S[ind, 0] * f_broad * 1e-4 * scalingConst)
 
