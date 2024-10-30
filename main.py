@@ -1431,7 +1431,10 @@ f_max = f(ATy, y, B_max_inv_A_trans_y)
 ##
 mpl.use(defBack)
 mpl.rcParams.update(mpl.rcParamsDefault)
-plt.rcParams.update({'font.size': 12})
+plt.rcParams.update({'font.size': 12,
+                     'text.usetex': True,
+                     'text.latex.preamble': r'\usepackage{bm}'})
+
 fCol = [0, 144/255, 178/255]
 gCol = [230/255, 159/255, 0]
 #gCol = [240/255, 228/255, 66/255]
@@ -1464,7 +1467,7 @@ ax2.tick_params(axis = 'y', colors= gCol)
 axs.set_xscale('log')
 axins = axs.inset_axes([0.05,0.5,0.4,0.45])
 
-axins.plot(lam,f_func, color = fCol, zorder=3, linestyle=  'dotted', linewidth = 3)
+axins.plot(lam,f_func, color = fCol, zorder=3, linestyle=  'dotted', linewidth = 3, label = '$f(\lambda)$')
 delta_lam = lambBinEdges - minimum[1]
 axins.plot(lambBinEdges,f_tayl(delta_lam, f_mode, f_0_1, f_0_2, f_0_3, f_0_4), color = 'k', linewidth = 1, zorder = 1, label = 'Taylor series' )
 axs.plot(lambBinEdges,f_tayl(delta_lam, f_mode, f_0_1, f_0_2, f_0_3, f_0_4), color = 'k', linewidth = 1, zorder = 2, label = 'Taylor series' )
@@ -1474,7 +1477,7 @@ axs.plot(lambBinEdges,f_tayl(delta_lam, f_mode, f_0_1, f_0_2, f_0_3, f_0_4), col
 #axins.errorbar(lamPyT,f_tW, xerr=np.sqrt(varPyT)/2, color = pyTCol, markersize = 10,zorder=5,fmt='D', label = 't-walk') #markersize = 10
 #axins.add_patch(mpl.patches.Rectangle( (xpyT, f_pyT_min), np.sqrt(varPyT), f_pyT_max - f_pyT_min,edgecolor=pyTCol,facecolor='none', alpha = 1, zorder = 0, linewidth = 5))
 #axins.add_patch(mpl.patches.Rectangle((xMTC, f_MTC_min), np.sqrt(np.var(lambdas)), f_MTC_max - f_MTC_min,edgecolor=MTCCol, facecolor='none',alpha =1,zorder = 0, linewidth = 5))
-axins.scatter(minimum[1],f_mode, color = gmresCol, s= 95, zorder=0, marker = 's', label = r'\texttt{optimize.fmin()}')
+axins.scatter(minimum[1],f_mode, color = gmresCol, s= 95, zorder=0, marker = 's', label = r'mode of $\pi(\lambda|\bm{y})$')#r'\texttt{optimize.fmin()}'
 axins.set_xlim(min(new_lamb),max(new_lamb))
 axins.set_ylim(4.5e8,9e8)
 axins.set_xlabel('$\lambda$')
@@ -1504,7 +1507,7 @@ axin2.spines['left'].set_visible(False)
 axin2.tick_params(axis = 'y', which = 'both',labelright=False, right=False)
 axin2.tick_params(axis='y', which='both', length=0)
 # #axin2.set_xticks([np.mean(lambdas) -np.sqrt(np.var(lambdas)) , np.mean(lambdas), np.mean(lambdas) + np.sqrt(np.var(lambdas)) ] )
-axin2.plot(lam,g_func, color = gCol, zorder=3, linestyle=  'dashed', linewidth = 3)
+axin2.plot(lam,g_func, color = gCol, zorder=3, linestyle=  'dashed', linewidth = 3,label = '$g(\lambda)$')
 
 axin2.plot(lambBinEdges, g_tayl(delta_lam, g(A, L, minimum[1]) ,g_0_1, g_0_2, g_0_3, g_0_4,g_0_5, g_0_6), color = 'k', linewidth = 1, zorder = 2 )
 ax2.plot(lambBinEdges, g_tayl(delta_lam, g(A, L, minimum[1]) ,g_0_1, g_0_2, g_0_3, g_0_4,g_0_5, g_0_6), color = 'k', linewidth = 1, zorder = 1)
@@ -1522,7 +1525,7 @@ axin2.set_xlim(min(new_lamb),max(new_lamb))
 axin2.set_xscale('log')
 
 #mark_inset(axs, axins, loc1=3, loc2=4, fc="none", ec="0.5")
-
+lines2, lab2 = axin2.get_legend_handles_labels()
 lines, lab0 = axins.get_legend_handles_labels()
 #axs.spines['top'].set_visible(False)
 axs.spines['right'].set_visible(False)
@@ -1539,17 +1542,21 @@ ax2.spines['left'].set_visible(False)
 
 #axs.legend(handles = [handles,],loc = 'lower right')
 
-axs.legend(lines, lab0, loc = 'lower right')
+axs.legend(np.append(lines2,lines),np.append(lab2,lab0), loc = 'lower right')
 
 
-#fig.savefig('f_and_g_paper.pgf', bbox_inches='tight')
-plt.savefig('f_and_g_paper.png',bbox_inches='tight')
-plt.show()
+fig.savefig('f_and_g_paper.svg', bbox_inches='tight')
+#plt.savefig('f_and_g_paper.png',bbox_inches='tight')
+#plt.show()
 #for legend
 # tikzplotlib_fix_ncols(fig)
 # tikzplotlib.save("f_and_g_paper.pgf")
-
 ##
+import tikzplotlib
+tikzplotlib_fix_ncols(fig)
+tikzplotlib.save("f_and_g_paper.tex")
+##
+
 plt.close()
 mpl.use('pgf')
 mpl.rcParams.update(pgf_params)
