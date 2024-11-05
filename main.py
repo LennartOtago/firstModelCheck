@@ -942,9 +942,9 @@ MargTime = time.time() - startTime
 print('Post Mean in ' + str(MargTime) + ' s')
 #MargX  = np.sum(np.sum(MargResults, axis = 0), axis = 0) /(num_mole * S[ind,0]  * f_broad * 1e-4 * scalingConst)
 
-mpl.use(defBack)
-mpl.rcParams.update(mpl.rcParamsDefault)
-plt.rcParams.update({'font.size': 12})
+# mpl.use(defBack)
+# mpl.rcParams.update(mpl.rcParamsDefault)
+# plt.rcParams.update({'font.size': 12})
 fig2, ax = plt.subplots()
 ax.plot(MargX,height_values)
 ax.errorbar(MargX,height_values,yerr = np.sqrt(otherVar)/2 , markeredgecolor =MeanCol, color = MeanCol ,zorder=3, marker = '.', label = 'posterior mean ', markersize =3, linewidth =1)#, markerfacecolor = 'none'
@@ -1619,8 +1619,9 @@ firstXLabel = axins.get_xticklabels()
 firstXLabel2 = axin2.get_xticklabels()
 firstXticks = axins.get_xticks()
 firstXticks2 = axin2.get_xticks()
-axins.set_xticks(ticks = firstXticks[0:2],labels = firstXLabel[0:2])
-axin2.set_xticks(ticks = firstXticks2[0:2],labels = firstXLabel[0:2])
+
+axins.set_xticks(ticks = firstXticks[1:-2],labels = firstXLabel[1:-2])
+axin2.set_xticks(ticks = firstXticks2[1:-2],labels = firstXLabel2[1:-2])
 fig.savefig('f_and_g_paper.svg', bbox_inches='tight')
 #plt.savefig('f_and_g_paper.png',bbox_inches='tight')
 plt.show()
@@ -1774,7 +1775,8 @@ for i in range(len(lamLCurveZoom)):
 #lam_opt = LamMean#sum(lambBinEdges[:-1]* lambHist[p]/sum(lambHist))
 
 
-import tikzplotlib
+#import tikzplotlib
+
 import kneed
 
 # calculate and show knee/elbow
@@ -1839,15 +1841,23 @@ xTLxOpt = np.sqrt(np.matmul(np.matmul(x_opt.T, L), x_opt))
 SampleNorm = np.linalg.norm( np.matmul(A,np.mean(Results,0 )) - y[0::,0])
 SamplexTLx = np.sqrt(np.matmul(np.matmul(np.mean(Results,0 ).T, L), np.mean(Results,0 )))
 
-
+##
 mpl.use(defBack)
 mpl.rcParams.update(mpl.rcParamsDefault)
-mpl.rcParams.update({'font.size': 12})#,
+plt.rcParams.update({'font.size': 12,
+                     'text.usetex': True,
+                     'font.family' : 'serif',
+                     'font.serif'  : 'cm',
+                     'text.latex.preamble': r'\usepackage{bm}'})
+
 # {'text.usetex': True})
 # mpl.rcParams['mathtext.fontset'] = 'custom'
 # mpl.rcParams['mathtext.it'] = 'STIXGeneral:italic'
 # mpl.rcParams['mathtext.bf'] = 'STIXGeneral:italic:bold'[0, 114/255, 178/255]
-fig, axs = plt.subplots( tight_layout=True,figsize=set_size(245, fraction=fraction))
+
+
+
+fig, axs = plt.subplots(figsize=set_size(245, fraction=fraction))# tight_layout=True,
 axs.scatter(NormLCurve,xTLxCurve, zorder = 0, color =  DatCol, s = 1, marker ='s')
 #axs.scatter(LNormOpt ,xTLxOpt, zorder = 10, color = 'red', label = 'Opt. Tikh. regularization ')
 #axs.scatter(opt_norm ,opt_regNorm, zorder = 10, color = 'red')
@@ -1884,21 +1894,22 @@ axs.indicate_inset_zoom(axins, edgecolor="none")
 
 axs.set_xscale('log')
 axs.set_yscale('log')
-axs.set_ylabel(r'$ \sqrt{\mathbf{x}^T \mathbf{L}\mathbf{x}}$', style='italic')
-axs.set_xlabel(r'$|| \mathbf{Ax} - \mathbf{y}||$')
+axs.set_ylabel(r'$ \sqrt{\bm{x}^T \bm{L}\bm{x}}$', style='italic')
+axs.set_xlabel(r'$|| \bm{Ax} - \bm{y}||$')
 #axs.set_title('L-curve for m=' + str(SpecNumMeas))
 mark_inset(axs, axins, loc1=1, loc2=3, fc="none", ec="0.5")
 
 handles, labels = axs.get_legend_handles_labels()
 
 axs.legend(handles = [handles[0],handles[1],handles2[0]],loc = 'upper right',  frameon =True)
-plt.savefig('LCurve.png')
+plt.savefig('LCurve.svg')
+#plt.savefig('LCurve.png')
 #tikzplotlib.save("LCurve.tex")
 plt.show()
 
 
 #tikzplotlib_fix_ncols(fig)
-tikzplotlib.save("LCurve.pgf")
+#tikzplotlib.save("LCurve.pgf")
 print('bla')
 
 np.savetxt('RegSol.txt',x_opt /(num_mole * S[ind,0]  * f_broad * 1e-4 * scalingConst), fmt = '%.15f', delimiter= '\t')
@@ -1912,11 +1923,11 @@ np.savetxt('RegSol.txt',x_opt /(num_mole * S[ind,0]  * f_broad * 1e-4 * scalingC
 #                'mathtext.fontset' :'custom',
 # 'mathtext.it': 'STIXGeneral:italic',
 # 'mathtext.bf': 'STIXGeneral:italic:bold' }
-mpl.use('pgf')
-mpl.rcParams.update(pgf_params)
-
-fig.savefig('LCurve.pgf', bbox_inches='tight')
-
+# mpl.use('pgf')
+# mpl.rcParams.update(pgf_params)
+#
+# fig.savefig('LCurve.pgf', bbox_inches='tight')
+#
 
 ## make scatter plot for results
 
