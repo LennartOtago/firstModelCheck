@@ -1560,6 +1560,7 @@ axins.tick_params(axis='y', which='both',  left=False, labelleft=False)
 #     label.set_visible(True)
 #plt.setp(axins.get_yticklabels(), visible=False)
 axins.tick_params(axis='y', which='both', length=0)
+
 axin2 = axins.twinx()
 axin2.spines['top'].set_visible(False)
 axin2.spines['right'].set_visible(False)
@@ -1575,6 +1576,7 @@ axin2.tick_params(axis='y', which='both', length=0)
 axin2.plot(lam,g_func, color = gCol, zorder=3, linestyle=  'dashed', linewidth = 3,label = '$g(\lambda)$')
 
 axin2.plot(lambBinEdges, taylorG, color = 'k', linewidth = 1, zorder = 2 )
+
 ax2.plot(lambBinEdges, taylorG , color = 'k', linewidth = 1, zorder = 1)
 ax2.axvline( minimum[1], color = gmresCol)
 #axin2.scatter(minimum[1],g(A, L, minimum[1]), color = gmresCol, s=95, zorder=0, marker = 's')
@@ -1613,7 +1615,12 @@ ax2.spines['left'].set_visible(False)
 
 axs.legend(np.append(lines2,lines),np.append(lab2,lab0), loc = 'lower right')
 
-
+firstXLabel = axins.get_xticklabels()
+firstXLabel2 = axin2.get_xticklabels()
+firstXticks = axins.get_xticks()
+firstXticks2 = axin2.get_xticks()
+axins.set_xticks(ticks = firstXticks[0:2],labels = firstXLabel[0:2])
+axin2.set_xticks(ticks = firstXticks2[0:2],labels = firstXLabel[0:2])
 fig.savefig('f_and_g_paper.svg', bbox_inches='tight')
 #plt.savefig('f_and_g_paper.png',bbox_inches='tight')
 plt.show()
