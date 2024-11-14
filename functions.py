@@ -103,12 +103,13 @@ def gen_measurement(meas_ang, layers, w_cross, VMR_O3, P, T, Source, obs_height=
             t += 1
         print(t)
         # first dr
-        A_height[m, t - 1] = np.sqrt((layers[t] + R) ** 2 - (tang_height[m] + R) ** 2)
-        dr = A_height[m, t - 1]
+        A_height[m, t - 1] = 0.5 * np.sqrt((layers[t] + R) ** 2 - (tang_height[m] + R) ** 2)
+        dr = 2 * A_height[m, t - 1]
         for i in range(t, len(layers) - 1):
             # A_height[j,i] =  (height_values[j+i+1] + R)/np.sqrt((height_values[j+i+1]+ R)**2 - (height_values[j]+ R)**2 ) * d_height[j+i]
             A_height[m, i] = np.sqrt((layers[i + 1] + R) ** 2 - (tang_height[m] + R) ** 2) - dr
             dr = dr + A_height[m, i]
+        A_height[m, i] = A_height[m, i] * 0.5
     # calc mearuements
 
     R_gas = constants.Avogadro * constants.Boltzmann * 1e7  # in ..cm^3
@@ -121,11 +122,11 @@ def gen_measurement(meas_ang, layers, w_cross, VMR_O3, P, T, Source, obs_height=
     return 2 * np.matmul(A_height, THETA), 2 * A_height, THETA, tang_height
 
 
-# def add_noise(Ax, percent):
-#     return Ax + np.random.normal(0, percent * np.max(Ax), (len(Ax), 1))
+def add_noise(Ax, percent):
+    return Ax + np.random.normal(0, percent * np.max(Ax), (len(Ax), 1))
 
 
-def add_noise(signal, snr):
+def new_add_noise(signal, snr):
     """
     Add noise to a signal based on the specified SNR (in percent).
 

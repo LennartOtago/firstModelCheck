@@ -98,7 +98,7 @@ ObsHeight = 500 # in km
 #find best configuration of layers and num_meas
 #so that cond(A) is not inf
 #exp case first
-SpecNumMeas = 33#105
+SpecNumMeas = 105
 SpecNumLayers = len(height_values)
 
 # find minimum and max angle in radians
@@ -352,13 +352,26 @@ print("Condition Number A^T A: " + str(orderOfMagnitude(cond_ATA)))
 Ax = np.matmul(A, theta)
 
 #convolve measurements and add noise
-#y = add_noise(Ax, 0.01)
+y = add_noise(Ax, 0.01)
 #y[y<=0] = 0
-SNR = 60
-y, gamma = add_noise(Ax, SNR)
+#SNR = 60
+
+signal_power = np.mean(np.abs(Ax) ** 2)
+# np.sqrt(noise_power) =  percent * np.max(Ax)
+# noise_power = signal_power / snr
+# np.sqrt(signal_power / snr) =  percent * np.max(Ax)
+SNR = signal_power/(0.01 * np.max(Ax))**2
+y_new, gamma = new_add_noise(Ax, SNR)
 #y = np.loadtxt('dataY.txt').reshape((SpecNumMeas,1))
 
 
+fig3, ax1 = plt.subplots(tight_layout = True,figsize=set_size(245, fraction=fraction))
+ax1.plot(Ax, tang_heights_lin)
+ax1.scatter(y, tang_heights_lin)
+ax1.plot(y, tang_heights_lin)
+ax1.scatter(y_new, tang_heights_lin, color = "k")
+ax1.plot(y_new, tang_heights_lin, color = "k")
+plt.show()
 ATy = np.matmul(A.T, y)
 
 
@@ -602,7 +615,7 @@ f_new = f(ATy, y,  B_inv_A_trans_y0)
 #g_old = g(A, L,  lambdas[0])
 
 def MHwG(number_samples, burnIn, lambda0, gamma0):
-    wLam = 6e3#1e3#7e1
+    wLam = 1e3#7e1
 
     alphaG = 1
     alphaD = 1
@@ -1681,7 +1694,7 @@ for i in range(len(lamLCurve)):
         #xTLxCurve[i] = np.sqrt(x.T @ x)
 
 startTime  = time.time()
-lamLCurveZoom = np.logspace(1,8.5,200)
+lamLCurveZoom = np.logspace(1,6,200)
 NormLCurveZoom = np.zeros(len(lamLCurve))
 xTLxCurveZoom = np.zeros(len(lamLCurve))
 for i in range(len(lamLCurveZoom)):
@@ -1933,11 +1946,13 @@ np.savetxt('RegSol.txt',x_opt /(num_mole * S[ind,0]  * f_broad * 1e-4 * scalingC
 
 ## make scatter plot for results
 #
-# BinHist = 30#n_bins
-# lambHist, lambBinEdges = np.histogram(new_lamb, bins= BinHist, density= True)
 
-paramsSkew, covs = scy.optimize.curve_fit(skew_norm_pdf,lambBinEdges[1::], lambHist/ np.sum(lambHist), p0 = [np.mean(lambBinEdges[1::]),np.sqrt(np.var(lambdas)),0.01, 1] )#np.mean(new_lamb)+1e3
 
+def fitFunc(x,loc, a, scale):
+    y = (x - loc) / scale
+    return scy.stats.skewnorm.pdf(y, a) / scale
+
+paramsSkew, covs = scy.optimize.curve_fit(fitFunc,lambBinEdges[1:], lambHist, p0 = [np.mean(new_lamb), 1, np.sqrt(np.var(new_lamb))], bounds=(0, np.inf))
 
 
 fig, axs = plt.subplots(2, 1,tight_layout=True,figsize=set_size(PgWidthPt, fraction=fraction), gridspec_kw={'height_ratios': [3, 1]} )#, dpi = dpi)
@@ -1946,15 +1961,18 @@ axs[0].scatter(gammas[burnIn::math.ceil(IntAutoLam)+5],deltas[burnIn::math.ceil(
 axs[0].set_xlabel(r'the noise precision $\gamma$')
 axs[0].set_ylabel(r'the smoothnes parameter $\delta$')
 #axs[1].hist(new_lamb,bins=BinHist, color = MTCCol, zorder = 0, density = True)#10)
-axs[1].bar(lambBinEdges[1::],lambHist*np.diff(lambBinEdges)[0], color = MTCCol, zorder = 0,width = np.diff(lambBinEdges)[0])#10)
+axs[1].bar(lambBinEdges[1::],lambHist, color = MTCCol, zorder = 0,width = np.diff(lambBinEdges)[0])#10)
+xLim = axs[1].get_xlim()
+xVal = np.linspace(xLim[0],xLim[1],100)
 
-axs[1].plot(lambBinEdges[1::],  skew_norm_pdf(lambBinEdges[1::], *paramsSkew )/np.sum(skew_norm_pdf(lambBinEdges[1::], *paramsSkew )), zorder = 1, color =  gmresCol)#"#009E73")
+#axs[1].plot(lambBinEdges[1::],  fitFunc(lambBinEdges[1::], *paramsSkew ), zorder = 1, color =  gmresCol)#"#009E73")
+axs[1].plot(xVal, fitFunc(xVal, *paramsSkew ), zorder = 1, color =  gmresCol)#"#009E73")
 axs[1].axvline( lam_opt, color = RegCol,linewidth=2)
 
 axs[1].set_xlabel(r'the regularization parameter $\lambda =\delta / \gamma$')
 axs[0].ticklabel_format(axis='y', style='sci',scilimits=(0,0))
 plt.savefig('ScatterplusHisto.svg')
-plt.show()
+#plt.show()
 
 
 
