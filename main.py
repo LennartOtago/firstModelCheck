@@ -375,7 +375,7 @@ plt.show()
 ATy = np.matmul(A.T, y)
 
 
-np.savetxt('dataY.txt', y, header = 'Data y including noise', fmt = '%.15f')
+#np.savetxt('dataY.txt', y, header = 'Data y including noise', fmt = '%.15f')
 np.savetxt('ForWardMatrix.txt', A, header = 'Forward Matrix A', fmt = '%.15f', delimiter= '\t')
 np.savetxt('height_values.txt', height_values, fmt = '%.15f', delimiter= '\t')
 np.savetxt('tan_height_values.txt', tang_heights_lin, fmt = '%.15f', delimiter= '\t')
@@ -388,13 +388,28 @@ np.savetxt('VMR_O3.txt', VMR_O3, fmt = '%.15f', delimiter= '\t')
 
 """start the mtc algo with first guesses of noise and lumping const delta"""
 
-
-vari = np.zeros((len(theta)-2,1))
-
-for j in range(1,len(theta)-1):
-    vari[j-1] = np.var([theta[j-1],theta[j],theta[j+1]])
-
+##
+vari = np.zeros(((len(theta))-2,1))
+#vari = np.zeros(((len(theta))-2,1))
+for j in range(0,len(theta)-1):
+    #vari[j-1] = np.var([theta[j-1]**2,theta[j]**2,theta[j+1]**2])
+    vari[j-1] = abs(theta[j+1]-2*theta[j]-theta[j-1])
+    #vari[j] = np.abs(theta[j-1]-theta[j])
+    #vari[len(theta) + j-1 ] = np.abs(theta[j+1] - theta[j])
 #find minimum for first guesses
+print(np.mean(vari))
+dy=np.diff(height_values,1)
+dx=np.diff(theta[:,0],1)
+yfirst=dy/dx
+xfirst=0.5*(theta[:-1,0]+theta[1:,0])
+dyfirst=np.diff(yfirst,1)
+dxfirst=np.diff(xfirst,1)
+ysecond=dyfirst/dxfirst
+
+xsecond=0.5*(xfirst[:-1]+xfirst[1:])
+np.mean(xsecond)
+##
+
 '''params[1] = delta
 params[0] = gamma'''
 def MinLogMargPost(params):#, coeff):
@@ -412,7 +427,7 @@ def MinLogMargPost(params):#, coeff):
     Bp = ATA + lamb * L
 
 
-    B_inv_A_trans_y, exitCode = gmres(Bp, ATy[0::, 0], tol=tol, restart=25)
+    B_inv_A_trans_y, exitCode = gmres(Bp, ATy[0::, 0], rtol=tol, restart=25)
     if exitCode != 0:
         print(exitCode)
 
@@ -422,10 +437,14 @@ def MinLogMargPost(params):#, coeff):
     return -n/2 * np.log(lamb) - (m/2 + 1) * np.log(gamma) + 0.5 * G + 0.5 * gamma * F +  ( betaD *  lamb * gamma + betaG *gamma)
 
 #minimum = optimize.fmin(MargPostU, [5e-5,0.5])
-minimum = optimize.fmin(MinLogMargPost, [1/(np.max(Ax) * 0.01)**2,1/(np.mean(vari))*(np.max(Ax) * 0.01)**2])
+minimum = optimize.fmin(MinLogMargPost, [gamma,1/gamma* 1/ np.mean(vari)], maxiter = 50)
 
 lam0 = minimum[1]
 print(minimum)
+#divergence mterics
+#polynomal accelaration fox
+#adaptive delayed accepatnece
+
 
 
 
