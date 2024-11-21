@@ -356,11 +356,11 @@ y = add_noise(Ax, 0.01)
 #y[y<=0] = 0
 #SNR = 60
 
-signal_power = np.mean(np.abs(Ax) ** 2)
+signal_power = np.sqrt(np.mean(np.abs(Ax) ** 2))
 # np.sqrt(noise_power) =  percent * np.max(Ax)
 # noise_power = signal_power / snr
 # np.sqrt(signal_power / snr) =  percent * np.max(Ax)
-SNR = signal_power/(0.01 * np.max(Ax))**2
+SNR = signal_power/np.sqrt((0.01 * np.max(Ax))**2)
 y_new, gamma = new_add_noise(Ax, SNR)
 #y = np.loadtxt('dataY.txt').reshape((SpecNumMeas,1))
 
