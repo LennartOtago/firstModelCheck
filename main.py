@@ -1,6 +1,6 @@
 import numpy as np
 import matplotlib as mpl
-
+import kneed
 from importetFunctions import *
 import time
 import pickle as pl
@@ -471,15 +471,24 @@ CheckB_inv_ATy = np.matmul(B, B_inv_A_trans_y)
 
 
 B_inv_L = np.zeros(np.shape(B))
-
+# startTime = time.time()
+# for i in range(len(B)):
+#     B_inv_L[:, i], exitCode = gmres(B, L[:, i], rtol=1e-10, restart=25)
+#     # if exitCode != 0:
+#     #     print('B_inv_L ' + str(exitCode))
+# print('time for B inverse ' + str(time.time()-startTime))
+startTime = time.time()
 for i in range(len(B)):
-    B_inv_L[:, i], exitCode = gmres(B, L[:, i], rtol=1e-10, restart=25)
-    if exitCode != 0:
-        print('B_inv_L ' + str(exitCode))
+    LowTri = np.linalg.cholesky(B)
+    UpTri = LowTri.T
+    B_inv_L[:, i] = lu_solve(LowTri, UpTri,  L[:, i])
+print('time for B inverse ' + str(time.time()-startTime))
 
 relative_tol_L = tol
 CheckB_inv_L = np.matmul(B, B_inv_L)
 print(np.linalg.norm(L- CheckB_inv_L)/np.linalg.norm(L)<relative_tol_L)
+print(np.allclose(CheckB_inv_L, L))
+
 
 B_inv_L_2 = np.matmul(B_inv_L, B_inv_L)
 B_inv_L_3 = np.matmul(B_inv_L_2, B_inv_L)
@@ -518,16 +527,30 @@ lambda0 = minimum[1]#deltas[0]/gammas[0]
 #deltas[0] =  minimum[1] * minimum[0]
 ATy = np.matmul(A.T, y)
 B = (ATA + lambda0 * L)
+startTime = time.time()
+B_inv_A_trans_y0_gmres, exitCode = gmres(B, ATy[0::, 0], rtol=tol, restart=25)
+# if exitCode != 0:
+#     print(exitCode)
+print('time for gmres: ' + str( time.time() - startTime))
 
-B_inv_A_trans_y0, exitCode = gmres(B, ATy[0::, 0], rtol=tol, restart=25)
-if exitCode != 0:
-    print(exitCode)
+startTime = time.time()
+LowTri = np.linalg.cholesky(B)
+UpTri = LowTri.T
+# check if L L.H = B
+B_inv_A_trans_y0 = lu_solve(LowTri, UpTri,  ATy[0::, 0])
+
+print('time for cholesky: ' + str( time.time()- startTime))
+print('Cholesky: ' + str(np.allclose(B, LowTri @ UpTri )))
+print('subSolve compare: ' + str(np.allclose(B @ B_inv_A_trans_y0, B @ B_inv_A_trans_y0_gmres, rtol=0.05)))
+print('subSolve : ' + str(np.allclose(ATy[0::, 0], B @ B_inv_A_trans_y0)))
+print('subSolve gmres : ' + str(np.allclose(ATy[0::, 0], B @ B_inv_A_trans_y0_gmres)))
+
 
 Bu, Bs, Bvh = np.linalg.svd(B)
 cond_B =  np.max(Bs)/np.min(Bs)
 print("Condition number B: " + str(orderOfMagnitude(cond_B)))
 
-
+##
 #wLam = 2e2#5.5e2
 #wgam = 1e-5
 #wdelt = 1e-1
@@ -705,11 +728,14 @@ for p in range(paraSamp):
     #     if exitCode != 0:
     #         print(exitCode)
 
-    B_inv_A_trans_y, exitCode = gmres(SetB, RandX, x0=B_inv_A_trans_y0, rtol=tol)
-
-    # B_inv_A_trans_y, exitCode = gmres(B, ATy[0::, 0], tol=tol, restart=25)
-    if exitCode != 0:
-        print(exitCode)
+    # B_inv_A_trans_y, exitCode = gmres(SetB, RandX, x0=B_inv_A_trans_y0, rtol=tol)
+    #
+    # # B_inv_A_trans_y, exitCode = gmres(B, ATy[0::, 0], tol=tol, restart=25)
+    # if exitCode != 0:
+    #     print(exitCode)
+    LowTri = np.linalg.cholesky(SetB)
+    UpTri = LowTri.T
+    B_inv_A_trans_y = lu_solve(LowTri, UpTri, RandX)
 
     #CheckB_inv = np.matmul(SetB, SetB_inv)
     #print(np.linalg.norm(np.eye(len(SetB)) - CheckB_inv) / np.linalg.norm(np.eye(len(SetB))) < tol)
@@ -755,7 +781,10 @@ for BinHist in range(BinHistStart+1,100):
 
         SetB = ATA + SetLambda * L
 
-        B_inv_A_trans_y, exitCode = gmres(SetB, ATy[0::, 0], x0=B_inv_A_trans_y0, rtol=tol)
+        #B_inv_A_trans_y, exitCode = gmres(SetB, ATy[0::, 0], x0=B_inv_A_trans_y0, rtol=tol)
+        LowTri = np.linalg.cholesky(SetB)
+        UpTri = LowTri.T
+        B_inv_A_trans_y = lu_solve(LowTri, UpTri, ATy[0::, 0])
 
         MargResults[p, :] = B_inv_A_trans_y * lambHist[p]/ np.sum(lambHist)
         B_inv_Res[p, :] = B_inv_A_trans_y
@@ -771,7 +800,7 @@ for BinHist in range(BinHistStart+1,100):
     print(newRelErr)
     print(BinHist)
     oldMargInteg = np.copy(newMargInteg)
-    if  0.1 > newRelErr:
+    if  0.05 > newRelErr:
         print(f'break at {BinHist}')
         break
     oldRelErr = np.copy(newRelErr)
@@ -827,9 +856,12 @@ def MinLogMargPost(params):#, coeff):
     Bp = ATA + lamb * L
 
 
-    B_inv_A_trans_y, exitCode = gmres(Bp, ATy[0::, 0], x0 =B_inv_A_trans_y0,  rtol=tol)
-    if exitCode != 0:
-        print(exitCode)
+    # B_inv_A_trans_y, exitCode = gmres(Bp, ATy[0::, 0], x0 =B_inv_A_trans_y0,  rtol=tol)
+    # if exitCode != 0:
+    #     print(exitCode)
+    LowTri = np.linalg.cholesky(Bp)
+    UpTri = LowTri.T
+    B_inv_A_trans_y = lu_solve(LowTri, UpTri, ATy[0::, 0])
 
     G = g(A, L,  lamb)
     F = f(ATy, y,  B_inv_A_trans_y)
@@ -963,70 +995,94 @@ plt.show()
 
 ##
 """f und g for  paper"""
-B_mode = ATA + minimum[1] * L
-B_mode_inv_A_trans_y, exitCode = gmres(B_mode, ATy[0::, 0], rtol=tol)
-if exitCode != 0:
-    print(exitCode)
-f_mode = f(ATy, y, B_mode_inv_A_trans_y)
+
+
+f_mode = f(ATy, y, B_inv_A_trans_y0)
 
 
 
 B_MTC = ATA + np.mean(new_lamb) * L
-B_MTC_inv_A_trans_y, exitCode = gmres(B_MTC, ATy[0::, 0], rtol=tol)
-if exitCode != 0:
-    print(exitCode)
+# B_MTC_inv_A_trans_y, exitCode = gmres(B_MTC, ATy[0::, 0], rtol=tol)
+# if exitCode != 0:
+#     print(exitCode)
+LowTri = np.linalg.cholesky(B_MTC)
+UpTri = LowTri.T
+B_MTC_inv_A_trans_y = lu_solve(LowTri, UpTri, ATy[0::, 0])
+
 f_MTC = f(ATy, y, B_MTC_inv_A_trans_y)
 
 
 lamPyT = np.mean(LPYT)
 varPyT = np.var(LPYT)
 B_tW = ATA + lamPyT * L
-B_tW_inv_A_trans_y, exitCode = gmres(B_tW, ATy[0::, 0], rtol=tol)
-if exitCode != 0:
-    print(exitCode)
+# B_tW_inv_A_trans_y, exitCode = gmres(B_tW, ATy[0::, 0], rtol=tol)
+# if exitCode != 0:
+#     print(exitCode)
+LowTri = np.linalg.cholesky(B_tW)
+UpTri = LowTri.T
+B_tW_inv_A_trans_y = lu_solve(LowTri, UpTri, ATy[0::, 0])
 f_tW = f(ATy, y, B_tW_inv_A_trans_y)
 
 
 
 
 B_MTC_min = ATA + (np.mean(lambdas) - np.sqrt(np.var(lambdas))/2) * L
-B_MTC_min_inv_A_trans_y, exitCode = gmres(B_MTC_min, ATy[0::, 0], rtol=tol)
-if exitCode != 0:
-    print(exitCode)
+# B_MTC_min_inv_A_trans_y, exitCode = gmres(B_MTC_min, ATy[0::, 0], rtol=tol)
+# if exitCode != 0:
+#     print(exitCode)
+
+LowTri = np.linalg.cholesky(B_MTC_min)
+UpTri = LowTri.T
+B_MTC_min_inv_A_trans_y = lu_solve(LowTri, UpTri, ATy[0::, 0])
 f_MTC_min = f(ATy, y, B_MTC_min_inv_A_trans_y)
 
 B_MTC_max = ATA + (np.mean(lambdas) + np.sqrt(np.var(lambdas))/2) * L
-B_MTC_max_inv_A_trans_y, exitCode = gmres(B_MTC_max, ATy[0::, 0], rtol=tol)
-if exitCode != 0:
-    print(exitCode)
+# B_MTC_max_inv_A_trans_y, exitCode = gmres(B_MTC_max, ATy[0::, 0], rtol=tol)
+# if exitCode != 0:
+#     print(exitCode)
+LowTri = np.linalg.cholesky(B_MTC_max)
+UpTri = LowTri.T
+B_MTC_max_inv_A_trans_y = lu_solve(LowTri, UpTri, ATy[0::, 0])
 f_MTC_max = f(ATy, y, B_MTC_max_inv_A_trans_y)
 
 xMTC = np.mean(lambdas) - np.sqrt(np.var(lambdas))/2
 
 B_pyT_min = ATA + (lamPyT - np.sqrt(varPyT)/2) * L
-B_pyT_min_inv_A_trans_y, exitCode = gmres(B_pyT_min, ATy[0::, 0], rtol=tol)
-if exitCode != 0:
-    print(exitCode)
+# B_pyT_min_inv_A_trans_y, exitCode = gmres(B_pyT_min, ATy[0::, 0], rtol=tol)
+# if exitCode != 0:
+#     print(exitCode)
+LowTri = np.linalg.cholesky(B_pyT_min)
+UpTri = LowTri.T
+B_pyT_min_inv_A_trans_y = lu_solve(LowTri, UpTri, ATy[0::, 0])
 f_pyT_min = f(ATy, y, B_pyT_min_inv_A_trans_y)
 
 B_pyT_max = ATA + (lamPyT + np.sqrt(varPyT)/2) * L
-B_pyT_max_inv_A_trans_y, exitCode = gmres(B_pyT_max, ATy[0::, 0], rtol=tol)
-if exitCode != 0:
-    print(exitCode)
+# B_pyT_max_inv_A_trans_y, exitCode = gmres(B_pyT_max, ATy[0::, 0], rtol=tol)
+# if exitCode != 0:
+#     print(exitCode)
+LowTri = np.linalg.cholesky(B_pyT_max)
+UpTri = LowTri.T
+B_pyT_max_inv_A_trans_y = lu_solve(LowTri, UpTri, ATy[0::, 0])
 f_pyT_max = f(ATy, y, B_pyT_max_inv_A_trans_y)
 
 xpyT = lamPyT - np.sqrt(varPyT)/2
 
 B_min = ATA + (np.mean(lambdas) - np.sqrt(np.var(lambdas)) ) * L
-B_min_inv_A_trans_y, exitCode = gmres(B_min, ATy[0::, 0], rtol=tol)
-if exitCode != 0:
-    print(exitCode)
-f_min = f(ATy, y, B_min_inv_A_trans_y)
+# B_min_inv_A_trans_y, exitCode = gmres(B_min, ATy[0::, 0], rtol=tol)
+# if exitCode != 0:
+#     print(exitCode)
+LowTri = np.linalg.cholesky(B_min)
+UpTri = LowTri.T
+B_pyT_max_inv_A_trans_y = lu_solve(LowTri, UpTri, ATy[0::, 0])
+f_min = f(ATy, y, B_pyT_max_inv_A_trans_y)
 
 B_max = ATA + (np.mean(lambdas) + np.sqrt(np.var(lambdas)) ) * L
-B_max_inv_A_trans_y, exitCode = gmres(B_max, ATy[0::, 0], rtol=tol)
-if exitCode != 0:
-    print(exitCode)
+# B_max_inv_A_trans_y, exitCode = gmres(B_max, ATy[0::, 0], rtol=tol)
+# if exitCode != 0:
+#     print(exitCode)
+LowTri = np.linalg.cholesky(B_max)
+UpTri = LowTri.T
+B_max_inv_A_trans_y = lu_solve(LowTri, UpTri, ATy[0::, 0])
 f_max = f(ATy, y, B_max_inv_A_trans_y)
 
 
@@ -1173,9 +1229,13 @@ xTLxCurve2 = np.zeros(len(lamLCurve))
 for i in range(len(lamLCurve)):
     B = (ATA + lamLCurve[i] * L)
 
-    x, exitCode = gmres(B, ATy[0::, 0], rtol=tol)
-    if exitCode != 0:
-        print(exitCode)
+    #x, exitCode = gmres(B, ATy[0::, 0], rtol=tol)
+    LowTri = np.linalg.cholesky(B)
+    UpTri = LowTri.T
+    x = lu_solve(LowTri, UpTri, ATy[0::, 0])
+
+    if np.allclose(B @ x , ATy[0::, 0]) == False :
+        print(False)
         NormLCurve[i] = np.nan
         xTLxCurve[i] = np.nan
 
@@ -1198,9 +1258,15 @@ xTLxCurveZoom = np.zeros(len(lamLCurve))
 for i in range(len(lamLCurveZoom)):
     B = (ATA + lamLCurveZoom[i] * L)
 
-    x, exitCode = gmres(B, ATy[0::, 0], rtol=tol, restart=25)
-    if exitCode != 0:
-        print(exitCode)
+    #x, exitCode = gmres(B, ATy[0::, 0], rtol=tol, restart=25)
+    LowTri = np.linalg.cholesky(B)
+    UpTri = LowTri.T
+    x = lu_solve(LowTri, UpTri, ATy[0::, 0])
+    if np.allclose(B @ x , ATy[0::, 0]) == False:
+        print(False)
+    LowTri = np.linalg.cholesky(B)
+    UpTri = LowTri.T
+    B_max_inv_A_trans_y = lu_solve(LowTri, UpTri, ATy[0::, 0])
 
     NormLCurveZoom[i] = np.linalg.norm( np.matmul(A,x) - y[0::,0])
     xTLxCurveZoom[i] = np.sqrt(np.matmul(np.matmul(x.T, L), x))
@@ -1294,7 +1360,7 @@ for i in range(len(lamLCurveZoom)):
 #lam_opt = LamMean#sum(lambBinEdges[:-1]* lambHist[p]/sum(lambHist))
 
 
-import kneed
+
 
 # calculate and show knee/elbow
 kneedle = kneed.KneeLocator(NormLCurveZoom, xTLxCurveZoom, curve='convex', direction='decreasing', online = True, S = 0, interp_method="interp1d")
@@ -1359,7 +1425,7 @@ xTLxOpt = np.sqrt(np.matmul(np.matmul(x_opt.T, L), x_opt))
 SampleNorm = np.linalg.norm( np.matmul(A,np.mean(Results,0 )) - y[0::,0])
 SamplexTLx = np.sqrt(np.matmul(np.matmul(np.mean(Results,0 ).T, L), np.mean(Results,0 )))
 
-
+plt.close('all')
 mpl.use(defBack)
 mpl.rcParams.update(mpl.rcParamsDefault)
 mpl.rcParams.update({'font.size': 12})#,
@@ -1375,10 +1441,11 @@ axs.scatter(NormRes, xTLxRes, color = ResCol, s = 1.5, marker = "+")# ,mfc = 'bl
 #axs.scatter(NewNormRes, NewxTLxRes, color = 'red', label = 'MTC RTO method')#, marker = "." ,mfc = 'black' , markeredgecolor='r',markersize=10,linestyle = 'None')
 
 #axs.scatter(SampleNorm, SamplexTLx, color = 'green', marker = 's', s= 100)
-axs.scatter(NormMargRes, xTLxMargRes, color = MeanCol, marker = '.', s= 25, label = 'posterior mean')
+
 #E$_{\mathbf{x},\mathbf{\theta}| \mathbf{y}}[\mathbf{x}_{\lambda}]$
 #axs.axvline(x = knee_point)
 axs.scatter(knee_point, kneedle.knee_y, color = regCol, marker = 'v',label = 'max. curvature', s= 25)
+axs.scatter(NormMargRes, xTLxMargRes, color = MeanCol, marker = '.', s= 25, label = 'posterior mean' )
 #zoom in
 x1, x2, y1, y2 = NormLCurveZoom[0], NormLCurveZoom[-31], xTLxCurveZoom[0], xTLxCurveZoom[-1] # specify the limits
 axins = axs.inset_axes([0.1,0.05,0.55,0.45])
@@ -1386,11 +1453,12 @@ axins = axs.inset_axes([0.1,0.05,0.55,0.45])
 
 axins.scatter(NormRes, xTLxRes, color = ResCol, label = r'posterior samples ',marker = '+')#,$\mathbf{x} \sim \pi (\mathbf{x}| \mathbf{y}, \mathbf{\theta})$ s = 15)
 axins.scatter(NormLCurve,xTLxCurve, color =  DatCol,marker = 's', s= 10, label = 'regularized solutions')
-axins.scatter(NormMargRes, xTLxMargRes, color = MeanCol, marker = '.', s= 100)
+
 # axins.scatter(LNormOpt, xTLxOpt, color = 'crimson', marker = "s", s =80)[240/255,228/255,66/255]
 #axins.annotate(r'E$_{\mathbf{x},\mathbf{\theta}| \mathbf{y}}[\lambda]$ = ' + str('{:.2f}'.format(lam_opt)), (LNormOpt+0.05,xTLxOpt))
 #axins.scatter(NewNormRes, NewxTLxRes, color = 'red', label = 'MTC RTO method', s = 10)#, marker = "." ,mfc = 'black' , markeredgecolor='r',markersize=10,linestyle = 'None')
 axins.scatter(knee_point, kneedle.knee_y, color = RegCol, marker = 'v', s = 120)
+axins.scatter(NormMargRes, xTLxMargRes, color = MeanCol, marker = '.', s= 100)
 axins.set_xlim(x1-0.01, x2-1) # apply the x-limits
 #axins.set_ylim(y2,y1)
 axins.set_ylim(y2,max(xTLxRes)+0.001) # apply the y-limits (negative gradient)
@@ -1417,8 +1485,8 @@ plt.savefig('LCurve.png')
 plt.show()
 
 
-tikzplotlib_fix_ncols(fig)
-tikzplotlib.save("LCurve.pgf")
+#tikzplotlib_fix_ncols(fig)
+#tikzplotlib.save("LCurve.pgf")
 print('bla')
 
 np.savetxt('RegSol.txt',x_opt /(num_mole * S[ind,0]  * f_broad * 1e-4 * scalingConst), fmt = '%.15f', delimiter= '\t')
@@ -1637,9 +1705,8 @@ ax1.spines[:].set_visible(False)
 
 
 plt.show()
-import tikzplotlib
-
-tikzplotlib.save("FirstRecRes.pgf")
+#import tikzplotlib
+#tikzplotlib.save("FirstRecRes.pgf")
 
 Samp = Results[::15,:] / (num_mole * S[ind, 0] * f_broad * 1e-4 * scalingConst)
 
@@ -1713,7 +1780,7 @@ line2 = ax1.errorbar(x,height_values,capsize=4, yerr = np.zeros(len(height_value
 #line3 = ax1.errorbar(MargX,height_values, color = MTCCol, capsize=4, yerr = np.zeros(len(height_values)), fmt = '-x', label = r'MTC E$_{\mathbf{x},\mathbf{\theta}| \mathbf{y}}[h(\mathbf{x})]$')
 line4 = ax1.errorbar(x, height_values,capsize=4, xerr = xerr,color = MTCCol, fmt = '-o', mec='cyan', ecolor ='cyan')#, label = 'MC estimate')
 #line5 = ax1.errorbar(MargX,height_values, color = MTCCol, capsize=4, xerr =MargXErr/2, zorder=5, fmt = '-x')
-line5 = ax1.plot(MargX,height_values, color = MTCCol, zorder=5, fmt = '-x')
+line5 = ax1.plot(MargX,height_values, color = MTCCol, zorder=5, marker = 'x')
 
 #line6 = ax1.plot(OptRes,height_values, color = 'red', linewidth = 2, label = 'Regularized Solution', marker = 'o')
 
