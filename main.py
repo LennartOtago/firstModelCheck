@@ -825,7 +825,48 @@ MargX =  MargInteg/ (num_mole * S[ind,0]  * f_broad * 1e-4 * scalingConst)
 print('Post Mean in ' + str(MargTime) + ' s')
 
 print('MTC Done in ' + str(elapsed) + ' s')
+##
+# calculating covariance matrix ( only diag)
+upperL = np.eye(len(SetB))
+DiagofB = np.zeros(SetB.shape)
+#SetB
+n = SetB.shape[0]
+#first term
+DiagofB[0,0] = SetB[0,0]
+for i in range(1, n):
+    upperL[i, 0] = SetB[i, 0]/DiagofB[0,0]
 
+for j in range(1,n):
+    DiagofB[j, j] = SetB[j, j] - upperL[j, :j] ** 2 @ np.diag(DiagofB[:j, :j])
+    for i in range(j+1, n):
+        #print('('+str(i)+','+str(j)+' )')
+        upperL[i,j] = (SetB[i,j] - np.sum(upperL[i,:j] *  upperL[j,:j] * np.diag(DiagofB[:j,:j]))) / DiagofB[j,j]
+
+TryB = upperL @ (DiagofB @ upperL.T)
+
+np.allclose(SetB, TryB)
+
+upperT = np.eye(len(SetB)) - upperL.T
+## now diag of inverse
+invZ = np.zeros((n,n))
+invZ[-1,-1] = 1/ DiagofB[-1,-1]
+for p in range(n-2,-1,-1):
+    invZ[p,-1] = upperT[p,p:] @ invZ[p:,-1]
+
+for p in range(n-2,-1,-1):
+    #print('(' + str(p) + ',' + str(p) + ' )')
+    #print('start')
+    invZ[p,p] = 1/ DiagofB[p,p] + upperT[p,p:] @ invZ[p:,p]
+    for q in range(n - 2, p, -1):
+        #print('('+str(p)+','+str(q)+' )')
+        #invZ[p, q] = invZ[p, q] + 1
+        invZ[p,q] = upperT[p,p:] @ invZ[p:,q]
+    print('next')
+    # for q in range(p-1, -1, -1):
+    #     print('(' + str(p) + ',' + str(q) + ' )')
+    #     invZ[p, q] = invZ[p, q] + 1
+TryI = TryB @ invZ
+np.allclose(np.eye(len(SetB)), TryI)
 ##
 "Fitting prob distr to hyperparameter histogram"
 
