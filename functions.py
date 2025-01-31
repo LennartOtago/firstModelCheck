@@ -5,6 +5,7 @@ import plotly.graph_objects as go
 import plotly.express as px
 import pandas as pd
 import math
+import scipy as scy
 from scipy.sparse.linalg import gmres
 
 
@@ -259,9 +260,10 @@ def f(ATy, y, B_inv_A_trans_y):
 def g(A, L, l):
     """ calculate g"""
     B = np.matmul(A.T,A) + l * L
-    Bu, Bs, Bvh = np.linalg.svd(B)
-    # np.log(np.prod(Bs))
-    return np.sum(np.log(Bs))
+    #Bu, Bs, Bvh = np.linalg.svd(B)
+    upL = scy.linalg.cholesky(B)
+    #return np.sum(np.log(Bs))
+    return 2* np.sum(np.log(np.diag(upL)))
 
 def f_tayl( delta_lam, f_0, f_1, f_2, f_3, f_4):
     """calculate taylor series for """

@@ -407,9 +407,13 @@ def MinLogMargPost(params):#, coeff):
     Bp = ATA + lamb * L
 
 
-    B_inv_A_trans_y, exitCode = gmres(Bp, ATy[0::, 0], rtol=tol, restart=25)
-    if exitCode != 0:
-        print(exitCode)
+    # B_inv_A_trans_y, exitCode = gmres(Bp, ATy[0::, 0], rtol=tol, restart=25)
+    # if exitCode != 0:
+    #     print(exitCode)
+    LowTri = np.linalg.cholesky(Bp)
+    UpTri = LowTri.T
+    # check if L L.H = B
+    B_inv_A_trans_y = lu_solve(LowTri, UpTri, ATy[0::, 0])
 
     G = g(A, L,  lamb)
     F = f(ATy, y,  B_inv_A_trans_y)
@@ -417,10 +421,10 @@ def MinLogMargPost(params):#, coeff):
     return -n/2 * np.log(lamb) - (m/2 + 1) * np.log(gamma) + 0.5 * G + 0.5 * gamma * F +  ( betaD *  lamb * gamma + betaG *gamma)
 
 #minimum = optimize.fmin(MargPostU, [5e-5,0.5])
-minimum = optimize.fmin(MinLogMargPost, [1/(np.max(Ax) * 0.01)**2,1/(np.mean(vari))*(np.max(Ax) * 0.01)**2], maxiter = 25)
+# minimum = optimize.fmin(MinLogMargPost, [1/(np.max(Ax) * 0.01)**2,1/(np.mean(vari))*(np.max(Ax) * 0.01)**2], maxiter = 25)
+#
+# lam0 = minimum[1]
 
-lam0 = minimum[1]
-print(minimum)
 
 
 
@@ -438,8 +442,12 @@ for j in range(len(lam)):
 
     B = (ATA + lam[j] * L)
 
-    B_inv_A_trans_y, exitCode = gmres(B, ATy[0::, 0], rtol=tol, restart=25)
+    #B_inv_A_trans_y, exitCode = gmres(B, ATy[0::, 0], rtol=tol, restart=25)
     #print(exitCode)
+    LowTri = np.linalg.cholesky(B)
+    UpTri = LowTri.T
+    # check if L L.H = B
+    B_inv_A_trans_y = lu_solve(LowTri, UpTri, ATy[0::, 0])
 
     CheckB_inv_ATy = np.matmul(B, B_inv_A_trans_y)
     if np.linalg.norm(ATy[0::, 0]- CheckB_inv_ATy)/np.linalg.norm(ATy[0::, 0])<=tol:
@@ -457,18 +465,25 @@ np.savetxt('lam.txt', lam, fmt = '%.15f')
 ##
 ''' check taylor series in f(lambda) and g(lambda)
 around lam0 from gmres = '''
+startTime = time.time()
+minimum = optimize.fmin(MinLogMargPost, [1/(np.max(Ax) * 0.01)**2,1/(np.mean(vari))*(np.max(Ax) * 0.01)**2], maxiter = 25)
 
+lam0 = minimum[1]
+print(minimum)
 # taylor series arounf lam_0
 
-B = (ATA + lam0* L)
+B = (ATA + lam0 * L)
 
-B_inv_A_trans_y, exitCode = gmres(B, ATy[0::, 0], rtol=tol, restart=25)
+#B_inv_A_trans_y0, exitCode = gmres(B, ATy[0::, 0], rtol=tol, restart=25)
 #print(exitCode)
 
-CheckB_inv_ATy = np.matmul(B, B_inv_A_trans_y)
+#CheckB_inv_ATy = np.matmul(B, B_inv_A_trans_y0)
 
 
-
+LowTri = np.linalg.cholesky(B)
+UpTri = LowTri.T
+# check if L L.H = B
+B_inv_A_trans_y0 = lu_solve(LowTri, UpTri,  ATy[0::, 0])
 
 B_inv_L = np.zeros(np.shape(B))
 # startTime = time.time()
@@ -477,17 +492,17 @@ B_inv_L = np.zeros(np.shape(B))
 #     # if exitCode != 0:
 #     #     print('B_inv_L ' + str(exitCode))
 # print('time for B inverse ' + str(time.time()-startTime))
-startTime = time.time()
+
 for i in range(len(B)):
     LowTri = np.linalg.cholesky(B)
     UpTri = LowTri.T
     B_inv_L[:, i] = lu_solve(LowTri, UpTri,  L[:, i])
 print('time for B inverse ' + str(time.time()-startTime))
 
-relative_tol_L = tol
-CheckB_inv_L = np.matmul(B, B_inv_L)
-print(np.linalg.norm(L- CheckB_inv_L)/np.linalg.norm(L)<relative_tol_L)
-print(np.allclose(CheckB_inv_L, L))
+# relative_tol_L = tol
+# CheckB_inv_L = np.matmul(B, B_inv_L)
+# print(np.linalg.norm(L- CheckB_inv_L)/np.linalg.norm(L)<relative_tol_L)
+# print(np.allclose(CheckB_inv_L, L))
 
 
 B_inv_L_2 = np.matmul(B_inv_L, B_inv_L)
@@ -497,9 +512,9 @@ B_inv_L_5 = np.matmul(B_inv_L_4, B_inv_L)
 B_inv_L_6 = np.matmul(B_inv_L_4, B_inv_L_2)
 
 
-f_0_1 = np.matmul(np.matmul(ATy[0::, 0].T, B_inv_L), B_inv_A_trans_y)
-f_0_2 = -1 * np.matmul(np.matmul(ATy[0::, 0].T, B_inv_L_2), B_inv_A_trans_y)
-f_0_3 = 1 * np.matmul(np.matmul(ATy[0::, 0].T,B_inv_L_3) ,B_inv_A_trans_y)
+f_0_1 = np.matmul(np.matmul(ATy[0::, 0].T, B_inv_L), B_inv_A_trans_y0)
+f_0_2 = -1 * np.matmul(np.matmul(ATy[0::, 0].T, B_inv_L_2), B_inv_A_trans_y0)
+f_0_3 = 1 * np.matmul(np.matmul(ATy[0::, 0].T,B_inv_L_3) ,B_inv_A_trans_y0)
 f_0_4 = 0#-1 * np.matmul(np.matmul(ATy[0::, 0].T,B_inv_L_4) ,B_inv_A_trans_y)
 #f_0_5 = 120 * np.matmul(np.matmul(ATy[0::, 0].T,B_inv_L_4) ,B_inv_A_trans_y)
 
@@ -515,7 +530,7 @@ g_0_6 = 0#1 /720 * np.trace(B_inv_L_6)
 
 
 ##
-
+#startTime = time.time()
 '''do the sampling'''
 number_samples = 10000
 
@@ -525,30 +540,27 @@ gamma0 = minimum[0] #3.7e-5#1/np.var(y) * 1e1 #(0.01* np.max(Ax))1e-5#
 #0.275#1/(2*np.mean(vari))0.1#
 lambda0 = minimum[1]#deltas[0]/gammas[0]
 #deltas[0] =  minimum[1] * minimum[0]
-ATy = np.matmul(A.T, y)
-B = (ATA + lambda0 * L)
-startTime = time.time()
-B_inv_A_trans_y0_gmres, exitCode = gmres(B, ATy[0::, 0], rtol=tol, restart=25)
-# if exitCode != 0:
-#     print(exitCode)
-print('time for gmres: ' + str( time.time() - startTime))
+#ATy = np.matmul(A.T, y)
+#B = (ATA + lambda0 * L)
 
-startTime = time.time()
-LowTri = np.linalg.cholesky(B)
-UpTri = LowTri.T
-# check if L L.H = B
-B_inv_A_trans_y0 = lu_solve(LowTri, UpTri,  ATy[0::, 0])
+# B_inv_A_trans_y0_gmres, exitCode = gmres(B, ATy[0::, 0], rtol=tol, restart=25)
+# # if exitCode != 0:
+# #     print(exitCode)
+# print('time for gmres: ' + str( time.time() - startTime))
 
-print('time for cholesky: ' + str( time.time()- startTime))
-print('Cholesky: ' + str(np.allclose(B, LowTri @ UpTri )))
-print('subSolve compare: ' + str(np.allclose(B @ B_inv_A_trans_y0, B @ B_inv_A_trans_y0_gmres, rtol=0.05)))
-print('subSolve : ' + str(np.allclose(ATy[0::, 0], B @ B_inv_A_trans_y0)))
-print('subSolve gmres : ' + str(np.allclose(ATy[0::, 0], B @ B_inv_A_trans_y0_gmres)))
+#startTime = time.time()
 
 
-Bu, Bs, Bvh = np.linalg.svd(B)
-cond_B =  np.max(Bs)/np.min(Bs)
-print("Condition number B: " + str(orderOfMagnitude(cond_B)))
+# print('time for cholesky: ' + str( time.time()- startTime))
+# print('Cholesky: ' + str(np.allclose(B, LowTri @ UpTri )))
+# print('subSolve compare: ' + str(np.allclose(B @ B_inv_A_trans_y0, B @ B_inv_A_trans_y0_gmres, rtol=0.05)))
+# print('subSolve : ' + str(np.allclose(ATy[0::, 0], B @ B_inv_A_trans_y0)))
+# print('subSolve gmres : ' + str(np.allclose(ATy[0::, 0], B @ B_inv_A_trans_y0_gmres)))
+
+#
+# Bu, Bs, Bvh = np.linalg.svd(B)
+# cond_B =  np.max(Bs)/np.min(Bs)
+# print("Condition number B: " + str(orderOfMagnitude(cond_B)))
 
 ##
 #wLam = 2e2#5.5e2
@@ -557,11 +569,12 @@ print("Condition number B: " + str(orderOfMagnitude(cond_B)))
 
 alphaG = 1
 alphaD = 1
-rate = f(ATy, y, B_inv_A_trans_y0) / 2 + betaG + betaD * lambda0
+f_0 = f(ATy, y,  B_inv_A_trans_y0)
+rate = f_0 / 2 + betaG + betaD * lambda0
 # draw gamma with a gibs step
 shape = SpecNumMeas/2 + alphaD + alphaG
 
-f_0 = f(ATy, y,  B_inv_A_trans_y0)
+
 #g_old = g(A, L,  lambdas[0])
 
 def MHwG(number_samples, burnIn, lambda0, gamma0, f_0):
@@ -651,16 +664,16 @@ def MHwG(number_samples, burnIn, lambda0, gamma0, f_0):
 
 
 
-startTime = time.time()
+#startTime = time.time()
 lambdas ,gammas, k = MHwG(number_samples, burnIn, lambda0, gamma0, f_0)
-elapsed = time.time() - startTime
-print('MTC Done in ' + str(elapsed) + ' s')
+elapsedMWGH = time.time() - startTime
+print('MWGH Done in ' + str(elapsedMWGH) + ' s')
 
 
 
 print('acceptance ratio: ' + str(k/(number_samples+burnIn)))
 deltas = lambdas * gammas
-np.savetxt('samples.txt', np.vstack((gammas[burnIn::], deltas[burnIn::], lambdas[burnIn::])).T, header = 'gammas \t deltas \t lambdas \n Acceptance Ratio: ' + str(k/number_samples) + '\n Elapsed Time: ' + str(elapsed), fmt = '%.15f \t %.15f \t %.15f')
+np.savetxt('samples.txt', np.vstack((gammas[burnIn::], deltas[burnIn::], lambdas[burnIn::])).T, header = 'gammas \t deltas \t lambdas \n Acceptance Ratio: ' + str(k/number_samples) + '\n Elapsed Time: ' + str(elapsedMWGH), fmt = '%.15f \t %.15f \t %.15f')
 
 #delt_aav, delt_diff, delt_ddiff, delt_itau, delt_itau_diff, delt_itau_aav, delt_acorrn = uWerr(deltas, acorr=None, s_tau=1.5, fast_threshold=5000)
 
@@ -763,19 +776,19 @@ oldMargInteg = np.ones(VMR_O3.shape)
 BinHistStart = 3
 print(BinHistStart)
 
-for BinHist in range(BinHistStart+1,100):
+for PostMeanBinHist in range(BinHistStart+1,100):
 
-    lambHist, lambBinEdges = np.histogram(new_lamb, bins= BinHist, density =True)
+    lambHist, lambBinEdges = np.histogram(new_lamb, bins= PostMeanBinHist, density =True)
 
-    MargResults = np.zeros((BinHist,len(theta)))
-    MargVarResults = np.zeros((BinHist,len(theta)))
-    B_inv_Res = np.zeros((BinHist,len(theta)))
+    MargResults = np.zeros((PostMeanBinHist,len(theta)))
+    MargVarResults = np.zeros((PostMeanBinHist,len(theta)))
+    B_inv_Res = np.zeros((PostMeanBinHist,len(theta)))
     trapezMat = 2 * np.ones(MargResults.shape)
     trapezMat[ 0,:] = 1
     trapezMat[-1,:] = 1
     startTime = time.time()
 
-    for p in range(BinHist):
+    for p in range(PostMeanBinHist):
 
         SetLambda =  lambBinEdges[p]
 
@@ -790,18 +803,18 @@ for BinHist in range(BinHistStart+1,100):
         B_inv_Res[p, :] = B_inv_A_trans_y
 
 
-    newMargInteg = 0.5 * np.sum(MargResults * trapezMat , 0) #* (lambBinEdges[1]- lambBinEdges[0] )
-
+    #newMargInteg = 0.5 * np.sum(MargResults * trapezMat , 0) #* (lambBinEdges[1]- lambBinEdges[0] )
+    newMargInteg = scy.integrate.trapezoid(MargResults.T)
     MargTime = time.time() - startTime
 
     NormMargRes = np.linalg.norm( np.matmul(A,newMargInteg) - y[0::,0])
     xTLxMargRes = np.sqrt(np.matmul(np.matmul(newMargInteg.T, L),newMargInteg))
     newRelErr = np.linalg.norm(oldMargInteg - newMargInteg) / np.linalg.norm(newMargInteg) * 100
     print(newRelErr)
-    print(BinHist)
+    print(PostMeanBinHist)
     oldMargInteg = np.copy(newMargInteg)
-    if  0.05 > newRelErr:
-        print(f'break at {BinHist}')
+    if  0.5 > newRelErr:
+        print(f'break at {PostMeanBinHist}')
         break
     oldRelErr = np.copy(newRelErr)
 
@@ -810,8 +823,8 @@ MargInteg= np.copy(newMargInteg)
 NormMargRes = np.linalg.norm(np.matmul(A, MargInteg) - y[0::, 0])
 xTLxMargRes = np.sqrt(np.matmul(np.matmul(MargInteg.T, L), MargInteg))
 
-fristVar = np.zeros((BinHist,len(theta)))
-for p in range(BinHist):
+fristVar = np.zeros((PostMeanBinHist,len(theta)))
+for p in range(PostMeanBinHist):
      fristVar = (MargInteg - B_inv_Res[p, :])**2  * lambHist[p]/ np.sum(lambHist)
 
 otherVar = 0.5 * np.sum( fristVar * trapezMat , 0)/(num_mole * S[ind,0]  * f_broad * 1e-4 * scalingConst)
@@ -822,9 +835,10 @@ MargX =  MargInteg/ (num_mole * S[ind,0]  * f_broad * 1e-4 * scalingConst)
 
 
 
+
 print('Post Mean in ' + str(MargTime) + ' s')
 
-print('MTC Done in ' + str(elapsed) + ' s')
+print('MTC Done in ' + str(elapsedMWGH +  MargTime) + ' s')
 ##
 # calculating covariance matrix ( only diag)
 upperL = np.eye(len(SetB))
@@ -967,7 +981,7 @@ deltasPyT = SampParas[:,1]*SampParas[:,0]
 
 #plot para traces for MTC
 fig, axs = plt.subplots( 3,1,  tight_layout=True, figsize=(7, 8))
-fig.suptitle(str(number_samples)+' mtc samples in ' + str(math.ceil(elapsed)) + 's')
+fig.suptitle(str(number_samples)+' mtc samples in ' + str(math.ceil(elapsedMWGH)) + 's')
 axs[0].plot(range(len(gammas)), gammas)
 axs[0].set_xlabel(r'samples with $\tau_{int}=$ ' + str(math.ceil(IntAutoGam)))
 axs[0].set_ylabel('$\gamma$')
@@ -1408,7 +1422,7 @@ kneedle = kneed.KneeLocator(NormLCurveZoom, xTLxCurveZoom, curve='convex', direc
 knee_point = kneedle.knee
 
 elapsedtRegTime = time.time() - startTime
-print('Elapsed Time to find optimal Reg Para: ' + str(elapsedtRegTime))
+print('Total Elapsed Time to find optimal Reg Para: ' + str(elapsedtRegTime))
 print('Elapsed Time to find oprimal Reg Para per solve: ' + str(elapsedtRegTime/200))
 #knee_point = kneedle.knee_y #
 
@@ -1422,7 +1436,10 @@ lam_opt_elbow = lamLCurveZoom[ np.where(NormLCurveZoom == knee_point)[0][0]]
 print('Elbow: ', lam_opt_elbow)
 
 B = (ATA + lam_opt * L)
-x_opt, exitCode = gmres(B, ATy[0::, 0], rtol=tol, restart=25)
+#x_opt, exitCode = gmres(B, ATy[0::, 0], rtol=tol, restart=25)
+LowTri = np.linalg.cholesky(B)
+UpTri = LowTri.T
+x_opt = lu_solve(LowTri, UpTri, ATy[0::, 0])
 LNormOpt = np.linalg.norm( np.matmul(A,x_opt) - y[0::,0])#, ord = 2)
 xTLxOpt = np.sqrt(np.matmul(np.matmul(x_opt.T, L), x_opt))
 
@@ -1672,8 +1689,9 @@ fig.savefig('AllHistoResults.pgf', bbox_inches='tight')
 plt.close('all')
 
 TrueCol = [50/255,220/255, 0/255]#'#02ab2e'
-Sol= Results[2,:]/ (num_mole * S[ind,0]  * f_broad * 1e-4 * scalingConst)
-x = np.mean(Results,0 )/ (num_mole * S[ind,0]  * f_broad * 1e-4 * scalingConst)
+#Sol = B_inv_Res/ (num_mole * S[ind,0]  * f_broad * 1e-4 * scalingConst)
+#Sol= Results[2,:]/ (num_mole * S[ind,0]  * f_broad * 1e-4 * scalingConst)
+#x = np.mean(Results,0 )/ (num_mole * S[ind,0]  * f_broad * 1e-4 * scalingConst)
 #xerr = np.sqrt(np.var(Results / (num_mole * S[ind, 0] * f_broad * 1e-4 * scalingConst), 0)) / 2
 xerr = np.sqrt(np.var(Results,0)/(num_mole *S[ind,0]  * f_broad * 1e-4 * scalingConst)**2)/2
 XOPT = x_opt /(num_mole * S[ind,0]  * f_broad * 1e-4 * scalingConst)
@@ -1693,8 +1711,10 @@ ax1.plot(VMR_O3,height_values,marker = 'o',markerfacecolor = TrueCol, color = Tr
 
 # edgecolor = [0, 158/255, 115/255]
 #line1 = ax1.plot(VMR_O3,height_values, color = [0, 158/255, 115/255], linewidth = 10, zorder=0)
-for n in range(0,paraSamp,35):
-    Sol = Results[n, :] / (num_mole * S[ind, 0] * f_broad * 1e-4 * scalingConst)
+#for n in range(0,paraSamp,35):
+for n in range(0, PostMeanBinHist-1):
+    Sol =  B_inv_Res[n, :] / (num_mole * S[ind, 0] * f_broad * 1e-4 * scalingConst)
+    #Sol =  Results[n, :] / (num_mole * S[ind, 0] * f_broad * 1e-4 * scalingConst)
 
     ax1.plot(Sol,height_values,marker= '+',color = ResCol,label = 'posterior samples ', zorder = 1, linewidth = 0.5, markersize = 5)
     with open('Samp' + str(n) +'.txt', 'w') as f:
