@@ -778,7 +778,7 @@ print(BinHistStart)
 
 for PostMeanBinHist in range(BinHistStart+1,100):
 
-    lambHist, lambBinEdges = np.histogram(new_lamb, bins= PostMeanBinHist, density =True)
+    lambHist, lambBinEdges = np.histogram(lambdas[burnIn:], bins= PostMeanBinHist, density =True)
 
     MargResults = np.zeros((PostMeanBinHist,len(theta)))
     MargVarResults = np.zeros((PostMeanBinHist,len(theta)))
@@ -1571,7 +1571,7 @@ def fitFunc(x,loc, a, scale):
 
 
 BinHist = 30#n_bins
-lambHist, lambBinEdges = np.histogram(new_lamb, bins= BinHist, density= True)
+lambHist, lambBinEdges = np.histogram(lambdas, bins= BinHist, density= True)
 #paramsSkew, covs = scy.optimize.curve_fit(skew_norm_pdf,lambBinEdges[1::], lambHist/ np.sum(lambHist), p0 = [np.mean(lambBinEdges[1::]),np.sqrt(np.var(lambdas)),0.01, 1] )#np.mean(new_lamb)+1e3
 paramsSkew, covs = scy.optimize.curve_fit(fitFunc,lambBinEdges[1:], lambHist, p0 = [np.mean(new_lamb), 1, np.sqrt(np.var(new_lamb))], bounds=(0, np.inf))
 
