@@ -1795,6 +1795,7 @@ ax1.spines[:].set_visible(False)
 
 plt.savefig('FirstRecRes.png')#, dpi = dpi)
 plt.show()
+
 #import tikzplotlib
 #tikzplotlib.save("FirstRecRes.pgf")
 
