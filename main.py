@@ -677,35 +677,35 @@ np.savetxt('samples.txt', np.vstack((gammas[burnIn::], deltas[burnIn::], lambdas
 
 #delt_aav, delt_diff, delt_ddiff, delt_itau, delt_itau_diff, delt_itau_aav, delt_acorrn = uWerr(deltas, acorr=None, s_tau=1.5, fast_threshold=5000)
 
-import matlab.engine
-eng = matlab.engine.start_matlab()
-eng.Run_Autocorr_Ana_MTC(nargout=0)
-eng.quit()
-
-
-AutoCorrData = np.loadtxt("auto_corr_dat.txt", skiprows=3, dtype='float')
-#IntAutoLam, IntAutoGam , IntAutoDelt = np.loadtxt("auto_corr_dat.txt",userow = 1, skiprows=1, dtype='float'
-
-with open("auto_corr_dat.txt") as fID:
-    for n, line in enumerate(fID):
-       if n == 1:
-            IntAutoDelt, IntAutoGam, IntAutoLam = [float(IAuto) for IAuto in line.split()]
-            break
-
-
-
-#refine according to autocorrelation time
-new_lamb = lambdas[burnIn::math.ceil(IntAutoLam)]
-#SetLambda = new_lamb[np.random.randint(low=0, high=len(new_lamb), size=1)]
-new_gam = gammas[burnIn::math.ceil(IntAutoGam)]
-#SetGamma = new_gam[np.random.randint(low = 0,high =len(new_gam),size =1)]
-new_delt = deltas[burnIn::math.ceil(IntAutoDelt)]
-#SetDelta = new_delt[np.random.randint(low = 0,high =len(new_delt),size =1)]
-
-MTCMargSamp = np.vstack((gammas[burnIn::], lambdas[burnIn::])).T
-TrMTC = np.zeros(number_samples)
-for i,sam in enumerate(MTCMargSamp):
-    TrMTC[i] = MinLogMargPost(sam)
+# import matlab.engine
+# eng = matlab.engine.start_matlab()
+# eng.Run_Autocorr_Ana_MTC(nargout=0)
+# eng.quit()
+#
+#
+# AutoCorrData = np.loadtxt("auto_corr_dat.txt", skiprows=3, dtype='float')
+# #IntAutoLam, IntAutoGam , IntAutoDelt = np.loadtxt("auto_corr_dat.txt",userow = 1, skiprows=1, dtype='float'
+#
+# with open("auto_corr_dat.txt") as fID:
+#     for n, line in enumerate(fID):
+#        if n == 1:
+#             IntAutoDelt, IntAutoGam, IntAutoLam = [float(IAuto) for IAuto in line.split()]
+#             break
+#
+#
+#
+# #refine according to autocorrelation time
+# new_lamb = lambdas[burnIn::math.ceil(IntAutoLam)]
+# #SetLambda = new_lamb[np.random.randint(low=0, high=len(new_lamb), size=1)]
+# new_gam = gammas[burnIn::math.ceil(IntAutoGam)]
+# #SetGamma = new_gam[np.random.randint(low = 0,high =len(new_gam),size =1)]
+# new_delt = deltas[burnIn::math.ceil(IntAutoDelt)]
+# #SetDelta = new_delt[np.random.randint(low = 0,high =len(new_delt),size =1)]
+#
+# MTCMargSamp = np.vstack((gammas[burnIn::], lambdas[burnIn::])).T
+# TrMTC = np.zeros(number_samples)
+# for i,sam in enumerate(MTCMargSamp):
+#     TrMTC[i] = MinLogMargPost(sam)
 
 
 ##
@@ -714,8 +714,10 @@ paraSamp = 200#n_bins
 Results = np.zeros((paraSamp,len(theta)))
 NormRes = np.zeros(paraSamp)
 xTLxRes = np.zeros(paraSamp)
-SetGammas = new_gam[np.random.randint(low=0, high=len(new_gam), size=paraSamp)]
-SetDeltas  = new_delt[np.random.randint(low=0, high=len(new_delt), size=paraSamp)]
+#SetGammas = new_gam[np.random.randint(low=0, high=len(new_gam), size=paraSamp)]
+#SetDeltas  = new_delt[np.random.randint(low=0, high=len(new_delt), size=paraSamp)]
+SetGammas = gammas[np.random.randint(low=0, high=len(gammas), size=paraSamp)]
+SetDeltas  = deltas[np.random.randint(low=0, high=len(deltas), size=paraSamp)]
 
 startTimeX = time.time()
 for p in range(paraSamp):
@@ -770,7 +772,7 @@ np.savetxt('O3Res.txt', Results/(num_mole * S[ind, 0] * f_broad * 1e-4 * scaling
 
 
 ##
-
+IDiag = np.eye(len(SetB))
 oldRelErr = 0
 oldMargInteg = np.ones(VMR_O3.shape)
 BinHistStart = 3
@@ -779,6 +781,7 @@ print(BinHistStart)
 for PostMeanBinHist in range(BinHistStart+1,100):
 
     lambHist, lambBinEdges = np.histogram(lambdas[burnIn:], bins= PostMeanBinHist, density =True)
+    gamHist, gamBinEdges = np.histogram(gammas[burnIn:], bins= PostMeanBinHist, density =True)
 
     MargResults = np.zeros((PostMeanBinHist,len(theta)))
     MargVarResults = np.zeros((PostMeanBinHist,len(theta)))
@@ -787,7 +790,9 @@ for PostMeanBinHist in range(BinHistStart+1,100):
     trapezMat[ 0,:] = 1
     trapezMat[-1,:] = 1
     startTime = time.time()
-
+    B_inv = np.zeros((PostMeanBinHist, np.shape(SetB)[0], np.shape(SetB)[0]))
+    VarB = np.zeros((PostMeanBinHist, np.shape(SetB)[0]))
+    gamInt = np.zeros(PostMeanBinHist)
     for p in range(PostMeanBinHist):
 
         SetLambda =  lambBinEdges[p]
@@ -803,10 +808,18 @@ for PostMeanBinHist in range(BinHistStart+1,100):
         B_inv_Res[p, :] = B_inv_A_trans_y
 
 
+        startTime = time.time()
+        for i in range(len(SetB)):
+            LowTri = np.linalg.cholesky(SetB)
+            UpTri = LowTri.T
+            B_inv[p, :, i] = lu_solve(LowTri, UpTri,IDiag[:, i])
+        VarB[p] = np.diag(B_inv[p] * lambHist[p]/np.sum(lambHist))
+        curGam = gamBinEdges[p] + (gamBinEdges[p] - gamBinEdges[p+1])
+        gamInt[p] = 1/curGam * gamHist[p]/np.sum(gamHist)
     #newMargInteg = 0.5 * np.sum(MargResults * trapezMat , 0) #* (lambBinEdges[1]- lambBinEdges[0] )
     newMargInteg = scy.integrate.trapezoid(MargResults.T)
     MargTime = time.time() - startTime
-
+    MargVar = scy.integrate.trapezoid(gamInt) * scy.integrate.trapezoid(VarB.T)/(num_mole * S[ind,0]  * f_broad * 1e-4 * scalingConst)**2
     NormMargRes = np.linalg.norm( np.matmul(A,newMargInteg) - y[0::,0])
     xTLxMargRes = np.sqrt(np.matmul(np.matmul(newMargInteg.T, L),newMargInteg))
     newRelErr = np.linalg.norm(oldMargInteg - newMargInteg) / np.linalg.norm(newMargInteg) * 100
@@ -822,13 +835,6 @@ MargInteg= np.copy(newMargInteg)
 
 NormMargRes = np.linalg.norm(np.matmul(A, MargInteg) - y[0::, 0])
 xTLxMargRes = np.sqrt(np.matmul(np.matmul(MargInteg.T, L), MargInteg))
-
-fristVar = np.zeros((PostMeanBinHist,len(theta)))
-for p in range(PostMeanBinHist):
-     fristVar = (MargInteg - B_inv_Res[p, :])**2  * lambHist[p]/ np.sum(lambHist)
-
-otherVar = 0.5 * np.sum( fristVar * trapezMat , 0)/(num_mole * S[ind,0]  * f_broad * 1e-4 * scalingConst)
-
 
 
 MargX =  MargInteg/ (num_mole * S[ind,0]  * f_broad * 1e-4 * scalingConst)
@@ -875,12 +881,27 @@ for p in range(n-2,-1,-1):
         #print('('+str(p)+','+str(q)+' )')
         #invZ[p, q] = invZ[p, q] + 1
         invZ[p,q] = upperT[p,p:] @ invZ[p:,q]
-    print('next')
+    #print('next')
     # for q in range(p-1, -1, -1):
     #     print('(' + str(p) + ',' + str(q) + ' )')
     #     invZ[p, q] = invZ[p, q] + 1
 TryI = TryB @ invZ
 np.allclose(np.eye(len(SetB)), TryI)
+## do inverse with forward and backward substiution
+
+B_inv = np.zeros(np.shape(SetB))
+
+startTime = time.time()
+for i in range(len(B)):
+    LowTri = np.linalg.cholesky(SetB)
+    UpTri = LowTri.T
+    B_inv[:, i] = lu_solve(LowTri, UpTri,  np.eye(len(B))[:, i])
+
+print('time for B inverse ' + str(time.time()-startTime))
+
+#check if works
+print(np.allclose(B_inv @ SetB, np.eye(len(SetB))))
+
 ##
 "Fitting prob distr to hyperparameter histogram"
 
@@ -946,24 +967,24 @@ MargPost.SavetwalkOutput("MargPostDat.txt")
 SampParas = np.loadtxt("MargPostDat.txt")
 
 
-eng = matlab.engine.start_matlab()
-eng.Run_Autocorr_PyTWalk(nargout=0)
-eng.quit()
-
-AutoCorrDataPyTWalk= np.loadtxt("autoCorrPyTWalk.txt", skiprows=3, dtype='float')
-#IntAutoLam, IntAutoGam , IntAutoDelt = np.loadtxt("auto_corr_dat.txt",userow = 1, skiprows=1, dtype='float'
-
-with open("autoCorrPyTWalk.txt") as fID:
-    for n, line in enumerate(fID):
-       if n == 1:
-            IntAutoDeltaPyT, IntAutoGamPyT, IntAutoLamPyT = [float(IAuto) for IAuto in line.split()]
-
-            break
-
-#for f and g image
-LPYT = SampParas[burnIn::math.ceil(IntAutoLamPyT),1]
-GPYT = SampParas[burnIn::math.ceil(IntAutoGamPyT),0]
-deltasPyT = SampParas[:,1]*SampParas[:,0]
+# eng = matlab.engine.start_matlab()
+# eng.Run_Autocorr_PyTWalk(nargout=0)
+# eng.quit()
+#
+# AutoCorrDataPyTWalk= np.loadtxt("autoCorrPyTWalk.txt", skiprows=3, dtype='float')
+# #IntAutoLam, IntAutoGam , IntAutoDelt = np.loadtxt("auto_corr_dat.txt",userow = 1, skiprows=1, dtype='float'
+#
+# with open("autoCorrPyTWalk.txt") as fID:
+#     for n, line in enumerate(fID):
+#        if n == 1:
+#             IntAutoDeltaPyT, IntAutoGamPyT, IntAutoLamPyT = [float(IAuto) for IAuto in line.split()]
+#
+#             break
+#
+# #for f and g image
+# LPYT = SampParas[burnIn::math.ceil(IntAutoLamPyT),1]
+# GPYT = SampParas[burnIn::math.ceil(IntAutoGamPyT),0]
+# deltasPyT = SampParas[:,1]*SampParas[:,0]
 
 
 #plot trace
@@ -983,13 +1004,13 @@ deltasPyT = SampParas[:,1]*SampParas[:,0]
 fig, axs = plt.subplots( 3,1,  tight_layout=True, figsize=(7, 8))
 fig.suptitle(str(number_samples)+' mtc samples in ' + str(math.ceil(elapsedMWGH)) + 's')
 axs[0].plot(range(len(gammas)), gammas)
-axs[0].set_xlabel(r'samples with $\tau_{int}=$ ' + str(math.ceil(IntAutoGam)))
+#axs[0].set_xlabel(r'samples with $\tau_{int}=$ ' + str(math.ceil(IntAutoGam)))
 axs[0].set_ylabel('$\gamma$')
 axs[1].plot(range(len(deltas)), deltas)
-axs[1].set_xlabel(r'samples with $\tau_{int}$= ' + str(math.ceil(IntAutoDelt)))
+#axs[1].set_xlabel(r'samples with $\tau_{int}$= ' + str(math.ceil(IntAutoDelt)))
 axs[1].set_ylabel('$\delta$')
 axs[2].plot(range(len(lambdas)), lambdas)
-axs[2].set_xlabel(r'samples with $\tau_{int}$= ' + str(math.ceil(IntAutoLam)))
+#axs[2].set_xlabel(r'samples with $\tau_{int}$= ' + str(math.ceil(IntAutoLam)))
 axs[2].set_ylabel('$\lambda$')
 with open('TraceMTCPara.pickle', 'wb') as filID: # should be 'wb' rather than 'w'
     pl.dump(fig, filID)
@@ -1004,10 +1025,10 @@ with open('TraceMTCPara.pickle', 'wb') as filID: # should be 'wb' rather than 'w
 fig, axs = plt.subplots( 2,1, tight_layout=True)
 fig.suptitle(str(tWalkSampNum)+' t-walk samples in ' + str(math.ceil(elapsedtWalkTime)) + 's')
 axs[0].plot(range(len(SampParas[:,0])), SampParas[:,0])
-axs[0].set_xlabel(r'samples with $\tau_{int}=$ ' + str(math.ceil(IntAutoGamPyT)))
+#axs[0].set_xlabel(r'samples with $\tau_{int}=$ ' + str(math.ceil(IntAutoGamPyT)))
 axs[0].set_ylabel('$\gamma$')
 axs[1].plot(range(len(SampParas[:,1])), SampParas[:,1])
-axs[1].set_xlabel(r'samples with $\tau_{int}$= ' + str(math.ceil(IntAutoDeltaPyT)))
+#axs[1].set_xlabel(r'samples with $\tau_{int}$= ' + str(math.ceil(IntAutoDeltaPyT)))
 #axs[1].set_ylabel('$\delta$')
 axs[1].set_ylabel('$\lambda$')
 with open('TracetWalkPara.pickle', 'wb') as filID: # should be 'wb' rather than 'w'
@@ -1024,25 +1045,25 @@ plt.close('all')
 
 ##
 
-BinSetLamb = np.arange(min(new_lamb),max(new_lamb),(max(new_lamb)-min(new_lamb))/n_bins)
-BinSetGam = np.arange(min(new_gam),max(new_gam),(max(new_gam)-min(new_gam))/n_bins)
-BinSetDelt = np.arange(min(new_delt),max(new_delt),(max(new_delt)-min(new_delt))/n_bins)
-mpl.use(defBack)
-mpl.rcParams.update(mpl.rcParamsDefault)
-fig, axs = plt.subplots(3, 1, tight_layout=True,figsize=set_size(PgWidthPt, fraction=fraction))
-
-axs[0].hist(new_gam,bins=BinSetGam, color = MTCCol, zorder = 0, label = 'MTC')
-
-axs[1].hist(new_lamb,bins=BinSetLamb, color = MTCCol, zorder = 0)#10)
-
-axs[2].hist(new_delt,bins=BinSetDelt, color = MTCCol, zorder = 0)
-
-axs[0].set_title(r'$\gamma$, the noise precision', fontsize = 12)
-axs[1].set_title(r'$\lambda =\delta / \gamma$, the regularization parameter', fontsize = 12)
-
-axs[2].set_title(r'$\delta $, the smoothness parameter', fontsize = 12)
-plt.savefig('MTCHistoResPraesi.png')
-plt.show()
+# BinSetLamb = np.arange(min(new_lamb),max(new_lamb),(max(new_lamb)-min(new_lamb))/n_bins)
+# BinSetGam = np.arange(min(new_gam),max(new_gam),(max(new_gam)-min(new_gam))/n_bins)
+# BinSetDelt = np.arange(min(new_delt),max(new_delt),(max(new_delt)-min(new_delt))/n_bins)
+# mpl.use(defBack)
+# mpl.rcParams.update(mpl.rcParamsDefault)
+# fig, axs = plt.subplots(3, 1, tight_layout=True,figsize=set_size(PgWidthPt, fraction=fraction))
+#
+# axs[0].hist(new_gam,bins=BinSetGam, color = MTCCol, zorder = 0, label = 'MTC')
+#
+# axs[1].hist(new_lamb,bins=BinSetLamb, color = MTCCol, zorder = 0)#10)
+#
+# axs[2].hist(new_delt,bins=BinSetDelt, color = MTCCol, zorder = 0)
+#
+# axs[0].set_title(r'$\gamma$, the noise precision', fontsize = 12)
+# axs[1].set_title(r'$\lambda =\delta / \gamma$, the regularization parameter', fontsize = 12)
+#
+# axs[2].set_title(r'$\delta $, the smoothness parameter', fontsize = 12)
+# plt.savefig('MTCHistoResPraesi.png')
+# plt.show()
 
 
 ##
@@ -1056,7 +1077,7 @@ f_mode = f(ATy, y, B_inv_A_trans_y0)
 
 
 
-B_MTC = ATA + np.mean(new_lamb) * L
+B_MTC = ATA + np.mean(lambdas) * L
 # B_MTC_inv_A_trans_y, exitCode = gmres(B_MTC, ATy[0::, 0], rtol=tol)
 # if exitCode != 0:
 #     print(exitCode)
@@ -1067,8 +1088,8 @@ B_MTC_inv_A_trans_y = lu_solve(LowTri, UpTri, ATy[0::, 0])
 f_MTC = f(ATy, y, B_MTC_inv_A_trans_y)
 
 
-lamPyT = np.mean(LPYT)
-varPyT = np.var(LPYT)
+lamPyT = np.mean(SampParas[:,1])#LPYT)
+varPyT = np.var(SampParas[:,1])#LPYT)
 B_tW = ATA + lamPyT * L
 # B_tW_inv_A_trans_y, exitCode = gmres(B_tW, ATy[0::, 0], rtol=tol)
 # if exitCode != 0:
@@ -1202,7 +1223,7 @@ axins.plot(lambBinEdges,f_tayl(delta_lam, f_mode, f_0_1, f_0_2, f_0_3, f_0_4), c
 
 
 #axins.scatter(minimum[1],f_mode, color = gmresCol, s= 95, zorder=0, marker = 's', label = r'\texttt{optimize.fmin()}')
-axins.set_xlim(min(new_lamb),max(new_lamb))
+axins.set_xlim(min(lambdas),max(lambdas))
 axins.set_ylim(4.5e8,9e8)
 axins.set_xlabel('$\lambda$')
 axins.set_xlim([np.mean(lambdas) -np.sqrt(np.var(lambdas)), 1.5*np.mean(lambdas) + np.sqrt(np.var(lambdas))])# apply the x-limits
@@ -1233,7 +1254,7 @@ axin2.plot(lambBinEdges, g_tayl(delta_lam, g(A, L, minimum[1]) ,g_0_1, g_0_2, g_
 #axin2.scatter(minimum[1],g(A, L, minimum[1]), color = gmresCol, s=95, zorder=0, marker = 's')
 
 axin2.set_ylim(360,460)
-axin2.set_xlim(min(new_lamb),max(new_lamb))
+axin2.set_xlim(min(lambdas),max(lambdas))
 axin2.set_xscale('log')
 
 
@@ -1570,17 +1591,19 @@ def fitFunc(x,loc, a, scale):
     return scy.stats.skewnorm.pdf(y, a) / scale
 
 
-BinHist = 30#n_bins
-lambHist, lambBinEdges = np.histogram(lambdas, bins= BinHist, density= True)
+#BinHist = 30#n_bins
+lambHist, lambBinEdges = np.histogram(lambdas, bins= PostMeanBinHist, density= True)
 #paramsSkew, covs = scy.optimize.curve_fit(skew_norm_pdf,lambBinEdges[1::], lambHist/ np.sum(lambHist), p0 = [np.mean(lambBinEdges[1::]),np.sqrt(np.var(lambdas)),0.01, 1] )#np.mean(new_lamb)+1e3
-paramsSkew, covs = scy.optimize.curve_fit(fitFunc,lambBinEdges[1:], lambHist, p0 = [np.mean(new_lamb), 1, np.sqrt(np.var(new_lamb))], bounds=(0, np.inf))
+paramsSkew, covs = scy.optimize.curve_fit(fitFunc,lambBinEdges[1:], lambHist, p0 = [np.mean(lambdas), 1, np.sqrt(np.var(lambdas))], bounds=(0, np.inf))
 
 mpl.use(defBack)
 mpl.rcParams.update(mpl.rcParamsDefault)
 plt.rcParams.update({'font.size': 12})
 fig, axs = plt.subplots(2, 1,tight_layout=True,figsize=set_size(PgWidthPt, fraction=fraction), gridspec_kw={'height_ratios': [3, 1]} )#, dpi = dpi)
 
-axs[0].scatter(gammas[burnIn::math.ceil(IntAutoLam)+5],deltas[burnIn::math.ceil(IntAutoLam)+5], marker = '.', color = MTCCol)
+#axs[0].scatter(gammas[burnIn::math.ceil(IntAutoLam)+5],deltas[burnIn::math.ceil(IntAutoLam)+5], marker = '.', color = MTCCol)
+axs[0].scatter(gammas[burnIn:],deltas[burnIn:], marker = '.', color = MTCCol)
+
 axs[0].set_xlabel(r'the noise precision $\gamma$')
 axs[0].set_ylabel(r'the smoothnes parameter $\delta$')
 #axs[1].hist(new_lamb,bins=BinHist, color = MTCCol, zorder = 0, density = True)#10)
@@ -1625,14 +1648,15 @@ mpl.rcParams.update(mpl.rcParamsDefault)
 plt.rcParams.update({'font.size': 12})
 fig, axs = plt.subplots(3, 1,tight_layout=True,figsize=set_size(PgWidthPt, fraction=fraction))#, dpi = dpi)
 n_bins = n_bins
-BinSetLamb = np.arange(min(new_lamb),max(new_lamb)+ lam_opt/3,(max(new_lamb)+ lam_opt/3-min(new_lamb))/n_bins)
-BinSetGam = np.arange(min(new_gam),max(new_gam),(max(new_gam)-min(new_gam))/n_bins)
-BinSetDelt = np.arange(min(new_delt),max(new_delt),(max(new_delt)-min(new_delt))/n_bins)
+BinSetLamb = np.arange(min(lambdas),max(lambdas)+ lam_opt/3,(max(lambdas)+ lam_opt/3-min(lambdas))/n_bins)
+BinSetGam = np.arange(min(gammas),max(gammas),(max(gammas)-min(gammas))/n_bins)
+BinSetDelt = np.arange(min(deltas),max(deltas),(max(deltas)-min(deltas))/n_bins)
 
-axs[0].hist(new_gam,bins=BinSetGam, color = MTCCol, zorder = 0, label = r'\textbf{MwG}')
+axs[0].hist(gammas,bins=BinSetGam, color = MTCCol, zorder = 0, label = r'\textbf{MwG}')
 #axs[0].set_ylim([0,400])
 axs0 = axs[0].twinx()
-axs0.hist(SampParas[burnIn::math.ceil(IntAutoGamPyT),0],bins=BinSetGam,color = pyTCol, zorder = 1, label = 't-walk')
+#axs0.hist(SampParas[burnIn::math.ceil(IntAutoGamPyT),0],bins=BinSetGam,color = pyTCol, zorder = 1, label = 't-walk')
+axs0.hist(SampParas[burnIn:,0],bins=BinSetGam,color = pyTCol, zorder = 1, label = 't-walk')
 axs0.set_ylim([0,100])
 axs0.tick_params(axis = 'y', colors=pyTCol, which = 'both')
 axs[0].spines[:].set_visible(False)
@@ -1642,22 +1666,25 @@ hist00, lab00 = axs0.get_legend_handles_labels()
 axs[0].legend(labels = lab0 + lab00, handles = hist0+hist00  ,loc='upper right',frameon=True, fontsize = 12)#,bbox_to_anchor=(1.05, 1.15))
 #axs0.legend(labels = ['t-walk'], labelcolor = [ MTCCol] ,loc='upper right', bbox_to_anchor=(1.01, 0.7),frameon=False)
 #axs0.legend(labels = ['MTC','t-walk'], labelcolor = ['k', 'cyan'] ,loc='upper right', bbox_to_anchor=(1.01, 1.11),frameon=False)
-axs[1].hist(new_delt,bins=BinSetDelt, color = 'k', zorder = 0)
+axs[1].hist(deltas,bins=BinSetDelt, color = 'k', zorder = 0)
 axs[1].xaxis.set_major_formatter(scientific_formatter)
 # for label in axs[1].xaxis.get_ticklabels()[::2]:
 #     label.set_visible(False)
 #axs[1].set_ylim([0,750])
 axs1 = axs[1].twinx()
-axs1.hist(deltasPyT[burnIn::math.ceil(IntAutoDeltaPyT)],bins=BinSetDelt,color = pyTCol, zorder = 1)
+#axs1.hist(deltasPyT[burnIn::math.ceil(IntAutoDeltaPyT)],bins=BinSetDelt,color = pyTCol, zorder = 1)
+axs1.hist(SampParas[burnIn:,0],bins=BinSetDelt,color = pyTCol, zorder = 1)
 axs1.set_ylim([0,100])
 axs1.tick_params(axis = 'y', colors=pyTCol, which = 'both')
 axs[1].spines[:].set_visible(False)
 axs1.spines['right'].set_color(pyTCol)
-axs[2].hist(new_lamb,bins=BinSetLamb, color = MTCCol, zorder = 0)#10)
+axs[2].hist(lambdas,bins=BinSetLamb, color = MTCCol, zorder = 0)#10)
 #axs[2].set_ylim([0,200])
 axs2 = axs[2].twinx()
-LPYT = SampParas[burnIn::math.ceil(IntAutoLamPyT),1]
-axs2.hist(SampParas[burnIn::math.ceil(IntAutoLamPyT),1] ,bins=BinSetLamb,color = pyTCol, zorder = 1)
+#LPYT = SampParas[burnIn::math.ceil(IntAutoLamPyT),1]
+LPYT = SampParas[burnIn:,1]
+#axs2.hist(SampParas[burnIn::math.ceil(IntAutoLamPyT),1] ,bins=BinSetLamb,color = pyTCol, zorder = 1)
+axs2.hist(SampParas[burnIn:,1] ,bins=BinSetLamb,color = pyTCol, zorder = 1)
 axs[2].axvline( lam_opt, color = "#D55E00",linewidth=7.0)
 #axs[2].set_xlim([0, lam_opt+50])
 axs2.set_ylim([0,100])
@@ -1727,7 +1754,9 @@ for n in range(0, PostMeanBinHist-1):
 #$\mathbf{x} \sim \pi(\mathbf{x} |\mathbf{y}, \mathbf{\theta} ) $' , markerfacecolor = 'none'
 ax1.plot(XOPT, height_values, markerfacecolor = 'none', markeredgecolor = RegCol, color = RegCol ,marker='v', zorder=1, label='regularized sol. ', markersize =8, linewidth = 2 )# color="#D55E00"
 #line2 = ax1.errorbar(x,height_values,capsize=5, yerr = np.zeros(len(height_values)) ,color = MTCCol,zorder=5,markersize = 5, fmt = 'o',label = r'$\mathbf{x} \sim \pi(\mathbf{x} |\mathbf{y}, \mathbf{\theta} ) $')#, label = 'MC estimate')
-line3 = ax1.plot(MargX,height_values, markeredgecolor =MeanCol, color = MeanCol ,zorder=3, marker = '.', label = 'posterior mean ', markersize =3, linewidth =1)#, markerfacecolor = 'none'
+#line3 = ax1.plot(MargX,height_values, markeredgecolor =MeanCol, color = MeanCol ,zorder=3, marker = '.', label = 'posterior mean ', markersize =3, linewidth =1)#, markerfacecolor = 'none'
+line3 = ax1.errorbar(MargX,height_values,  xerr = 3*np.sqrt(MargVar), markeredgecolor =MeanCol, color = MeanCol ,zorder=3, marker = '.', label = 'posterior mean ', markersize =3, linewidth =1)#, markerfacecolor = 'none'
+
 #E$_{\mathbf{x},\mathbf{\theta}| \mathbf{y}}[h(\mathbf{x})]$
 # markersize = 6
 #line4 = ax1.errorbar(x, height_values,capsize=5, xerr = xerr,color = MTCCol, fmt = 'o', markersize = 5,zorder=5)#, label = 'MC estimate')
@@ -1764,7 +1793,7 @@ ax1.xaxis.set_label_position('bottom')
 ax1.spines[:].set_visible(False)
 #ax2.spines['top'].set_color(pyTCol)
 
-
+plt.savefig('FirstRecRes.png')#, dpi = dpi)
 plt.show()
 #import tikzplotlib
 #tikzplotlib.save("FirstRecRes.pgf")
