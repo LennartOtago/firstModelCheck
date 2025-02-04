@@ -795,7 +795,8 @@ for PostMeanBinHist in range(BinHistStart+1,100):
     gamInt = np.zeros(PostMeanBinHist)
     for p in range(PostMeanBinHist):
 
-        SetLambda =  lambBinEdges[p]
+        SetLambda = lambBinEdges[p] + (lambBinEdges[p+1] - lambBinEdges[p])/2
+
 
         SetB = ATA + SetLambda * L
 
@@ -814,9 +815,9 @@ for PostMeanBinHist in range(BinHistStart+1,100):
             UpTri = LowTri.T
             B_inv[p, :, i] = lu_solve(LowTri, UpTri,IDiag[:, i])
         VarB[p] = np.diag(B_inv[p] * lambHist[p]/np.sum(lambHist))
-        curGam = gamBinEdges[p] + (gamBinEdges[p] - gamBinEdges[p+1])
+        curGam = gamBinEdges[p] + (gamBinEdges[p+1] - gamBinEdges[p])/2
         gamInt[p] = 1/curGam * gamHist[p]/np.sum(gamHist)
-    #newMargInteg = 0.5 * np.sum(MargResults * trapezMat , 0) #* (lambBinEdges[1]- lambBinEdges[0] )
+    #newMargInteg = 0.5 * np.sum(MargResults * trapezMat , 0) #* (lambBinEdges[1]- lambBinEdges[0] )np.sum(MargResults, 0)/ PostMeanBinHist #
     newMargInteg = scy.integrate.trapezoid(MargResults.T)
     MargTime = time.time() - startTime
     MargVar = scy.integrate.trapezoid(gamInt) * scy.integrate.trapezoid(VarB.T)/(num_mole * S[ind,0]  * f_broad * 1e-4 * scalingConst)**2
@@ -1738,10 +1739,10 @@ ax1.plot(VMR_O3,height_values,marker = 'o',markerfacecolor = TrueCol, color = Tr
 
 # edgecolor = [0, 158/255, 115/255]
 #line1 = ax1.plot(VMR_O3,height_values, color = [0, 158/255, 115/255], linewidth = 10, zorder=0)
-#for n in range(0,paraSamp,35):
-for n in range(0, PostMeanBinHist-1):
-    Sol =  B_inv_Res[n, :] / (num_mole * S[ind, 0] * f_broad * 1e-4 * scalingConst)
-    #Sol =  Results[n, :] / (num_mole * S[ind, 0] * f_broad * 1e-4 * scalingConst)
+for n in range(0,paraSamp):
+#for n in range(0, PostMeanBinHist-1):
+    #Sol =  B_inv_Res[n, :] / (num_mole * S[ind, 0] * f_broad * 1e-4 * scalingConst)
+    Sol =  Results[n, :] / (num_mole * S[ind, 0] * f_broad * 1e-4 * scalingConst)
 
     ax1.plot(Sol,height_values,marker= '+',color = ResCol,label = 'posterior samples ', zorder = 1, linewidth = 0.5, markersize = 5)
     with open('Samp' + str(n) +'.txt', 'w') as f:
