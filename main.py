@@ -786,12 +786,10 @@ for PostMeanBinHist in range(BinHistStart+1,100):
     MargResults = np.zeros((PostMeanBinHist,len(theta)))
     MargVarResults = np.zeros((PostMeanBinHist,len(theta)))
     B_inv_Res = np.zeros((PostMeanBinHist,len(theta)))
-    trapezMat = 2 * np.ones(MargResults.shape)
-    trapezMat[ 0,:] = 1
-    trapezMat[-1,:] = 1
+
     startTime = time.time()
     B_inv = np.zeros((PostMeanBinHist, np.shape(SetB)[0], np.shape(SetB)[0]))
-    VarB = np.zeros((PostMeanBinHist, np.shape(SetB)[0]))
+    VarB = np.zeros((PostMeanBinHist, np.shape(SetB)[0],  np.shape(SetB)[0]))
     gamInt = np.zeros(PostMeanBinHist)
     for p in range(PostMeanBinHist):
 
@@ -809,18 +807,20 @@ for PostMeanBinHist in range(BinHistStart+1,100):
         B_inv_Res[p, :] = B_inv_A_trans_y
 
 
-        startTime = time.time()
+        #startTime = time.time()
         for i in range(len(SetB)):
             LowTri = np.linalg.cholesky(SetB)
             UpTri = LowTri.T
             B_inv[p, :, i] = lu_solve(LowTri, UpTri,IDiag[:, i])
-        VarB[p] = np.diag(B_inv[p] * lambHist[p]/np.sum(lambHist))
+        #VarB[p] = np.diag(B_inv[p] * lambHist[p]/np.sum(lambHist))
+        VarB[p] = B_inv[p] * lambHist[p] / np.sum(lambHist)
         curGam = gamBinEdges[p] + (gamBinEdges[p+1] - gamBinEdges[p])/2
         gamInt[p] = 1/curGam * gamHist[p]/np.sum(gamHist)
     #newMargInteg = 0.5 * np.sum(MargResults * trapezMat , 0) #* (lambBinEdges[1]- lambBinEdges[0] )np.sum(MargResults, 0)/ PostMeanBinHist #
     newMargInteg = scy.integrate.trapezoid(MargResults.T)
     MargTime = time.time() - startTime
     MargVar = scy.integrate.trapezoid(gamInt) * scy.integrate.trapezoid(VarB.T)/(num_mole * S[ind,0]  * f_broad * 1e-4 * scalingConst)**2
+
     NormMargRes = np.linalg.norm( np.matmul(A,newMargInteg) - y[0::,0])
     xTLxMargRes = np.sqrt(np.matmul(np.matmul(newMargInteg.T, L),newMargInteg))
     newRelErr = np.linalg.norm(oldMargInteg - newMargInteg) / np.linalg.norm(newMargInteg) * 100
@@ -1756,7 +1756,7 @@ for n in range(0,paraSamp):
 ax1.plot(XOPT, height_values, markerfacecolor = 'none', markeredgecolor = RegCol, color = RegCol ,marker='v', zorder=1, label='regularized sol. ', markersize =8, linewidth = 2 )# color="#D55E00"
 #line2 = ax1.errorbar(x,height_values,capsize=5, yerr = np.zeros(len(height_values)) ,color = MTCCol,zorder=5,markersize = 5, fmt = 'o',label = r'$\mathbf{x} \sim \pi(\mathbf{x} |\mathbf{y}, \mathbf{\theta} ) $')#, label = 'MC estimate')
 #line3 = ax1.plot(MargX,height_values, markeredgecolor =MeanCol, color = MeanCol ,zorder=3, marker = '.', label = 'posterior mean ', markersize =3, linewidth =1)#, markerfacecolor = 'none'
-line3 = ax1.errorbar(MargX,height_values,  xerr = 3*np.sqrt(MargVar), markeredgecolor =MeanCol, color = MeanCol ,zorder=3, marker = '.', label = 'posterior mean ', markersize =3, linewidth =1)#, markerfacecolor = 'none'
+line3 = ax1.errorbar(MargX,height_values,  xerr = 3*np.sqrt(np.diag(MargVar)), markeredgecolor =MeanCol, color = MeanCol ,zorder=3, marker = '.', label = 'posterior mean ', markersize =3, linewidth =1)#, markerfacecolor = 'none'
 
 #E$_{\mathbf{x},\mathbf{\theta}| \mathbf{y}}[h(\mathbf{x})]$
 # markersize = 6
