@@ -492,10 +492,9 @@ B_inv_L = np.zeros(np.shape(B))
 #     # if exitCode != 0:
 #     #     print('B_inv_L ' + str(exitCode))
 # print('time for B inverse ' + str(time.time()-startTime))
-
+LowTri = np.linalg.cholesky(B)
+UpTri = LowTri.T
 for i in range(len(B)):
-    LowTri = np.linalg.cholesky(B)
-    UpTri = LowTri.T
     B_inv_L[:, i] = lu_solve(LowTri, UpTri,  L[:, i])
 print('time for B inverse ' + str(time.time()-startTime))
 
@@ -806,11 +805,10 @@ for PostMeanBinHist in range(BinHistStart+1,100):
         MargResults[p, :] = B_inv_A_trans_y * lambHist[p]/ np.sum(lambHist)
         B_inv_Res[p, :] = B_inv_A_trans_y
 
-
+        LowTri = np.linalg.cholesky(SetB)
+        UpTri = LowTri.T
         #startTime = time.time()
         for i in range(len(SetB)):
-            LowTri = np.linalg.cholesky(SetB)
-            UpTri = LowTri.T
             B_inv[p, :, i] = lu_solve(LowTri, UpTri,IDiag[:, i])
         #VarB[p] = np.diag(B_inv[p] * lambHist[p]/np.sum(lambHist))
         VarB[p] = B_inv[p] * lambHist[p] / np.sum(lambHist)
@@ -893,9 +891,9 @@ np.allclose(np.eye(len(SetB)), TryI)
 B_inv = np.zeros(np.shape(SetB))
 
 startTime = time.time()
+LowTri = np.linalg.cholesky(SetB)
+UpTri = LowTri.T
 for i in range(len(B)):
-    LowTri = np.linalg.cholesky(SetB)
-    UpTri = LowTri.T
     B_inv[:, i] = lu_solve(LowTri, UpTri,  np.eye(len(B))[:, i])
 
 print('time for B inverse ' + str(time.time()-startTime))
