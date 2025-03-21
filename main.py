@@ -492,8 +492,8 @@ B_inv_L = np.zeros(np.shape(B))
 #     # if exitCode != 0:
 #     #     print('B_inv_L ' + str(exitCode))
 # print('time for B inverse ' + str(time.time()-startTime))
-LowTri = np.linalg.cholesky(B)
-UpTri = LowTri.T
+# LowTri = np.linalg.cholesky(B)
+# UpTri = LowTri.T
 for i in range(len(B)):
     B_inv_L[:, i] = lu_solve(LowTri, UpTri,  L[:, i])
 print('time for B inverse ' + str(time.time()-startTime))
@@ -775,6 +775,7 @@ def postMeanAndVar(margPDF, Grid, ATy, ATA, L, Var):
         SetGamma = Grid[0, p]
         SetLambda = Grid[1,p]
 
+
         SetB = ATA + SetLambda * L
 
         LowTri = np.linalg.cholesky(SetB)
@@ -784,14 +785,15 @@ def postMeanAndVar(margPDF, Grid, ATy, ATA, L, Var):
         MargResults[p, :] = B_inv_A_trans_y * margPDF[1,p]
 
         if Var == True:
-            LowTri = np.linalg.cholesky(SetB)
-            UpTri = LowTri.T
+            # LowTri = np.linalg.cholesky(SetB)
+            # UpTri = LowTri.T
             for i in range(len(SetB)):
                 B_inv[p, :, i] = lu_solve(LowTri, UpTri,IDiag[:, i])
             VarB[p] = B_inv[p] *  margPDF[1,p]
             gamInt[p] = 1/SetGamma *  margPDF[0,p]
 
     postMean = np.sum(MargResults,0)
+    #postMean = (Grid[1, 1] - Grid[1, 0]) * scy.integrate.trapezoid(MargResults, axis = 0)
     postVar = np.sum(gamInt) * np.sum(VarB,0)
     return postMean, postVar
 
@@ -801,26 +803,27 @@ def postMeanAndVar(margPDF, Grid, ATy, ATA, L, Var):
 BinHistStart = 3
 print(BinHistStart)
 oldpostMean = 0
-for PostMeanBinHist in range(BinHistStart+1,100):
+for PostMeanBinHist in range(BinHistStart+1,50,1):
 
     lambHist, lambBinEdges = np.histogram(lambdas[burnIn:], bins= PostMeanBinHist, density =True)
     gamHist, gamBinEdges = np.histogram(gammas[burnIn:], bins= PostMeanBinHist, density =True)
     margPDF = np.array([gamHist/np.sum(gamHist) , lambHist/np.sum(lambHist)])
     Grid = np.array([ gamBinEdges[:-1] + (gamBinEdges[1:] - gamBinEdges[:-1])/2, lambBinEdges[:-1] + (lambBinEdges[1:] - lambBinEdges[:-1])/2])
+    #Grid = np.array([ gamBinEdges[:-1], lambBinEdges[:-1]])
 
     startTime = time.time()
-    newPostMean, postVar = postMeanAndVar(margPDF, Grid, ATy, ATA, L, True)
+    newPostMean, postVar = postMeanAndVar(margPDF, Grid, ATy, ATA, L, False)
     MargTime = time.time() - startTime
 
     newRelErr = np.linalg.norm(oldpostMean - newPostMean) / np.linalg.norm(newPostMean) * 100
     print(newRelErr)
-    if  0.5 > newRelErr:
+    if  0.1 > newRelErr:
         print(f'break at {PostMeanBinHist}')
         break
     oldpostMean = np.copy(newPostMean)
     oldRelErr = np.copy(newRelErr)
 
-
+newPostMean, postVar = postMeanAndVar(margPDF, Grid, ATy, ATA, L, True)
 MargX =  newPostMean / (num_mole * S[ind,0]  * f_broad * 1e-4 * scalingConst)
 MargVar = postVar / (num_mole * S[ind, 0] * f_broad * 1e-4 * scalingConst) ** 2
 
