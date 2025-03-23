@@ -17,7 +17,7 @@ from numpy.random import uniform, normal, gamma
 import scipy as scy
 from matplotlib.ticker import FuncFormatter
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes, mark_inset
-import tikzplotlib
+#import tikzplotlib
 #mpl.rc('text.latex', preamble=r"\boldmath")
 
 """ for plotting figures,
@@ -793,23 +793,27 @@ def postMeanAndVar(margPDF, Grid, ATy, ATA, L, Var):
             gamInt[p] = 1/SetGamma *  margPDF[0,p]
 
     postMean = np.sum(MargResults,0)
-    #postMean = (Grid[1, 1] - Grid[1, 0]) * scy.integrate.trapezoid(MargResults, axis = 0)
+    #postMean = scy.integrate.trapezoid(MargResults, x=Grid[1], dx=(Grid[1, 1] - Grid[1, 0]), axis=0)
+    # fig, axs = plt.subplots(figsize=set_size(PgWidthPt, fraction=fraction))
+    # axs.plot(MargResults[:,30])
+    # plt.show()
+    #postMean = scy.integrate.simpson(MargResults, dx=(Grid[1, 1] - Grid[1, 0]), axis = 0)
     postVar = np.sum(gamInt) * np.sum(VarB,0)
     return postMean, postVar
 
 
 ##
 
-BinHistStart = 3
+BinHistStart = 20
 print(BinHistStart)
 oldpostMean = 0
-for PostMeanBinHist in range(BinHistStart+1,50,1):
+for PostMeanBinHist in range(BinHistStart+1,22,1):
 
     lambHist, lambBinEdges = np.histogram(lambdas[burnIn:], bins= PostMeanBinHist, density =True)
     gamHist, gamBinEdges = np.histogram(gammas[burnIn:], bins= PostMeanBinHist, density =True)
     margPDF = np.array([gamHist/np.sum(gamHist) , lambHist/np.sum(lambHist)])
     Grid = np.array([ gamBinEdges[:-1] + (gamBinEdges[1:] - gamBinEdges[:-1])/2, lambBinEdges[:-1] + (lambBinEdges[1:] - lambBinEdges[:-1])/2])
-    #Grid = np.array([ gamBinEdges[:-1], lambBinEdges[:-1]])
+    Grid = np.array([ gamBinEdges[:-1], lambBinEdges[:-1]])
 
     startTime = time.time()
     newPostMean, postVar = postMeanAndVar(margPDF, Grid, ATy, ATA, L, False)
@@ -830,7 +834,10 @@ MargVar = postVar / (num_mole * S[ind, 0] * f_broad * 1e-4 * scalingConst) ** 2
 NormMargRes = np.linalg.norm(np.matmul(A, newPostMean) - y[0::, 0])
 xTLxMargRes = np.sqrt(np.matmul(np.matmul(newPostMean.T, L), newPostMean))
 
-
+fig, axs = plt.subplots(figsize=set_size(PgWidthPt, fraction=fraction))
+axs.plot(MargX, height_values)
+axs.plot(VMR_O3, height_values)
+plt.show()
 print('Post Mean in ' + str(MargTime) + ' s')
 
 print('MTC Done in ' + str(elapsedMWGH +  MargTime) + ' s')
