@@ -11,12 +11,13 @@ from scipy import constants, optimize
 from scipy.sparse.linalg import gmres
 import matplotlib.pyplot as plt
 #import tikzplotlib
-plt.rcParams.update({'font.size': 18})
+#plt.rcParams.update({'font.size': 18})
 import pandas as pd
 from numpy.random import uniform, normal, gamma
 import scipy as scy
 from matplotlib.ticker import FuncFormatter
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes, mark_inset
+from puwr import tauint, correlated_data
 #import tikzplotlib
 #mpl.rc('text.latex', preamble=r"\boldmath")
 
@@ -36,11 +37,22 @@ scientific_formatter = FuncFormatter(scientific)
 # 'axes.labelsize': 12,  # -> axis labels
 # 'legend.fontsize': 12,
 fraction = 1.5
-pgf_params = { "pgf.texsystem": "pdflatex",
-    'text.usetex': True,
-    'pgf.rcfonts': False,
-'axes.labelsize': 12,  # -> axis labels
-'legend.fontsize': 12}
+# pgf_params = { "pgf.texsystem": "pdflatex",
+#     'text.usetex': True,
+#     'pgf.rcfonts': False,
+# 'axes.labelsize': 12,  # -> axis labels
+# 'legend.fontsize': 12}
+defBack = mpl.get_backend()
+mpl.use(defBack)
+#mpl.use("png") bbox_inches='tight'
+mpl.rcParams.update(mpl.rcParamsDefault)
+plt.rcParams.update({'font.size': 10})
+#plt.rcParams["font.serif"] = "cmr"
+plt.rcParams.update({  'text.usetex': True,
+                         'font.family' : 'serif',
+                     'font.serif'  : 'cm',
+                        'font.size': 12,
+                     'text.latex.preamble': r'\usepackage{bm, amsmath}'})
 
 dpi = 300
 
@@ -59,7 +71,7 @@ dataCol = [225/255, 190/255, 106/255]
 regCol = [212/255, 17/255, 89/255]
 #MargCol = [86/255, 180/255, 233/255]
 MargCol = [255/255, 194/255, 10/255]
-defBack = mpl.get_backend()
+
 
 
 ResCol = "#1E88E5"#"#0072B2"
@@ -325,24 +337,24 @@ numDensO3 =  N_A * press * 1e2 * O3 / (R * temp_values[0,:]) * 1e-6
 
 
 
-fig, axs = plt.subplots(tight_layout=True, figsize=set_size(PgWidthPt, fraction=fraction))
-#plt.plot(press/1013.25,heights, label = 'pressure in hPa/' + str(np.around(max(press),3)) )
-#plt.plot(Source/max(Source),height_values, label = r'Source in $\frac{W}{m^2 sr}\frac{1}{\frac{1}{cm}}$/' + str(np.around(max(Source[0]),5)) )
-plt.plot(temperature,heights, color = 'darkred')# label = r'Source in K/' + str(np.around(max(temperature[0]),3)) )
-#plt.plot(LineInt,heights[minInd:maxInd], color = 'darkred')# label = r'Source in K/' + str(np.around(max(temperature[0]),3)) )
-#axs.legend()
-axs.tick_params(axis = 'x', labelcolor="darkred")
-ax2 = axs.twiny() # ax1 and ax2 share y-axis
-line3 = ax2.plot(press[minInd:maxInd],heights[minInd:maxInd], color = 'blue') #, label = 'pressure in hPa/' + str(np.around(max(press),3)) )
-ax2.spines['top'].set_color('blue')
-ax2.tick_params(labelcolor="blue")
-ax2.set_xlabel('Pressure in hPa')
-axs.set_ylabel('Height in km')
-axs.set_xlabel('Temperature in K')
-#axs.set_xlabel('Line intensity in cm / molecule')
-#axs.set_title()
-plt.savefig('PandQ.png')
-plt.show()
+# fig, axs = plt.subplots(tight_layout=True, figsize=set_size(PgWidthPt, fraction=fraction))
+# #plt.plot(press/1013.25,heights, label = 'pressure in hPa/' + str(np.around(max(press),3)) )
+# #plt.plot(Source/max(Source),height_values, label = r'Source in $\frac{W}{m^2 sr}\frac{1}{\frac{1}{cm}}$/' + str(np.around(max(Source[0]),5)) )
+# plt.plot(temperature,heights, color = 'darkred')# label = r'Source in K/' + str(np.around(max(temperature[0]),3)) )
+# #plt.plot(LineInt,heights[minInd:maxInd], color = 'darkred')# label = r'Source in K/' + str(np.around(max(temperature[0]),3)) )
+# #axs.legend()
+# axs.tick_params(axis = 'x', labelcolor="darkred")
+# ax2 = axs.twiny() # ax1 and ax2 share y-axis
+# line3 = ax2.plot(press[minInd:maxInd],heights[minInd:maxInd], color = 'blue') #, label = 'pressure in hPa/' + str(np.around(max(press),3)) )
+# ax2.spines['top'].set_color('blue')
+# ax2.tick_params(labelcolor="blue")
+# ax2.set_xlabel('Pressure in hPa')
+# axs.set_ylabel('Height in km')
+# axs.set_xlabel('Temperature in K')
+# #axs.set_xlabel('Line intensity in cm / molecule')
+# #axs.set_title()
+# plt.savefig('PandQ.png')
+# plt.show()
 
 
 A = A_lin * A_scal.T
@@ -623,8 +635,16 @@ def MHwG(number_samples, burnIn, lambda0, gamma0, f_0):
         # delta_f = f_new - f_old
         # delta_g = g_new - g_old
 
-        delta_f = f_0_1 * delta_lam + f_0_2 * delta_lam**2 + f_0_3 * delta_lam**3
-        delta_g = g_0_1 * delta_lam + g_0_2 * delta_lam**2 + g_0_3 * delta_lam**3
+        # delta_f = f_0_1 * delta_lam + f_0_2 * delta_lam**2 + f_0_3 * delta_lam**3
+        # delta_g = g_0_1 * delta_lam + g_0_2 * delta_lam**2 + g_0_3 * delta_lam**3
+
+        delta_lam = lam_p - lambdas[t]
+        delta_lam_t = lambdas[t] - lam0
+        delta_lam_p = lam_p - lam0
+        delta_f = f_0_1 * delta_lam + f_0_2 * (delta_lam_p**2 - delta_lam_t**2) + f_0_3 *(delta_lam_p**3 - delta_lam_t**3) #+ f_0_4 * delta_lam**4 + f_0_5 * delta_lam**5
+        delta_g = g_0_1 * delta_lam + g_0_2 * (delta_lam_p**2 - delta_lam_t**2) + g_0_3 * (delta_lam_p**3 - delta_lam_t**3) #+ g_0_4 * delta_lam**4 + g_0_5 * delta_lam**5
+
+
 
         log_MH_ratio = ((SpecNumLayers)/ 2) * (np.log(lam_p) - np.log(lambdas[t])) - 0.5 * (delta_g + gammas[t] * delta_f) - betaD * gammas[t] * delta_lam
 
@@ -644,6 +664,8 @@ def MHwG(number_samples, burnIn, lambda0, gamma0, f_0):
             #         print(exitCode)
 
             #f_new = f(ATy, y,  B_inv_A_trans_y)
+            delta_lam_p = lam_p - lam0
+            delta_f = f_0_1 * delta_lam_p + f_0_2 * delta_lam_p ** 2 + f_0_3 * delta_lam_p ** 3
             f_new = f_0 + delta_f
             #g_old = np.copy(g_new)
             rate = f_new/2 + betaG + betaD * lam_p#lambdas[t+1]
@@ -674,23 +696,31 @@ print('acceptance ratio: ' + str(k/(number_samples+burnIn)))
 deltas = lambdas * gammas
 np.savetxt('samples.txt', np.vstack((gammas[burnIn::], deltas[burnIn::], lambdas[burnIn::])).T, header = 'gammas \t deltas \t lambdas \n Acceptance Ratio: ' + str(k/number_samples) + '\n Elapsed Time: ' + str(elapsedMWGH), fmt = '%.15f \t %.15f \t %.15f')
 
+gam_mean, gam_del, gam_tint, gam_d_tint= tauint([[gammas]],0)
+lam_mean, lam_del, lam_tint, lam_d_tint = tauint([[lambdas]],0)
+
+print('gamma autocorr: ' +str(gam_tint))
+print('lambda autocorr: '+ str(lam_tint))
 #delt_aav, delt_diff, delt_ddiff, delt_itau, delt_itau_diff, delt_itau_aav, delt_acorrn = uWerr(deltas, acorr=None, s_tau=1.5, fast_threshold=5000)
 
-# import matlab.engine
-# eng = matlab.engine.start_matlab()
-# eng.Run_Autocorr_Ana_MTC(nargout=0)
-# eng.quit()
-#
-#
-# AutoCorrData = np.loadtxt("auto_corr_dat.txt", skiprows=3, dtype='float')
-# #IntAutoLam, IntAutoGam , IntAutoDelt = np.loadtxt("auto_corr_dat.txt",userow = 1, skiprows=1, dtype='float'
-#
-# with open("auto_corr_dat.txt") as fID:
-#     for n, line in enumerate(fID):
-#        if n == 1:
-#             IntAutoDelt, IntAutoGam, IntAutoLam = [float(IAuto) for IAuto in line.split()]
-#             break
-#
+import matlab.engine
+eng = matlab.engine.start_matlab()
+eng.Run_Autocorr_Ana_MTC(nargout=0)
+eng.quit()
+
+
+AutoCorrData = np.loadtxt("auto_corr_dat.txt", skiprows=3, dtype='float')
+#IntAutoLam, IntAutoGam , IntAutoDelt = np.loadtxt("auto_corr_dat.txt",userow = 1, skiprows=1, dtype='float'
+
+with open("auto_corr_dat.txt") as fID:
+    for n, line in enumerate(fID):
+       if n == 1:
+            IntAutoGam, IntAutoDelt, IntAutoLam = [float(IAuto) for IAuto in line.split()]
+            break
+
+print('Matlab gamma autocorr: ' +str(IntAutoGam))
+print('Matlab lambda autocorr: '+ str(IntAutoLam))
+
 #
 #
 # #refine according to autocorrelation time
@@ -709,7 +739,7 @@ np.savetxt('samples.txt', np.vstack((gammas[burnIn::], deltas[burnIn::], lambdas
 
 ##
 #draw paramter samples
-paraSamp = 2000#n_bins
+paraSamp = 200#n_bins
 Results = np.zeros((paraSamp,len(theta)))
 NormRes = np.zeros(paraSamp)
 xTLxRes = np.zeros(paraSamp)
@@ -834,10 +864,10 @@ MargVar = postVar / (num_mole * S[ind, 0] * f_broad * 1e-4 * scalingConst) ** 2
 NormMargRes = np.linalg.norm(np.matmul(A, newPostMean) - y[0::, 0])
 xTLxMargRes = np.sqrt(np.matmul(np.matmul(newPostMean.T, L), newPostMean))
 
-fig, axs = plt.subplots(figsize=set_size(PgWidthPt, fraction=fraction))
-axs.plot(MargX, height_values)
-axs.plot(VMR_O3, height_values)
-plt.show()
+# fig, axs = plt.subplots(figsize=set_size(PgWidthPt, fraction=fraction))
+# axs.plot(MargX, height_values)
+# axs.plot(VMR_O3, height_values)
+# plt.show()
 print('Post Mean in ' + str(MargTime) + ' s')
 
 print('MTC Done in ' + str(elapsedMWGH +  MargTime) + ' s')
@@ -921,9 +951,9 @@ f_max = f(ATy, y, B_max_inv_A_trans_y)
 
 
 ##
-mpl.use(defBack)
-mpl.rcParams.update(mpl.rcParamsDefault)
-plt.rcParams.update({'font.size': 12})
+# mpl.use(defBack)
+# mpl.rcParams.update(mpl.rcParamsDefault)
+# plt.rcParams.update({'font.size': 12})
 fCol = [0, 144/255, 178/255]
 gCol = [230/255, 159/255, 0]
 #gCol = [240/255, 228/255, 66/255]
@@ -932,7 +962,7 @@ gmresCol = [204/255, 121/255, 167/255]
 
 delta_lam = lambBinEdges - minimum[1]
 
-fig,axs = plt.subplots(figsize=set_size(PgWidthPt, fraction=fraction))#, dpi = dpi)
+fig,axs = plt.subplots(figsize=set_size(PgWidthPt, fraction=fraction), tight_layout = True)#, dpi = dpi)
 
 axs.plot(lam,f_func, color = fCol, zorder = 2, linestyle=  'dotted')
 
@@ -982,7 +1012,7 @@ axins.plot(lambBinEdges,f_tayl(delta_lam, f_mode, f_0_1, f_0_2, f_0_3, f_0_4), c
 #axins.scatter(minimum[1],f_mode, color = gmresCol, s= 95, zorder=0, marker = 's', label = r'\texttt{optimize.fmin()}')
 axins.set_xlim(min(lambdas),max(lambdas))
 axins.set_ylim(4.5e8,9e8)
-axins.set_xlabel('$\lambda$')
+#axins.set_xlabel('$\lambda$')
 axins.set_xlim([np.mean(lambdas) -np.sqrt(np.var(lambdas)), 1.5*np.mean(lambdas) + np.sqrt(np.var(lambdas))])# apply the x-limits
 axins.set_yscale('log')
 axins.set_xscale('log')
@@ -1002,6 +1032,7 @@ axs.legend(lines, lab0, loc = 'lower right')
 
 
 axin2.tick_params(axis = 'y', which = 'both',labelright=False, right=False)
+
 axin2.tick_params(axis='y', which='both', length=0)
 # #axin2.set_xticks([np.mean(lambdas) -np.sqrt(np.var(lambdas)) , np.mean(lambdas), np.mean(lambdas) + np.sqrt(np.var(lambdas)) ] )
 axin2.plot(lam,g_func, color = gCol, zorder=3, linestyle=  'dashed', linewidth = 3)
@@ -1036,16 +1067,16 @@ plt.show()
 # tikzplotlib_fix_ncols(fig)
 # tikzplotlib.save("f_and_g_paper.pgf")
 ##
-fig,axs = plt.subplots(figsize=set_size(PgWidthPt, fraction=fraction))#, dpi = dpi)
-axs.plot(lambBinEdges, g_tayl(delta_lam, g(A, L, minimum[1]) ,g_0_1, g_0_2, g_0_3, g_0_4,g_0_5, g_0_6), color = 'k')
-axs.plot(lam,g_func, color = gCol, linestyle=  'dashed')
-#axs.set_xscale('log')
-plt.show()
+# fig,axs = plt.subplots(figsize=set_size(PgWidthPt, fraction=fraction))#, dpi = dpi)
+# axs.plot(lambBinEdges, g_tayl(delta_lam, g(A, L, minimum[1]) ,g_0_1, g_0_2, g_0_3, g_0_4,g_0_5, g_0_6), color = 'k')
+# axs.plot(lam,g_func, color = gCol, linestyle=  'dashed')
+# #axs.set_xscale('log')
+# plt.show()
 ##
-plt.close()
-mpl.use('pgf')
-mpl.rcParams.update(pgf_params)
-fig.savefig('f_and_g_paper.pgf', bbox_inches='tight', dpi = 300)
+# plt.close()
+# mpl.use('pgf')
+# mpl.rcParams.update(pgf_params)
+# fig.savefig('f_and_g_paper.pgf', bbox_inches='tight', dpi = 300)
 
 print('bla')
 
@@ -1135,10 +1166,10 @@ xTLxOpt = np.sqrt(np.matmul(np.matmul(x_opt.T, L), x_opt))
 SampleNorm = np.linalg.norm( np.matmul(A,np.mean(Results,0 )) - y[0::,0])
 SamplexTLx = np.sqrt(np.matmul(np.matmul(np.mean(Results,0 ).T, L), np.mean(Results,0 )))
 
-plt.close('all')
-mpl.use(defBack)
-mpl.rcParams.update(mpl.rcParamsDefault)
-mpl.rcParams.update({'font.size': 12})#,
+# plt.close('all')
+# mpl.use(defBack)
+# mpl.rcParams.update(mpl.rcParamsDefault)
+# mpl.rcParams.update({'font.size': 12})#,
 # {'text.usetex': True})
 # mpl.rcParams['mathtext.fontset'] = 'custom'
 # mpl.rcParams['mathtext.it'] = 'STIXGeneral:italic'
@@ -1182,8 +1213,8 @@ axs.indicate_inset_zoom(axins, edgecolor="none")
 
 axs.set_xscale('log')
 axs.set_yscale('log')
-axs.set_ylabel(r'$ \sqrt{\mathbf{x}^T \mathbf{L}\mathbf{x}}$', style='italic')
-axs.set_xlabel(r'$|| \mathbf{Ax} - \mathbf{y}||$')
+axs.set_ylabel(r'$ \sqrt{\bm{x}^T \bm{L}\bm{x}}$', style='italic')
+axs.set_xlabel(r'$|| \bm{Ax} - \bm{y}||$')
 #axs.set_title('L-curve for m=' + str(SpecNumMeas))
 mark_inset(axs, axins, loc1=1, loc2=3, fc="none", ec="0.5")
 
@@ -1203,10 +1234,10 @@ np.savetxt('RegSol.txt',x_opt /(num_mole * S[ind,0]  * f_broad * 1e-4 * scalingC
 ##
 
 
-mpl.use('pgf')
-mpl.rcParams.update(pgf_params)
-
-fig.savefig('LCurve.pgf', bbox_inches='tight')
+# mpl.use('pgf')
+# mpl.rcParams.update(pgf_params)
+#
+# fig.savefig('LCurve.pgf', bbox_inches='tight')
 
 
 ## make scatter plot for results
@@ -1220,9 +1251,9 @@ lambHist, lambBinEdges = np.histogram(lambdas, bins= PostMeanBinHist, density= T
 #paramsSkew, covs = scy.optimize.curve_fit(skew_norm_pdf,lambBinEdges[1::], lambHist/ np.sum(lambHist), p0 = [np.mean(lambBinEdges[1::]),np.sqrt(np.var(lambdas)),0.01, 1] )#np.mean(new_lamb)+1e3
 paramsSkew, covs = scy.optimize.curve_fit(fitFunc,lambBinEdges[1:], lambHist, p0 = [np.mean(lambdas), 1, np.sqrt(np.var(lambdas))], bounds=(0, np.inf))
 
-mpl.use(defBack)
-mpl.rcParams.update(mpl.rcParamsDefault)
-plt.rcParams.update({'font.size': 12})
+# mpl.use(defBack)
+# mpl.rcParams.update(mpl.rcParamsDefault)
+# plt.rcParams.update({'font.size': 12})
 fig, axs = plt.subplots(2, 1,tight_layout=True,figsize=set_size(PgWidthPt, fraction=fraction), gridspec_kw={'height_ratios': [3, 1]} )#, dpi = dpi)
 
 #axs[0].scatter(gammas[burnIn::math.ceil(IntAutoLam)+5],deltas[burnIn::math.ceil(IntAutoLam)+5], marker = '.', color = MTCCol)
@@ -1240,6 +1271,7 @@ axs[1].plot(lambBinEdges[1::], fitFunc(lambBinEdges[1::], *paramsSkew )/np.sum(f
 axs[1].axvline( lam_opt, color = RegCol,linewidth=2)
 axs[1].axvline(minimum[1], zorder = 1,color = gmresCol)
 axs[1].set_title(r'$\lambda =\delta / \gamma$, the regularization parameter', fontsize = 12)
+axs[1].set_ylabel(r'$\pi(\lambda|\gamma,\bm{y})$', fontsize = 12)
 xlabels = [item.get_text() for item in axs[1].get_xticklabels()]
 xticks = axs[1].get_xticks()
 xlabels = np.append(xlabels[:-1], [r'$\lambda_R$', r'$\lambda_0$'])
@@ -1255,9 +1287,9 @@ plt.show()
 ##
 
 
-mpl.use('pgf')
-mpl.rcParams.update(pgf_params)
-fig.savefig('ScatterplusHisto.pgf', bbox_inches='tight')
+# mpl.use('pgf')
+# mpl.rcParams.update(pgf_params)
+# fig.savefig('ScatterplusHisto.pgf', bbox_inches='tight')
 # mpl.use(defBack)
 # mpl.rcParams.update(mpl.rcParamsDefault)
 
@@ -1275,27 +1307,26 @@ TrueCol = [50/255,220/255, 0/255]#'#02ab2e'
 xerr = np.sqrt(np.var(Results,0)/(num_mole *S[ind,0]  * f_broad * 1e-4 * scalingConst)**2)/2
 XOPT = x_opt /(num_mole * S[ind,0]  * f_broad * 1e-4 * scalingConst)
 #MargX = MargInteg/ (num_mole * S[ind,0]  * f_broad * 1e-4 * scalingConst)
-mpl.use(defBack)
-#mpl.use("png") bbox_inches='tight'
-mpl.rcParams.update(mpl.rcParamsDefault)
-plt.rcParams.update({'font.size': 10})
-plt.rcParams["font.serif"] = "cmr"
+
+# 'font.family': 'serif',
+# 'font.serif': 'cm',
+
 fig3, ax2 = plt.subplots(figsize=set_size(245, fraction=fraction))
  # ax1 and ax2 share y-axis
 line3 = ax2.scatter(y, tang_heights_lin, label = r'data', zorder = 0, marker = '*', color =DatCol )#,linewidth = 5
 
 ax1 = ax2.twiny()
 #ax1.scatter(VMR_O3,height_values,marker = 'o', facecolor = 'None', color = "#009E73", label = 'true profile', zorder=1, s =12)#,linewidth = 5)
-ax1.plot(VMR_O3,height_values,marker = 'o',markerfacecolor = TrueCol, color = TrueCol , label = 'true profile', zorder=0 ,linewidth = 1.5, markersize =7)
+ax1.plot(VMR_O3,height_values,marker = 'o',markerfacecolor = TrueCol, color = TrueCol , label = 'true profile', zorder=1 ,linewidth = 1.5, markersize =7)
 
 # edgecolor = [0, 158/255, 115/255]
 #line1 = ax1.plot(VMR_O3,height_values, color = [0, 158/255, 115/255], linewidth = 10, zorder=0)
-for n in range(0,paraSamp,1):
+for n in range(0,paraSamp,10):
 #for n in range(0, PostMeanBinHist-1):
     #Sol =  B_inv_Res[n, :] / (num_mole * S[ind, 0] * f_broad * 1e-4 * scalingConst)
     Sol =  Results[n, :] / (num_mole * S[ind, 0] * f_broad * 1e-4 * scalingConst)
 
-    ax1.plot(Sol,height_values,marker= '+',color = ResCol,label = 'posterior samples ', zorder = 1, linewidth = 0.5, markersize = 5)
+    ax1.plot(Sol,height_values,marker= '+',color = ResCol,label = 'post. samples ', zorder = 0, linewidth = 0.5, markersize = 5)
     with open('Samp' + str(n) +'.txt', 'w') as f:
         for k in range(0, len(Sol)):
             f.write('(' + str(Sol[k]) + ' , ' + str(height_values[k]) + ')')
@@ -1304,10 +1335,11 @@ for n in range(0,paraSamp,1):
 # ax1.plot(Sol, height_values, marker='+', color=ResCol, label='posterior samples ', zorder=4, linewidth=0.5,
 # markersize=2, linestyle = 'none')
 #$\mathbf{x} \sim \pi(\mathbf{x} |\mathbf{y}, \mathbf{\theta} ) $' , markerfacecolor = 'none'
-ax1.plot(XOPT, height_values, markerfacecolor = 'none', markeredgecolor = RegCol, color = RegCol ,marker='v', zorder=1, label='regularized sol. ', markersize =8, linewidth = 2 )# color="#D55E00"
+ax1.plot(XOPT, height_values, markerfacecolor = 'none', markeredgecolor = RegCol, color = RegCol ,marker='v', zorder=1, label='regularised sol. ', markersize =8, linewidth = 2 )# color="#D55E00"
 #line2 = ax1.errorbar(x,height_values,capsize=5, yerr = np.zeros(len(height_values)) ,color = MTCCol,zorder=5,markersize = 5, fmt = 'o',label = r'$\mathbf{x} \sim \pi(\mathbf{x} |\mathbf{y}, \mathbf{\theta} ) $')#, label = 'MC estimate')
 #line3 = ax1.plot(MargX,height_values, markeredgecolor =MeanCol, color = MeanCol ,zorder=3, marker = '.', label = 'posterior mean ', markersize =3, linewidth =1)#, markerfacecolor = 'none'
-line3 = ax1.errorbar(MargX,height_values,  xerr = 3*np.sqrt(np.diag(MargVar)), markeredgecolor =MeanCol, color = MeanCol ,zorder=3, marker = '.', label = 'posterior mean ', markersize =3, linewidth =1)#, markerfacecolor = 'none'
+line3 = ax1.errorbar(MargX,height_values,  xerr = 3*np.sqrt(np.diag(MargVar)), capsize = 3, markeredgecolor =MeanCol, color = MeanCol ,zorder=3, marker = '.', markersize =3, linewidth =1)#, markerfacecolor = 'none'
+line3 = ax1.errorbar(MargX,height_values,  yerr = np.zeros(len(height_values)), capsize = 3, markeredgecolor =MeanCol, color = MeanCol ,zorder=3, marker = '.', label = r'$\bm{\mu}_{\bm{x}|\bm{y}} + 3 \bm{\sigma}_{\bm{x}|\bm{y}}$ ', markersize =3, linewidth =1)#, markerfacecolor = 'none'
 
 #E$_{\mathbf{x},\mathbf{\theta}| \mathbf{y}}[h(\mathbf{x})]$
 # markersize = 6
@@ -1328,7 +1360,7 @@ handles2, labels2 = ax2.get_legend_handles_labels()
 # Labels =  [labels[0], labels[1], labels[2]]
 # LegendVertical(ax1, Handles, Labels, 90, XPad=-45, YPad=12)
 
-#legend = ax1.legend(handles = [handles[-3], handles2[0], handles[0],handles[-2],handles[-1]], loc='lower right', framealpha = 0.2,fancybox=True)#, bbox_to_anchor=(1.01, 1.01), frameon =True)
+legend = ax1.legend(handles = [handles[-3], handles2[0], handles[0],handles[-2],handles[-1]], loc='upper right', framealpha = 0.2,fancybox=True)#, bbox_to_anchor=(1.01, 1.01), frameon =True)
 
 #plt.ylabel('Height in km')
 ax1.set_ylim([heights[minInd-1], heights[maxInd+1]])
@@ -1336,7 +1368,7 @@ ax1.set_ylim([heights[minInd-1], heights[maxInd+1]])
 #ax1.set_xlim([min(x)-max(xerr)/2,max(x)+max(xerr)/2]) Ozone
 
 
-#ax2.set_xlabel(r'Spectral radiance in $\frac{\text{W } \text{cm}}{\text{m}^2 \text{ sr}} $',labelpad=10)# color =dataCol,
+ax2.set_xlabel(r'Spectral radiance in $\frac{\text{W } \text{cm}}{\text{m}^2 \text{ sr}} $',labelpad=10)# color =dataCol,
 ax2.tick_params(colors = DatCol, axis = 'x')
 ax2.xaxis.set_ticks_position('top')
 ax2.xaxis.set_label_position('top')
@@ -1398,10 +1430,10 @@ with open('SimData.txt', 'w') as f:
 
 ##
 
-mpl.use('pgf')
-mpl.rcParams.update(pgf_params)
-fig3.savefig('FirstRecRes.pgf')#, dpi = dpi)
-
+# mpl.use('pgf')
+# mpl.rcParams.update(pgf_params)
+# fig3.savefig('FirstRecRes.pgf')#, dpi = dpi)
+#
 
 
 
